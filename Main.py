@@ -4,7 +4,7 @@ import Detection as det
 from Tracking import TrackingMethod
 
 Video_load = 'zebrafish_video.mp4'
-# Video_load = 'randomball.mp4'
+'Git push test'
 Mask_file_load = 'mask1.png'
 mask_on = False
 
