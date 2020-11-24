@@ -1,3 +1,4 @@
+
 import cv2
 import numpy as np
 import time
@@ -11,7 +12,11 @@ from sklearn.cluster import MiniBatchKMeans
 
 Video_load = 'zebrafish_video.mp4'
 # Video_load = 'randomball.mp4'
+
 Mask_file_load = 'mask1.png'
+
+debug = 1
+
 mask_on = False
 
 obj_num = 11
@@ -33,11 +38,11 @@ mark_on = 0
 ## blocksize_ini: the initial value of block size used for adaptive thresholding
 ## blocksize_max: the max value of block size track bar
 ## offset_ini: the initial value of offset used for adaptive thresholding
-blocksize_ini = 13
-offset_ini = 10
+blocksize_ini = 19
+offset_ini = 7
 
-cnt_min_th = 100
-cnt_max_th = 500
+cnt_min_th = 200
+cnt_max_th = 1000
 
 scaling = 1.0
 
@@ -70,7 +75,15 @@ def thresh_video(vid, block_size, offset):
                                    cv2.THRESH_BINARY_INV,
                                    block_size,
                                    offset)
-
+    ## debug mode
+    ## tune threshold parameters
+    if debug == 1:
+        # cv2.namedWindow('blur', cv2.WINDOW_NORMAL)
+        # cv2.imshow('blur',vid)
+        cv2.namedWindow('gray', cv2.WINDOW_NORMAL)
+        cv2.imshow('gray',vid_gray)
+        cv2.namedWindow('threshold', cv2.WINDOW_NORMAL)
+        cv2.imshow('threshold',vid_th)
     ## Dilation followed by erosion to closing small holes inside the foreground objects
     kernel = np.ones((5, 5), np.uint8)
     vid_closing = cv2.morphologyEx(vid_th, cv2.MORPH_CLOSE, kernel)
@@ -135,6 +148,9 @@ def detect_contours(vid, masked_th, min_th, max_th):
         try:
             ## calculate contour area for current contour
             cnt_th = cv2.contourArea(contours[i])
+            ## Under debug mode, print contour area for threshold tuning reference
+            if debug == 1:
+                print(cnt_th)
             ## delete contour if not meet the threshold
             if cnt_th < min_th or cnt_th > max_th:
                 del contours[i]
@@ -163,7 +179,7 @@ def detect_contours(vid, masked_th, min_th, max_th):
 
 def main():
 
-    video = cv2.VideoCapture(Video_load)
+    video = cv2.VideoCapture(0)
 
     cv2.namedWindow('Test', cv2.WINDOW_NORMAL)
 
@@ -253,7 +269,7 @@ def main():
                 cv2.putText(contour_vid,
                             obj_id[i % len(TrackingMethod.registration)],
                             tuple([int(x) for x in TrackingMethod.registration[i].pos_prediction]),
-                            1, 2, (0, 0, 0), 2)
+                            1, 2, (0, 0, 255), 2)
 
                 ## display the trajectory
                 # if (len(TrackingMethod.registration[i].trajectory) > 1):
