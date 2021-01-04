@@ -1,10 +1,16 @@
 
+# try:
+#     import numpy as np
+# except Exception as e:
+#     print(e, "\nPlease Install the package")
+
 import cv2
 import numpy as np
 import time
-#from Kalman import KalmanFilter
+# from Kalman import KalmanFilter
 #from Kalman_branch import KalmanFilter
 from KF_Track import TrackingMethod
+from Interactive import DrawLineWidget
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
@@ -15,7 +21,7 @@ Video_load = 'zebrafish_video.mp4'
 
 Mask_file_load = 'mask1.png'
 
-debug = 1
+debug = 0
 
 mask_on = False
 
@@ -34,21 +40,23 @@ colours = [(0, 0, 255), (0, 255, 255), (255, 0, 255), (255, 255, 255), (255, 255
 
 mark_on = 0
 
+
+
 ## define constant for color threshold
 ## blocksize_ini: the initial value of block size used for adaptive thresholding
 ## blocksize_max: the max value of block size track bar
 ## offset_ini: the initial value of offset used for adaptive thresholding
-blocksize_ini = 19
-offset_ini = 7
+blocksize_ini = 13
+offset_ini = 11
 
-cnt_min_th = 200
+cnt_min_th = 100
 cnt_max_th = 1000
 
 scaling = 1.0
 
 # for test parameter of kalman filter on the predicted position and updated position
 # directly using Kalman.py, do not need if using import from KF_track
-#KF = KalmanFilter(0.1, 1, 1, 0.5, 0.1, 0.1)
+# KF = KalmanFilter(0.1, 1, 1, 0.5, 0.1, 0.1)
 
 # same as above but for Kalmanfilter_branch.py test
 #KF=KalmanFilter(0.1)
@@ -177,20 +185,35 @@ def detect_contours(vid, masked_th, min_th, max_th):
     return vid_draw, contours, pos_detection, pos_archive
 
 
+
 def main():
 
-    video = cv2.VideoCapture(0)
+    video = cv2.VideoCapture(Video_load)
 
     cv2.namedWindow('Test', cv2.WINDOW_NORMAL)
+    # cv2.namedWindow('Ori', cv2.WINDOW_NORMAL)
+
+    frame_count = 0
+
+    drawingMode = 'Line'
+
+    ini_start = (0, 0)
+    ini_end = (0, 0)
 
     while True:
         ret, input_vid = video.read()
+        frame_count += 1
+
+        # ini_start = (0, 0)
+        # ini_end = (0, 0)
+
+
         mask_img = cv2.imread(Mask_file_load, 1)
-        input_vid = cv2.resize(input_vid,
-                               None,
-                               fx=scaling,
-                               fy=scaling,
-                               interpolation=cv2.INTER_LINEAR)
+        # input_vid = cv2.resize(input_vid,
+        #                        None,
+        #                        fx=scaling,
+        #                        fy=scaling,
+        #                        interpolation=cv2.INTER_LINEAR)
 
         tic = time.time()
         if mask_on == True:
@@ -229,7 +252,9 @@ def main():
             contour_vid, cnt, pos_detection, pos_archive = detect_contours(input_vid,
                                                                            th_masked,
                                                                            cnt_min_th,
-                                                                           cnt_max_th, )
+                                                                          cnt_max_th, )
+
+
 
         #############test kalman prediction##########################################
             ## Using Kalman.py
@@ -256,28 +281,30 @@ def main():
             # print(pos_detection[0])
          #############################################################################
 
-
+            # run tracking method
             TrackingMethod.identify(pos_detection)
 
-
-            ## mark indentity of each objects
+            # ## mark indentity of each objects
             for i in range(len(TrackingMethod.registration)):
                 # print(len(TrackingMethod.registration))
+                # display centroid
                 cv2.circle(contour_vid,
                            tuple([int(x) for x in TrackingMethod.registration[i].pos_prediction]),
-                           5, (255, 0, 0), -1, cv2.LINE_AA)
+                           1, (255, 0, 0), -1, cv2.LINE_AA)
+                # display indentity number
                 cv2.putText(contour_vid,
                             obj_id[i % len(TrackingMethod.registration)],
                             tuple([int(x) for x in TrackingMethod.registration[i].pos_prediction]),
                             1, 2, (0, 0, 255), 2)
 
-                ## display the trajectory
+                ## display the trajectory (circle)
                 # if (len(TrackingMethod.registration[i].trajectory) > 1):
                 #     for j in range(len(TrackingMethod.registration[i].trajectory)):
                 #         x = int(TrackingMethod.registration[i].trajectory[j][0][0])
                 #         y = int(TrackingMethod.registration[i].trajectory[j][1][0])
                 #         cv2.circle(contour_vid, (x, y), 1, (0,255,0), -1)
 
+                # display the trajectory (line)
                 if (len(TrackingMethod.registration[i].trajectory) > 1):
                     for j in range(len(TrackingMethod.registration[i].trajectory)-1):
                         x = int(TrackingMethod.registration[i].trajectory[j][0][0])
@@ -287,20 +314,54 @@ def main():
                         cv2.line(contour_vid, (x,y), (x1,y1),
                                  (0,255,0), 1)
 
+        draw_line = DrawLineWidget(contour_vid)
+        draw_start, draw_end = draw_line.drawing(ini_start, ini_end)
+        if drawingMode == 'Line':
+            cv2.line(draw_line.show_image(), draw_start, draw_end, (0, 0, 255), 2)
+        elif drawingMode == 'Rectangle':
+            cv2.rectangle(draw_line.show_image(), draw_start, draw_end, (0, 0, 255), 2)
+        elif drawingMode == 'Circle':
+            r = int(((draw_start[0]-draw_end[0])**2 + (draw_start[1]-draw_end[1])**2)**0.5)
+            cv2.circle(draw_line.show_image(), draw_start, r, (0, 0, 255), 2)
+
+
+        cv2.imshow('Test', draw_line.show_image())
+
+        # display current frame on video
+        cv2.putText(contour_vid,
+                    '% s' % frame_count,(150,50),
+                    1, 2, (0, 0, 0), 2)
+
 
         toc = time.time()
+        # print("Time Elapsed Per Loop {:.3f}".format((tic - toc)/50))
 
-        cv2.imshow('Test', contour_vid)
+        key = cv2.waitKey(1)
 
-        print("Time Elapsed Per Loop {:.3f}".format((tic - toc) / 50))
-
-        if cv2.waitKey(1) & 0xFF == ord('q'):
-            video.release()
+        if key == ord('q'):
             cv2.destroyAllWindows()
             break
+        elif key == ord('m') and drawingMode  == 'Line':
+            resetDrawing = True
+            drawingMode  = 'Rectangle'
+            print('Drawing mode : Rectangle')
+            continue
+        elif key == ord('m') and drawingMode  == 'Rectangle':
+            resetDrawing = True
+            drawingMode  = 'Circle'
+            print('Drawing mode : Circle')
+            continue
+        elif key == ord('m') and drawingMode == 'Circle':
+            resetDrawing = True
+            drawingMode = 'Line'
+            print('Drawing mode : Line')
+            continue
+        elif key == ord('c'):
+            resetDrawing = True
+            continue
 
     video.release()
     cv2.destroyAllWindows()
 
 if __name__ == '__main__':
-	main()
+    main()
