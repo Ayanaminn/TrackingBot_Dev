@@ -197,16 +197,13 @@ def main():
 
     drawingMode = 'Line'
 
+    #default drawing start coordinates
     ini_start = (0, 0)
     ini_end = (0, 0)
 
     while True:
         ret, input_vid = video.read()
         frame_count += 1
-
-        # ini_start = (0, 0)
-        # ini_end = (0, 0)
-
 
         mask_img = cv2.imread(Mask_file_load, 1)
         # input_vid = cv2.resize(input_vid,
@@ -313,24 +310,25 @@ def main():
                         y1 = int(TrackingMethod.registration[i].trajectory[j+1][1][0])
                         cv2.line(contour_vid, (x,y), (x1,y1),
                                  (0,255,0), 1)
-
-        draw_line = DrawLineWidget(contour_vid)
-        draw_start, draw_end = draw_line.drawing(ini_start, ini_end)
-        if drawingMode == 'Line':
-            cv2.line(draw_line.show_image(), draw_start, draw_end, (0, 0, 255), 2)
-        elif drawingMode == 'Rectangle':
-            cv2.rectangle(draw_line.show_image(), draw_start, draw_end, (0, 0, 255), 2)
-        elif drawingMode == 'Circle':
-            r = int(((draw_start[0]-draw_end[0])**2 + (draw_start[1]-draw_end[1])**2)**0.5)
-            cv2.circle(draw_line.show_image(), draw_start, r, (0, 0, 255), 2)
-
-
-        cv2.imshow('Test', draw_line.show_image())
-
+                        
         # display current frame on video
         cv2.putText(contour_vid,
                     '% s' % frame_count,(150,50),
                     1, 2, (0, 0, 0), 2)
+
+        draw_object = DrawLineWidget(contour_vid)
+        draw_start, draw_end = draw_object.drawing(ini_start, ini_end)
+        if drawingMode == 'Line':
+            cv2.line(draw_object.show_image(), draw_start, draw_end, (0, 0, 255), 2)
+        elif drawingMode == 'Rectangle':
+            cv2.rectangle(draw_object.show_image(), draw_start, draw_end, (0, 0, 255), 2)
+        elif drawingMode == 'Circle':
+            r = int(((draw_start[0]-draw_end[0])**2 + (draw_start[1]-draw_end[1])**2)**0.5)
+            cv2.circle(draw_object.show_image(), draw_start, r, (0, 0, 255), 2)
+
+
+        cv2.imshow('Test', draw_object.show_image())
+
 
 
         toc = time.time()
