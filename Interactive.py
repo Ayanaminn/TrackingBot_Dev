@@ -3,6 +3,7 @@ This module is to allow drawing objects (lines, rectangulars, circles)
 on video use mouse operation in realtime and display the drawing
 '''
 import cv2
+from math import  pi
 
 isDrawing = False
 resetDrawing = False
@@ -97,15 +98,22 @@ class DrawObjectWidget(object):
 
         if drawingMode  == 'Line':
             cv2.line(self.show_image(), x, y, (0, 0, 255), 2)
+            lineLen = ((x[0]-y[0])**2 + (x[1]-y[1])**2)**0.5
+            print('Length of the line is : {}'.format(lineLen))
 
 
         elif drawingMode == 'Rectangle':
             cv2.rectangle(self.show_image(), x, y, (0, 0, 255), 2)
+            areaRec = (abs(x[0]-y[0]) * abs(x[1]-y[1]))
+            print('Area of the selected rectangular zone is : {}'.format(areaRec))
 
 
         elif drawingMode == 'Circle':
             r = int(((x[0]-y[0])**2 + (x[1]-y[1])**2)**0.5)
+            areaCir = pi * (r**2)
             cv2.circle(self.show_image(), x, r, (0, 0, 255), 2)
+            print('Area of the selected circular zone is : {}\n'
+                  'Radius of the selected circular zone is: {}'.format(areaCir,r))
 
     def show_image(self):
         return self.frame_clone
