@@ -317,6 +317,7 @@ def main():
                     '% s' % frame_count,(150,50),
                     1, 2, (0, 0, 0), 2)
 
+        ## drawing block
         draw_object = DrawObjectWidget(contour_vid)
         draw_start, draw_end = draw_object.drawingPath(ini_start, ini_end)
         draw_object.displayDrawing(draw_start,draw_end,drawingMode)
