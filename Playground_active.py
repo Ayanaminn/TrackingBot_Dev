@@ -10,7 +10,7 @@ import time
 # from Kalman import KalmanFilter
 #from Kalman_branch import KalmanFilter
 from KF_Track import TrackingMethod
-from Interactive import DrawLineWidget
+from Interactive import DrawObjectWidget
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
@@ -196,6 +196,7 @@ def main():
     frame_count = 0
 
     drawingMode = 'Line'
+    resetDrawing = False
 
     #default drawing start coordinates
     ini_start = (0, 0)
@@ -310,21 +311,15 @@ def main():
                         y1 = int(TrackingMethod.registration[i].trajectory[j+1][1][0])
                         cv2.line(contour_vid, (x,y), (x1,y1),
                                  (0,255,0), 1)
-                        
+
         # display current frame on video
         cv2.putText(contour_vid,
                     '% s' % frame_count,(150,50),
                     1, 2, (0, 0, 0), 2)
 
-        draw_object = DrawLineWidget(contour_vid)
-        draw_start, draw_end = draw_object.drawing(ini_start, ini_end)
-        if drawingMode == 'Line':
-            cv2.line(draw_object.show_image(), draw_start, draw_end, (0, 0, 255), 2)
-        elif drawingMode == 'Rectangle':
-            cv2.rectangle(draw_object.show_image(), draw_start, draw_end, (0, 0, 255), 2)
-        elif drawingMode == 'Circle':
-            r = int(((draw_start[0]-draw_end[0])**2 + (draw_start[1]-draw_end[1])**2)**0.5)
-            cv2.circle(draw_object.show_image(), draw_start, r, (0, 0, 255), 2)
+        draw_object = DrawObjectWidget(contour_vid)
+        draw_start, draw_end = draw_object.drawingPath(ini_start, ini_end)
+        draw_object.displayDrawing(draw_start,draw_end,drawingMode)
 
 
         cv2.imshow('Test', draw_object.show_image())
@@ -339,8 +334,11 @@ def main():
         if key == ord('q'):
             cv2.destroyAllWindows()
             break
+
+        # reset not working here, need find a solution
+
         elif key == ord('m') and drawingMode  == 'Line':
-            resetDrawing = True
+            draw_start, draw_end = ini_start,ini_end
             drawingMode  = 'Rectangle'
             print('Drawing mode : Rectangle')
             continue
