@@ -6,7 +6,7 @@ import cv2
 
 isDrawing = False
 resetDrawing = False
-# drawingMode = 'Line'
+
 # before mouse event activate the drawing mode
 # give a placeholder value for start and end coordinate of the line
 ini_start = (0, 0)
@@ -17,7 +17,7 @@ ini_end = (0, 0)
 # so at the initial, the list must not be empty by given placeholder value
 line_coordinates = [(0, 0), (0, 0)]
 
-class DrawLineWidget(object):
+class DrawObjectWidget(object):
     def __init__(self, frame):
         # take the frame of video that to be draw as argument
         self.frame = frame
@@ -68,7 +68,8 @@ class DrawLineWidget(object):
             # self.frame_clone = self.frame.copy()
             resetDrawing = True
 
-    def drawing(self, x, y):
+    def drawingPath(self, x, y):
+        # the name of window have to match the main function!!!
         cv2.setMouseCallback('Test', self.extract_coordinates)
         # while drawing mode is activate
         # return the start point and keep return all point on the path
@@ -91,6 +92,20 @@ class DrawLineWidget(object):
             x = ini_start
             y = ini_end
         return x, y
+
+    def displayDrawing(self, x, y, drawingMode=None):
+
+        if drawingMode  == 'Line':
+            cv2.line(self.show_image(), x, y, (0, 0, 255), 2)
+
+
+        elif drawingMode == 'Rectangle':
+            cv2.rectangle(self.show_image(), x, y, (0, 0, 255), 2)
+
+
+        elif drawingMode == 'Circle':
+            r = int(((x[0]-y[0])**2 + (x[1]-y[1])**2)**0.5)
+            cv2.circle(self.show_image(), x, r, (0, 0, 255), 2)
 
     def show_image(self):
         return self.frame_clone
@@ -144,3 +159,5 @@ class DrawLineWidget(object):
         # elif key == ord('c'):
         #     resetDrawing = True
         #     continue
+
+
