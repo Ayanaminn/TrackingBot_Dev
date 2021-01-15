@@ -7,6 +7,7 @@
 import cv2
 import numpy as np
 import time
+import memory_profiler
 # from Kalman import KalmanFilter
 #from Kalman_branch import KalmanFilter
 from KF_Track import TrackingMethod
@@ -184,7 +185,8 @@ def detect_contours(vid, masked_th, min_th, max_th):
             pass
     return vid_draw, contours, pos_detection, pos_archive
 
-
+# tic = time.time()
+# print('Memory consumption (before): {}Mb'.format(memory_profiler.memory_usage()))
 
 def main():
 
@@ -202,6 +204,9 @@ def main():
     ini_start = (0, 0)
     ini_end = (0, 0)
 
+    tic = time.time()
+    print('Memory consumption (before): {}Mb'.format(memory_profiler.memory_usage()))
+
     while True:
         ret, input_vid = video.read()
         frame_count += 1
@@ -213,7 +218,7 @@ def main():
         #                        fy=scaling,
         #                        interpolation=cv2.INTER_LINEAR)
 
-        tic = time.time()
+
         if mask_on == True:
             # create a mask and apply on video
             ret, mask = create_mask(mask_img)
@@ -331,11 +336,6 @@ def main():
 
         cv2.imshow('Test', draw_object.show_image())
 
-
-
-        toc = time.time()
-        # print("Time Elapsed Per Loop {:.3f}".format((tic - toc)/50))
-
         key = cv2.waitKey(1)
 
         if key == ord('q'):
@@ -365,6 +365,9 @@ def main():
 
     video.release()
     cv2.destroyAllWindows()
+    toc = time.time()
+    print("Time Elapsed Per Loop {:.3f}".format((tic - toc)/50))
+    print('Memory consumption (after): {}Mb'.format(memory_profiler.memory_usage()))
 
 if __name__ == '__main__':
     main()
