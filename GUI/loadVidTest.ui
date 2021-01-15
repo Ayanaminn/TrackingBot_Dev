@@ -56,7 +56,7 @@
      <string>Load Video</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="EndVideo">
+   <widget class="QPushButton" name="endVideo">
     <property name="geometry">
      <rect>
       <x>280</x>

@@ -1,3 +1,7 @@
+## add video play control functions e.g. play, pause, etc
+## need solve the bug that thread is not stopped normally
+
+
 from PyQt5 import QtCore,QtGui,QtWidgets
 from PyQt5.QtWidgets import QFileDialog
 from PyQt5.QtWidgets import QMessageBox

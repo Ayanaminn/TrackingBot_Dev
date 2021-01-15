@@ -322,6 +322,12 @@ def main():
         draw_start, draw_end = draw_object.drawingPath(ini_start, ini_end)
         draw_object.displayDrawing(draw_start,draw_end,drawingMode)
 
+        # for condition, use a new function, take draw_start and draw_end as argument
+
+        # here or inside the module?
+        # if drawingMode == 'Line':
+        #     lineLen = ((draw_start[0]-draw_end[0])**2 + (draw_start[1]-draw_end[1])**2)**0.5
+        #     print('Length of the line is : {}'.format(lineLen))
 
         cv2.imshow('Test', draw_object.show_image())
 

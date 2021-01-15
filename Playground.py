@@ -488,17 +488,19 @@ video = cv2.VideoCapture(Video_load)
 ret, vid = video.read()
 vid_draw = vid.copy()
 drawing = False
-start = (0,0)
-end = (0,0)
+startPoint = (0, 0)
+endPoint = (0, 0)
 img = vid_draw
+coord = []
 
 def mouse_event(event, x, y, flags, param):
-    global drawing, start, img, end
+    global drawing, startPoint, img, endPoint
 
     # 鼠标按下，开始画图：记录下起点
     if event == cv2.EVENT_LBUTTONDOWN:
         drawing = True
         start = (x,y)
+        coord.append(start)
         #start_copy=start
     # 实时移动的位置作为矩形终点
     elif event == cv2.EVENT_MOUSEMOVE:
@@ -506,10 +508,17 @@ def mouse_event(event, x, y, flags, param):
             path=(x,y)
             cv2.line(img,start,path,color=(255,0,0),thickness=2)
         end = (x,y)
+        coord.append(end)
+        print(end)
+
     # 鼠标释放后，停止绘图，并画出最终结果
     elif event == cv2.EVENT_LBUTTONUP and drawing == True:
         drawing = False
-        start = end = (0, 0)
+        # end = (x,y)
+        # coord.append(end)
+        # print(coord)
+        # cv2.line(img, coord[0], coord[-1], color=(255, 0, 0), thickness=2)
+        # start = end = (0, 0)
 
 
 
@@ -517,19 +526,21 @@ def draw(x,y):
 
     cv2.setMouseCallback('Test',mouse_event)
     if drawing == True:
-        x=start
-        y=end
-
+        x=startPoint
+        y=endPoint
+        # print(x,y)
     return x,y
     #cv2.line(vid_draw, start_copy, end_copy, (0, 255, 0), 3)
 
 start_copy=(0,0)
 end_copy=(0,0)
+
 cv2.namedWindow('Test', cv2.WINDOW_NORMAL)
 while True:
     ret, vid = video.read()
     vid_draw = vid.copy()
     xx, yy = draw(start_copy,end_copy)
+    # print(xx,yy)
     # cv2.setMouseCallback('Test', mouse_event)
     # if drawing == True:
     #     start_copy=start
