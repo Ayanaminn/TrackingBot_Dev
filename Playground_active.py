@@ -12,12 +12,13 @@ import memory_profiler
 #from Kalman_branch import KalmanFilter
 from KF_Track import TrackingMethod
 from Interactive import DrawObjectWidget
+import serial
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from sklearn.cluster import MiniBatchKMeans
 
-Video_load = 'zebrafish_video.mp4'
+Video_load = 'test0.mp4'
 # Video_load = 'randomball.mp4'
 
 Mask_file_load = 'mask1.png'
@@ -26,7 +27,7 @@ debug = 0
 
 mask_on = False
 
-obj_num = 11
+obj_num = 1
 obj_id = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'
           'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 colours = [(0, 0, 255), (0, 255, 255), (255, 0, 255), (255, 255, 255), (255, 255, 0),
@@ -47,11 +48,11 @@ mark_on = 0
 ## blocksize_ini: the initial value of block size used for adaptive thresholding
 ## blocksize_max: the max value of block size track bar
 ## offset_ini: the initial value of offset used for adaptive thresholding
-blocksize_ini = 13
-offset_ini = 11
+blocksize_ini = 11
+offset_ini = 9
 
-cnt_min_th = 100
-cnt_max_th = 1000
+cnt_min_th = 69
+cnt_max_th = 70
 
 scaling = 1.0
 
@@ -193,7 +194,7 @@ def main():
     video = cv2.VideoCapture(Video_load)
 
     cv2.namedWindow('Test', cv2.WINDOW_NORMAL)
-    # cv2.namedWindow('Ori', cv2.WINDOW_NORMAL)
+
 
     frame_count = 0
 
@@ -206,6 +207,10 @@ def main():
 
     tic = time.time()
     print('Memory consumption (before): {}Mb'.format(memory_profiler.memory_usage()))
+
+    # test , so direct connect
+    arduino = serial.Serial('COM9', 9600)
+    time.sleep(1)
 
     while True:
         ret, input_vid = video.read()
@@ -289,7 +294,8 @@ def main():
 
             # ## mark indentity of each objects
             for i in range(len(TrackingMethod.registration)):
-                # print(len(TrackingMethod.registration))
+                # print(len(TrackingMethod.registration)) # examine number of registrated objects
+                # print(TrackingMethod.registration[i].pos_prediction[0])
                 # display centroid
                 cv2.circle(contour_vid,
                            tuple([int(x) for x in TrackingMethod.registration[i].pos_prediction]),
@@ -327,6 +333,14 @@ def main():
         draw_start, draw_end = draw_object.drawingPath(ini_start, ini_end)
         draw_object.displayDrawing(draw_start,draw_end,drawingMode)
 
+        # test for arduino position conditioning control
+        for i in range(len(TrackingMethod.registration)):
+            # print(len(TrackingMethod.registration)) # examine number of registrated objects
+            print(TrackingMethod.registration[i].pos_prediction[0])
+            if (TrackingMethod.registration[i].pos_prediction[0] > draw_start[0] and draw_start[0]!= 0):
+                arduino.write(b'1')
+            else:
+                arduino.write(b'0')
         # for condition, use a new function, take draw_start and draw_end as argument
 
         # here or inside the module?
@@ -338,6 +352,11 @@ def main():
 
         key = cv2.waitKey(1)
 
+        # pause
+        if key == ord('p'):
+            cv2.waitKey(-1) # wait until any key is pressed
+
+        # exit
         if key == ord('q'):
             cv2.destroyAllWindows()
             break
