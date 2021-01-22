@@ -6,19 +6,21 @@
 
 import cv2
 import numpy as np
+import pandas as pd
 import time
 import memory_profiler
 # from Kalman import KalmanFilter
 #from Kalman_branch import KalmanFilter
 from KF_Track import TrackingMethod
 from Interactive import DrawObjectWidget
-import serial
+from datetime import datetime
+# import serial
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from sklearn.cluster import MiniBatchKMeans
 
-Video_load = 'test0.mp4'
+Video_load = 'zebrafish_video.mp4'
 # Video_load = 'randomball.mp4'
 
 Mask_file_load = 'mask1.png'
@@ -27,7 +29,7 @@ debug = 0
 
 mask_on = False
 
-obj_num = 1
+obj_num = 1 #is this still useful?
 obj_id = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'
           'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 colours = [(0, 0, 255), (0, 255, 255), (255, 0, 255), (255, 255, 255), (255, 255, 0),
@@ -48,11 +50,11 @@ mark_on = 0
 ## blocksize_ini: the initial value of block size used for adaptive thresholding
 ## blocksize_max: the max value of block size track bar
 ## offset_ini: the initial value of offset used for adaptive thresholding
-blocksize_ini = 11
-offset_ini = 9
+blocksize_ini = 13
+offset_ini = 11
 
-cnt_min_th = 69
-cnt_max_th = 70
+cnt_min_th = 100
+cnt_max_th = 1500
 
 scaling = 1.0
 
@@ -186,6 +188,13 @@ def detect_contours(vid, masked_th, min_th, max_th):
             pass
     return vid_draw, contours, pos_detection, pos_archive
 
+
+def data_log():
+    now = datetime.now()
+    output_filepath = now.strftime('%Y%m%d%H%M')+'_tracked.csv'
+
+df=[]
+
 # tic = time.time()
 # print('Memory consumption (before): {}Mb'.format(memory_profiler.memory_usage()))
 
@@ -208,9 +217,9 @@ def main():
     tic = time.time()
     print('Memory consumption (before): {}Mb'.format(memory_profiler.memory_usage()))
 
-    # test , so direct connect
-    arduino = serial.Serial('COM9', 9600)
-    time.sleep(1)
+    # # test , so direct connect
+    # arduino = serial.Serial('COM9', 9600)
+    # time.sleep(1)
 
     while True:
         ret, input_vid = video.read()
@@ -263,7 +272,6 @@ def main():
                                                                           cnt_max_th, )
 
 
-
         #############test kalman prediction##########################################
             ## Using Kalman.py
             ## test the predicted position and updated position
@@ -306,6 +314,11 @@ def main():
                             tuple([int(x) for x in TrackingMethod.registration[i].pos_prediction]),
                             1, 2, (0, 0, 255), 2)
 
+                # test create output dataframe
+                df.append([TrackingMethod.registration[i].pos_prediction[0],
+                          TrackingMethod.registration[i].pos_prediction[1],obj_id[i]])
+
+
                 ## display the trajectory (circle)
                 # if (len(TrackingMethod.registration[i].trajectory) > 1):
                 #     for j in range(len(TrackingMethod.registration[i].trajectory)):
@@ -323,9 +336,11 @@ def main():
                         cv2.line(contour_vid, (x,y), (x1,y1),
                                  (0,255,0), 1)
 
+        # print(df)
+
         # display current frame on video
         cv2.putText(contour_vid,
-                    '% s' % frame_count,(150,50),
+                    '{}'.format(frame_count),(150,50),
                     1, 2, (0, 0, 0), 2)
 
         ## drawing block
@@ -333,15 +348,16 @@ def main():
         draw_start, draw_end = draw_object.drawingPath(ini_start, ini_end)
         draw_object.displayDrawing(draw_start,draw_end,drawingMode)
 
-        # test for arduino position conditioning control
-        for i in range(len(TrackingMethod.registration)):
-            # print(len(TrackingMethod.registration)) # examine number of registrated objects
-            print(TrackingMethod.registration[i].pos_prediction[0])
-            if (TrackingMethod.registration[i].pos_prediction[0] > draw_start[0] and draw_start[0]!= 0):
-                arduino.write(b'1')
-            else:
-                arduino.write(b'0')
-        # for condition, use a new function, take draw_start and draw_end as argument
+        # # for condition, use a new function, take draw_start and draw_end as argument
+        # # test for arduino position conditioning control
+        # for i in range(len(TrackingMethod.registration)):
+        #     # print(len(TrackingMethod.registration)) # examine number of registrated objects
+        #     print(TrackingMethod.registration[i].pos_prediction[0])
+        #     if (TrackingMethod.registration[i].pos_prediction[0] > draw_start[0] and draw_start[0]!= 0):
+        #         arduino.write(b'1')
+        #     else:
+        #         arduino.write(b'0')
+
 
         # here or inside the module?
         # if drawingMode == 'Line':
@@ -382,11 +398,16 @@ def main():
             resetDrawing = True
             continue
 
+    data = pd.DataFrame(np.array(df), columns=['pos_x', 'pos_y', 'id'])
+    data.to_csv('test_datalog.csv', sep=',')
+
     video.release()
     cv2.destroyAllWindows()
     toc = time.time()
     print("Time Elapsed Per Loop {:.3f}".format((tic - toc)/50))
     print('Memory consumption (after): {}Mb'.format(memory_profiler.memory_usage()))
+
+
 
 if __name__ == '__main__':
     main()
