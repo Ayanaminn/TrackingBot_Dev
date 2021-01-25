@@ -282,3 +282,5 @@ class TrackingMethod(object):
                 #         x = int(self.registration[i].trajectory[j][0][0])
                 #         y = int(self.registration[i].trajectory[j][1][0])
                 #         cv2.circle(contour_vid, (x, y), 1, (0,255,0), -1)
+                else:
+                    pass
