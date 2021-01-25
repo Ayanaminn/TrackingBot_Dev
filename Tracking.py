@@ -1,4 +1,5 @@
 import numpy as np
+import cv2
 from Kalman import KalmanFilter
 # from scipy.spatial.distance import cdist
 from scipy.optimize import linear_sum_assignment
@@ -236,4 +237,41 @@ class TrackingMethod(object):
 
             self.registration[i].KF.previousState = self.registration[i].pos_prediction
 
-
+    def visualize(self, video, id_marks, is_centroid = True, is_mark = True,
+                  is_trajectory=True):
+        """visualize the indentity of tracked objects with marks and trajectories
+        Args:
+            video: the video source to displayed on
+            id_marks: the list of numerical or text that used as id mark to represent
+                      the identity of the object
+        Return:
+            None
+        """
+        for i in range(len(self.registration)):
+            if is_centroid:
+                # display centroid
+                cv2.circle(video,
+                           tuple([int(x) for x in self.registration[i].pos_prediction]),
+                           1,(255,0,0),-1,cv2.LINE_AA)
+            if is_mark:
+                # display indentity mark
+                cv2.putText(video,
+                            id_marks[i% len(self.registration)],
+                            tuple([int(x) for x in self.registration[i].pos_prediction]),
+                            1,2,(0,0,255),2)
+            if is_trajectory:
+                # display the trajectory (line style)
+                if (len(self.registration[i].trajectory) > 1):
+                    for j in range(len(self.registration[i].trajectory)-1):
+                        x = int(self.registration[i].trajectory[j][0][0])
+                        y = int(self.registration[i].trajectory[j][1][0])
+                        x1 = int(self.registration[i].trajectory[j+1][0][0])
+                        y1 = int(self.registration[i].trajectory[j+1][1][0])
+                        cv2.line(video, (x,y), (x1,y1),
+                                 (0,255,0), 1)
+                ## display the trajectory (circle style)
+                # if (len(self.registration[i].trajectory) > 1):
+                #     for j in range(len(self.registration[i].trajectory)):
+                #         x = int(self.registration[i].trajectory[j][0][0])
+                #         y = int(self.registration[i].trajectory[j][1][0])
+                #         cv2.circle(contour_vid, (x, y), 1, (0,255,0), -1)

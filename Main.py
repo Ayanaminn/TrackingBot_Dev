@@ -4,7 +4,7 @@ import Detection as det
 from Tracking import TrackingMethod
 
 Video_load = 'zebrafish_video.mp4'
-'Git commit test'
+
 Mask_file_load = 'mask1.png'
 mask_on = False
 
@@ -32,13 +32,13 @@ mark_on = 0
 ## offset_ini: the initial value of offset used for adaptive thresholding
 blocksize_ini = 13
 blocksize_max = 255
-offset_ini = 10
+offset_ini = 9
 
 ## define constant for contour threshold
 ## cnt_min_th: minimum contour area for threshold
 ## cnt_max_th: maximum contour area for threshold
 cnt_min_th = 100
-cnt_max_th = 500
+cnt_max_th = 1000
 
 ## offset trackbar disabled
 # offset_max = 100
@@ -97,23 +97,8 @@ def main():
                                                                                cnt_max_th, )
             TrackingMethod.identify(pos_detection)
 
-            for i in range(len(TrackingMethod.registration)):
-                # print(len(TrackingMethod.registration))
-                # display ID and draw centroids
-                cv2.circle(contour_vid,
-                           tuple([int(x) for x in TrackingMethod.registration[i].pos_prediction]),
-                           5, (255, 0, 0), -1, cv2.LINE_AA)
-                cv2.putText(contour_vid,
-                            obj_id[i % len(TrackingMethod.registration)],
-                            tuple([int(x) for x in TrackingMethod.registration[i].pos_prediction]),
-                            1, 2, (0, 0, 0), 2)
-
-                ## display the trajectory
-                if (len(TrackingMethod.registration[i].trajectory) > 1):
-                    for j in range(len(TrackingMethod.registration[i].trajectory)):
-                        x = int(TrackingMethod.registration[i].trajectory[j][0][0])
-                        y = int(TrackingMethod.registration[i].trajectory[j][1][0])
-                        cv2.circle(contour_vid, (x, y), 1, (0, 255, 0), -1)
+            TrackingMethod.visualize(contour_vid, obj_id, is_centroid=True,
+                                     is_mark=True, is_trajectory=True)
 
         else:
             ## if disable trackbar, set 2nd arg to blocksize_ini
@@ -127,31 +112,8 @@ def main():
             TrackingMethod.identify(pos_detection)
 
             ## mark indentity of each objects
-            for i in range(len(TrackingMethod.registration)):
-            # print(len(TrackingMethod.registration))
-                cv2.circle(contour_vid,
-                           tuple([int(x) for x in TrackingMethod.registration[i].pos_prediction]),
-                           5, (255, 0, 0), -1, cv2.LINE_AA)
-                cv2.putText(contour_vid,
-                            obj_id[i % len(TrackingMethod.registration)],
-                            tuple([int(x) for x in TrackingMethod.registration[i].pos_prediction]),
-                            1, 2, (0, 0, 0), 2)
-
-                ## display the trajectory
-                # if (len(TrackingMethod.registration[i].trajectory) > 1):
-                #     for j in range(len(TrackingMethod.registration[i].trajectory)):
-                #         x = int(TrackingMethod.registration[i].trajectory[j][0][0])
-                #         y = int(TrackingMethod.registration[i].trajectory[j][1][0])
-                #         cv2.circle(contour_vid, (x, y), 1, (0,255,0), -1)
-
-                if (len(TrackingMethod.registration[i].trajectory) > 1):
-                    for j in range(len(TrackingMethod.registration[i].trajectory) - 1):
-                        x = int(TrackingMethod.registration[i].trajectory[j][0][0])
-                        y = int(TrackingMethod.registration[i].trajectory[j][1][0])
-                        x1 = int(TrackingMethod.registration[i].trajectory[j + 1][0][0])
-                        y1 = int(TrackingMethod.registration[i].trajectory[j + 1][1][0])
-                        cv2.line(contour_vid, (x, y), (x1, y1),
-                                 (0, 255, 0), 1)
+            TrackingMethod.visualize(contour_vid, obj_id, is_centroid=True,
+                                     is_mark=True, is_trajectory=True)
 
         toc = time.time()
 

@@ -245,23 +245,9 @@ def main():
                                                                            cnt_max_th, )
 
             TrackingMethod.identify(pos_detection)
+            TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
+                                     is_mark=True,is_trajectory=True)
 
-            for i in range(len(TrackingMethod.registration)):
-                print(len(TrackingMethod.registration))
-                cv2.circle(contour_vid,
-                           tuple([int(x) for x in TrackingMethod.registration[i].pos_prediction]),
-                           5, (255, 0, 0), -1, cv2.LINE_AA)
-                cv2.putText(contour_vid,
-                            obj_id[i % len(TrackingMethod.registration)],
-                            tuple([int(x) for x in TrackingMethod.registration[i].pos_prediction]),
-                            1, 2, (0, 0, 0), 2)
-
-                ## display the trajectory
-                if (len(TrackingMethod.registration[i].trajectory) > 1):
-                    for j in range(len(TrackingMethod.registration[i].trajectory)):
-                        x = int(TrackingMethod.registration[i].trajectory[j][0][0])
-                        y = int(TrackingMethod.registration[i].trajectory[j][1][0])
-                        cv2.circle(contour_vid, (x, y), 1, (0,255,0), -1)
 
         else:
             th_masked = thresh_video(input_vid, blocksize_ini, offset_ini)
@@ -299,42 +285,15 @@ def main():
 
             # run tracking method
             TrackingMethod.identify(pos_detection)
+            TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
+                                     is_mark=True,is_trajectory=True)
+            # # ## mark indentity of each objects
+            # for i in range(len(TrackingMethod.registration)):
 
-            # ## mark indentity of each objects
-            for i in range(len(TrackingMethod.registration)):
-                # print(len(TrackingMethod.registration)) # examine number of registrated objects
-                # print(TrackingMethod.registration[i].pos_prediction[0])
-                # display centroid
-                cv2.circle(contour_vid,
-                           tuple([int(x) for x in TrackingMethod.registration[i].pos_prediction]),
-                           1, (255, 0, 0), -1, cv2.LINE_AA)
-                # display indentity number
-                cv2.putText(contour_vid,
-                            obj_id[i % len(TrackingMethod.registration)],
-                            tuple([int(x) for x in TrackingMethod.registration[i].pos_prediction]),
-                            1, 2, (0, 0, 255), 2)
+                # # test create output dataframe
+                # df.append([TrackingMethod.registration[i].pos_prediction[0],
+                #           TrackingMethod.registration[i].pos_prediction[1],obj_id[i]])
 
-                # test create output dataframe
-                df.append([TrackingMethod.registration[i].pos_prediction[0],
-                          TrackingMethod.registration[i].pos_prediction[1],obj_id[i]])
-
-
-                ## display the trajectory (circle)
-                # if (len(TrackingMethod.registration[i].trajectory) > 1):
-                #     for j in range(len(TrackingMethod.registration[i].trajectory)):
-                #         x = int(TrackingMethod.registration[i].trajectory[j][0][0])
-                #         y = int(TrackingMethod.registration[i].trajectory[j][1][0])
-                #         cv2.circle(contour_vid, (x, y), 1, (0,255,0), -1)
-
-                # display the trajectory (line)
-                if (len(TrackingMethod.registration[i].trajectory) > 1):
-                    for j in range(len(TrackingMethod.registration[i].trajectory)-1):
-                        x = int(TrackingMethod.registration[i].trajectory[j][0][0])
-                        y = int(TrackingMethod.registration[i].trajectory[j][1][0])
-                        x1 = int(TrackingMethod.registration[i].trajectory[j+1][0][0])
-                        y1 = int(TrackingMethod.registration[i].trajectory[j+1][1][0])
-                        cv2.line(contour_vid, (x,y), (x1,y1),
-                                 (0,255,0), 1)
 
         # print(df)
 
