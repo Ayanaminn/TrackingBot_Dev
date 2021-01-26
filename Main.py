@@ -3,7 +3,7 @@ import cv2
 import Detection as det
 from Tracking import TrackingMethod
 
-Video_load = 'zebrafish_video.mp4'
+video_source = 'zebrafish_video.mp4'
 
 Mask_file_load = 'mask1.png'
 mask_on = False
@@ -50,7 +50,7 @@ TrackingMethod = TrackingMethod(50, 60, 100)
 
 
 def main():
-    video = cv2.VideoCapture(Video_load)
+    video = cv2.VideoCapture(video_source)
 
     cv2.namedWindow('Test', cv2.WINDOW_NORMAL)
 
