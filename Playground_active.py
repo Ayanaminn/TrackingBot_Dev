@@ -14,13 +14,14 @@ import memory_profiler
 from KF_Track import TrackingMethod
 from Interactive import DrawObjectWidget
 from datetime import datetime
+from Datalog import TrackingDataLog
 # import serial
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from sklearn.cluster import MiniBatchKMeans
 
-Video_load = 'zebrafish_video.mp4'
+video_source = 0
 # Video_load = 'randomball.mp4'
 
 Mask_file_load = 'mask1.png'
@@ -68,6 +69,7 @@ scaling = 1.0
 # for KF_track
 # dist_thresh, max_undetected_frames, max_trajectory_len
 TrackingMethod = TrackingMethod(50, 60, 100)
+DataLog = TrackingDataLog(video_source)
 
 ## video thresholding
 def thresh_video(vid, block_size, offset):
@@ -189,22 +191,17 @@ def detect_contours(vid, masked_th, min_th, max_th):
     return vid_draw, contours, pos_detection, pos_archive
 
 
-def data_log():
-    now = datetime.now()
-    output_filepath = now.strftime('%Y%m%d%H%M')+'_tracked.csv'
-
-df=[]
-
 # tic = time.time()
 # print('Memory consumption (before): {}Mb'.format(memory_profiler.memory_usage()))
 
 def main():
 
-    video = cv2.VideoCapture(Video_load)
+    video = cv2.VideoCapture(video_source)
 
     cv2.namedWindow('Test', cv2.WINDOW_NORMAL)
 
-
+    fps = video.get(cv2.CAP_PROP_FPS)
+    print(fps)
     frame_count = 0
 
     drawingMode = 'Line'
@@ -284,18 +281,17 @@ def main():
          #############################################################################
 
             # run tracking method
-            TrackingMethod.identify(pos_detection)
-            TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
-                                     is_mark=True,is_trajectory=True)
-            # # ## mark indentity of each objects
-            # for i in range(len(TrackingMethod.registration)):
-
-                # # test create output dataframe
-                # df.append([TrackingMethod.registration[i].pos_prediction[0],
-                #           TrackingMethod.registration[i].pos_prediction[1],obj_id[i]])
+            # TrackingMethod.identify(pos_detection)
+            # TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
+            #                          is_mark=True,is_trajectory=True)
+            # # store tracking data
+            # if (frame_count % fps == 0):
+            #     df = DataLog.dataFrame(TrackingMethod.registration,obj_id)
 
 
-        # print(df)
+
+
+
 
         # display current frame on video
         cv2.putText(contour_vid,
@@ -357,8 +353,10 @@ def main():
             resetDrawing = True
             continue
 
-    data = pd.DataFrame(np.array(df), columns=['pos_x', 'pos_y', 'id'])
-    data.to_csv('test_datalog.csv', sep=',')
+    DataLog.dataToCSV(df)
+    print(df)
+    # data = pd.DataFrame(np.array(df), columns=['pos_x', 'pos_y', 'id'])
+    # data.to_csv('test_datalog.csv', sep=',')
 
     video.release()
     cv2.destroyAllWindows()
