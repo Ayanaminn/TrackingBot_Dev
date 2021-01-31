@@ -8,12 +8,13 @@ import cv2
 import numpy as np
 import pandas as pd
 import time
+from collections import namedtuple
 import memory_profiler
 # from Kalman import KalmanFilter
 #from Kalman_branch import KalmanFilter
 from KF_Track import TrackingMethod
 from Interactive import DrawObjectWidget
-from datetime import datetime
+from datetime import datetime, timedelta
 from Datalog import TrackingDataLog
 # import serial
 from scipy.optimize import linear_sum_assignment
@@ -21,8 +22,11 @@ from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from sklearn.cluster import MiniBatchKMeans
 
-video_source = 0
+video_source = 'zebrafish_video.mp4'
+# video_source = 0
 # Video_load = 'randomball.mp4'
+
+# time_code = datetime.now()
 
 Mask_file_load = 'mask1.png'
 
@@ -42,10 +46,6 @@ colours = [(0, 0, 255), (0, 255, 255), (255, 0, 255), (255, 255, 255), (255, 255
            (8, 77, 134),
            (130, 56, 99),
            (255, 0, 0)]
-
-mark_on = 0
-
-
 
 ## define constant for color threshold
 ## blocksize_ini: the initial value of block size used for adaptive thresholding
@@ -69,7 +69,7 @@ scaling = 1.0
 # for KF_track
 # dist_thresh, max_undetected_frames, max_trajectory_len
 TrackingMethod = TrackingMethod(50, 60, 100)
-DataLog = TrackingDataLog(video_source)
+DataLog = TrackingDataLog()
 
 ## video thresholding
 def thresh_video(vid, block_size, offset):
@@ -191,18 +191,32 @@ def detect_contours(vid, masked_th, min_th, max_th):
     return vid_draw, contours, pos_detection, pos_archive
 
 
-# tic = time.time()
-# print('Memory consumption (before): {}Mb'.format(memory_profiler.memory_usage()))
+def video_prop(video_source):
+
+    total_sec = video_source.get(cv2.CAP_PROP_FRAME_COUNT) / video_source.get(cv2.CAP_PROP_FPS)
+    video_duraion = str(timedelta(seconds=total_sec))
+    video_prop = namedtuple('video_prop',['width','height','fps','length','elapse','duration'])
+    get_video_prop= video_prop(video_source.get(cv2.CAP_PROP_FRAME_WIDTH),
+                               video_source.get(cv2.CAP_PROP_FRAME_HEIGHT),
+                               video_source.get(cv2.CAP_PROP_FPS),
+                               video_source.get(cv2.CAP_PROP_FRAME_COUNT),
+                               video_source.get(cv2.CAP_PROP_POS_MSEC),
+                               video_duraion)
+
+    return get_video_prop
+
 
 def main():
 
     video = cv2.VideoCapture(video_source)
+    get_video_prop = video_prop(video)
 
     cv2.namedWindow('Test', cv2.WINDOW_NORMAL)
 
-    fps = video.get(cv2.CAP_PROP_FPS)
-    print(fps)
-    frame_count = 0
+    print(get_video_prop.fps)
+    print(get_video_prop.duration)
+
+    frame_count = -1
 
     drawingMode = 'Line'
     resetDrawing = False
@@ -211,17 +225,52 @@ def main():
     ini_start = (0, 0)
     ini_end = (0, 0)
 
-    tic = time.time()
+    tic = time.perf_counter()
+
     print('Memory consumption (before): {}Mb'.format(memory_profiler.memory_usage()))
 
     # # test , so direct connect
     # arduino = serial.Serial('COM9', 9600)
     # time.sleep(1)
 
+    # # main for real time
+    # while (video.isOpened()):
+    #     print('Capturing from real-time camera source')
+    #     ret, input_vid = video.read()
+    #
+    #     cv2.imshow('Test',input_vid)
+    #
+    #     key = cv2.waitKey(1)
+    #
+    #     # pause
+    #     if key == ord('p'):
+    #         cv2.waitKey(-1) # wait until any key is pressed
+    #
+    #     # exit
+    #     if key == ord('q'):
+    #         cv2.destroyAllWindows()
+    #         break
+    # video.release()
+    # cv2.destroyAllWindows()
+
     while True:
         ret, input_vid = video.read()
+
+        update_video_prop = video_prop(video)
+
         frame_count += 1
 
+        # pass time stamp parameters to datalog module
+        # and return time stamp conditon
+        get_date,_ = DataLog.updateClock()
+        _,get_clock = DataLog.updateClock()
+
+
+        is_timeStamp,video_elapse = DataLog.localTimeStamp(get_video_prop.fps,
+                                         update_video_prop.elapse,
+                                         frame_count,
+                                         interval='default')
+        print(video_elapse)
         mask_img = cv2.imread(Mask_file_load, 1)
         # input_vid = cv2.resize(input_vid,
         #                        None,
@@ -280,23 +329,39 @@ def main():
             # print(pos_detection[0])
          #############################################################################
 
-            # run tracking method
-            # TrackingMethod.identify(pos_detection)
-            # TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
-            #                          is_mark=True,is_trajectory=True)
-            # # store tracking data
-            # if (frame_count % fps == 0):
-            #     df = DataLog.dataFrame(TrackingMethod.registration,obj_id)
 
 
 
+        # display current date on video
 
+        # run tracking method
+        TrackingMethod.identify(pos_detection)
+        TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
+                                 is_mark=True,is_trajectory=True)
+        # store tracking data when local tracking
+        if is_timeStamp:
+            df = DataLog.localDataFrame(video_elapse,TrackingMethod.registration,obj_id)
+
+
+        cv2.putText(contour_vid,
+                    '{}'.format(get_date),(10,int(get_video_prop.height-10)),
+                    1, 1, (0, 0, 255), 2)
+
+        # display current time on video
+        cv2.putText(contour_vid,
+                    '{}'.format(get_clock),(120,int(get_video_prop.height-10)),
+                    1, 1, (0, 0, 255), 2)
 
 
         # display current frame on video
         cv2.putText(contour_vid,
-                    '{}'.format(frame_count),(150,50),
-                    1, 2, (0, 0, 0), 2)
+                    'current frame: {}'.format(frame_count),(250,int(get_video_prop.height-10)),
+                    1, 1, (0, 0, 255), 2)
+
+        # display current frame on video
+        cv2.putText(contour_vid,
+                    f'elapsed time: {video_elapse}',(450,int(get_video_prop.height-10)),
+                    1, 1, (0, 0, 255), 2)
 
         ## drawing block
         draw_object = DrawObjectWidget(contour_vid)
@@ -353,16 +418,16 @@ def main():
             resetDrawing = True
             continue
 
-    DataLog.dataToCSV(df)
+    #DataLog.dataToCSV(df)
     print(df)
     # data = pd.DataFrame(np.array(df), columns=['pos_x', 'pos_y', 'id'])
     # data.to_csv('test_datalog.csv', sep=',')
 
     video.release()
     cv2.destroyAllWindows()
-    toc = time.time()
-    print("Time Elapsed Per Loop {:.3f}".format((tic - toc)/50))
-    print('Memory consumption (after): {}Mb'.format(memory_profiler.memory_usage()))
+    toc = time.perf_counter()
+    print(f'Time Elapsed Per Loop {tic - toc:.3f}')
+    print(f'Memory consumption (after): {memory_profiler.memory_usage()}Mb')
 
 
 
