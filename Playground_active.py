@@ -269,7 +269,7 @@ def main():
         is_timeStamp,video_elapse = DataLog.localTimeStamp(get_video_prop.fps,
                                          update_video_prop.elapse,
                                          frame_count,
-                                         interval='default')
+                                         interval='1min')
         print(video_elapse)
         mask_img = cv2.imread(Mask_file_load, 1)
         # input_vid = cv2.resize(input_vid,
@@ -338,9 +338,10 @@ def main():
         TrackingMethod.identify(pos_detection)
         TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
                                  is_mark=True,is_trajectory=True)
+
         # store tracking data when local tracking
         if is_timeStamp:
-            df = DataLog.localDataFrame(video_elapse,TrackingMethod.registration,obj_id)
+            df = DataLog.localDataFrame(video_elapse,frame_count,TrackingMethod.registration,obj_id)
 
 
         cv2.putText(contour_vid,
@@ -418,7 +419,7 @@ def main():
             resetDrawing = True
             continue
 
-    #DataLog.dataToCSV(df)
+    DataLog.dataToCSV(df)
     print(df)
     # data = pd.DataFrame(np.array(df), columns=['pos_x', 'pos_y', 'id'])
     # data.to_csv('test_datalog.csv', sep=',')
