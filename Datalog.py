@@ -41,7 +41,7 @@ class TrackingDataLog(object):
             self.result_index += 1
             video_elapse = f"{str(timedelta(milliseconds=local_elapse)).split('.')[0]}.000"
         elif interval == '1sec':
-            
+
         else:
             self.result_index += 1
             video_elapse = f"{str(timedelta(milliseconds=local_elapse)).split('.')[0]}.{str(timedelta(milliseconds=local_elapse)).split('.')[1][:-3]}"
