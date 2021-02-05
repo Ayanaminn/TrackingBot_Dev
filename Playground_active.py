@@ -225,6 +225,8 @@ def main():
     ini_start = (0, 0)
     ini_end = (0, 0)
 
+    df=[]
+
     tic = time.perf_counter()
 
     print('Memory consumption (before): {}Mb'.format(memory_profiler.memory_usage()))
@@ -269,8 +271,10 @@ def main():
         is_timeStamp,video_elapse = DataLog.localTimeStamp(get_video_prop.fps,
                                          update_video_prop.elapse,
                                          frame_count,
-                                         interval='1min')
+                                         interval= '1min')
         print(video_elapse)
+        print(update_video_prop.elapse)
+        print(update_video_prop.elapse % 60000)
         mask_img = cv2.imread(Mask_file_load, 1)
         # input_vid = cv2.resize(input_vid,
         #                        None,
@@ -334,7 +338,7 @@ def main():
 
         # display current date on video
 
-        # run tracking method
+        # # run tracking method
         TrackingMethod.identify(pos_detection)
         TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
                                  is_mark=True,is_trajectory=True)
@@ -419,7 +423,7 @@ def main():
             resetDrawing = True
             continue
 
-    DataLog.dataToCSV(df)
+    #DataLog.dataToCSV(df)
     print(df)
     # data = pd.DataFrame(np.array(df), columns=['pos_x', 'pos_y', 'id'])
     # data.to_csv('test_datalog.csv', sep=',')
