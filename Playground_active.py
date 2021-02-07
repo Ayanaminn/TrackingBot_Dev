@@ -15,15 +15,15 @@ import memory_profiler
 from KF_Track import TrackingMethod
 from Interactive import DrawObjectWidget
 from datetime import datetime, timedelta
-from Datalog import TrackingDataLog
+from Datalog import TrackingDataLog,CalibrateScale
 # import serial
 from scipy.optimize import linear_sum_assignment
 from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from sklearn.cluster import MiniBatchKMeans
 
-video_source = 'zebrafish_video.mp4'
-# video_source = 0
+# video_source = 'zebrafish_video.mp4'
+video_source = 0
 # Video_load = 'randomball.mp4'
 
 # time_code = datetime.now()
@@ -70,6 +70,7 @@ scaling = 1.0
 # dist_thresh, max_undetected_frames, max_trajectory_len
 TrackingMethod = TrackingMethod(50, 60, 100)
 DataLog = TrackingDataLog()
+CalibrateScale=CalibrateScale(video_source)
 
 ## video thresholding
 def thresh_video(vid, block_size, offset):
@@ -191,7 +192,7 @@ def detect_contours(vid, masked_th, min_th, max_th):
     return vid_draw, contours, pos_detection, pos_archive
 
 
-def video_prop(video_source):
+def local_video_prop(video_source):
 
     total_sec = video_source.get(cv2.CAP_PROP_FRAME_COUNT) / video_source.get(cv2.CAP_PROP_FPS)
     video_duraion = str(timedelta(seconds=total_sec))
@@ -205,11 +206,44 @@ def video_prop(video_source):
 
     return get_video_prop
 
+def display_video_prop(video_souce,date,clock,frame,elapse,video_prop):
+
+    # display current date on video
+    cv2.putText(video_souce,
+                '{}'.format(date), (10, int(video_prop.height - 10)),
+                1, 1, (0, 0, 255), 2)
+
+    # display current time on video
+    cv2.putText(video_souce,
+                '{}'.format(clock), (120, int(video_prop.height - 10)),
+                1, 1, (0, 0, 255), 2)
+
+    # display current frame on video
+    cv2.putText(video_souce,
+                'current frame: {}'.format(frame), (250, int(video_prop.height - 10)),
+                1, 1, (0, 0, 255), 2)
+
+    # display elapsed video time
+    cv2.putText(video_souce,
+                f'elapsed time: {elapse}', (450, int(video_prop.height - 10)),
+                1, 1, (0, 0, 255), 2)
+
+def export_data(dataframe):
+    is_export = input('Export data in .csv file? Y/N')
+    if is_export == 'Y':
+        try:
+            DataLog.dataToCSV(dataframe)
+            print(dataframe)
+        except Exception as e:
+            print(e)
+    elif is_export == 'N':
+        exit()
+
 
 def main():
 
     video = cv2.VideoCapture(video_source)
-    get_video_prop = video_prop(video)
+    get_video_prop = local_video_prop(video)
 
     cv2.namedWindow('Test', cv2.WINDOW_NORMAL)
 
@@ -218,6 +252,7 @@ def main():
 
     frame_count = -1
 
+
     drawingMode = 'Line'
     resetDrawing = False
 
@@ -225,7 +260,7 @@ def main():
     ini_start = (0, 0)
     ini_end = (0, 0)
 
-    df=[]
+    tracking_data=[]
 
     tic = time.perf_counter()
 
@@ -258,7 +293,7 @@ def main():
     while True:
         ret, input_vid = video.read()
 
-        update_video_prop = video_prop(video)
+        update_video_prop = local_video_prop(video)
 
         frame_count += 1
 
@@ -271,10 +306,8 @@ def main():
         is_timeStamp,video_elapse = DataLog.localTimeStamp(get_video_prop.fps,
                                          update_video_prop.elapse,
                                          frame_count,
-                                         interval= '1min')
-        print(video_elapse)
-        print(update_video_prop.elapse)
-        print(update_video_prop.elapse % 60000)
+                                         interval= None)
+
         mask_img = cv2.imread(Mask_file_load, 1)
         # input_vid = cv2.resize(input_vid,
         #                        None,
@@ -297,6 +330,13 @@ def main():
             TrackingMethod.identify(pos_detection)
             TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
                                      is_mark=True,is_trajectory=True)
+
+            # store tracking data when local tracking
+            if is_timeStamp:
+                df = DataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
+
+            # display video properties on top of video
+            display_video_prop(contour_vid, get_date, get_clock, frame_count, video_elapse, get_video_prop)
 
 
         else:
@@ -337,36 +377,21 @@ def main():
 
 
         # display current date on video
+            pass
 
-        # # run tracking method
-        TrackingMethod.identify(pos_detection)
-        TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
-                                 is_mark=True,is_trajectory=True)
+            # # # run tracking method
+            # TrackingMethod.identify(pos_detection)
+            # TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
+            #                          is_mark=True,is_trajectory=True)
+            #
+            # # store tracking data when local tracking
+            # if is_timeStamp:
+            #     tracking_data = DataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
 
-        # store tracking data when local tracking
-        if is_timeStamp:
-            df = DataLog.localDataFrame(video_elapse,frame_count,TrackingMethod.registration,obj_id)
-
-
-        cv2.putText(contour_vid,
-                    '{}'.format(get_date),(10,int(get_video_prop.height-10)),
-                    1, 1, (0, 0, 255), 2)
-
-        # display current time on video
-        cv2.putText(contour_vid,
-                    '{}'.format(get_clock),(120,int(get_video_prop.height-10)),
-                    1, 1, (0, 0, 255), 2)
+            # display video properties on top of video
+            display_video_prop(contour_vid,get_date,get_clock,frame_count,video_elapse,get_video_prop)
 
 
-        # display current frame on video
-        cv2.putText(contour_vid,
-                    'current frame: {}'.format(frame_count),(250,int(get_video_prop.height-10)),
-                    1, 1, (0, 0, 255), 2)
-
-        # display current frame on video
-        cv2.putText(contour_vid,
-                    f'elapsed time: {video_elapse}',(450,int(get_video_prop.height-10)),
-                    1, 1, (0, 0, 255), 2)
 
         ## drawing block
         draw_object = DrawObjectWidget(contour_vid)
@@ -391,6 +416,7 @@ def main():
 
         cv2.imshow('Test', draw_object.show_image())
 
+        # wait 1ms if no input continue
         key = cv2.waitKey(1)
 
         # pause
@@ -423,18 +449,52 @@ def main():
             resetDrawing = True
             continue
 
-    #DataLog.dataToCSV(df)
-    print(df)
-    # data = pd.DataFrame(np.array(df), columns=['pos_x', 'pos_y', 'id'])
-    # data.to_csv('test_datalog.csv', sep=',')
-
     video.release()
     cv2.destroyAllWindows()
     toc = time.perf_counter()
-    print(f'Time Elapsed Per Loop {tic - toc:.3f}')
+    print(f'Time Elapsed Per Loop {toc - tic:.3f}')
     print(f'Memory consumption (after): {memory_profiler.memory_usage()}Mb')
 
+    return tracking_data
+
+def ini_cali():
+
+    x,y,xx,yy =(0, 0), (0, 0),(0,0),(0,0)
+    #metric = int(input('input metric value (mm): '))
+
+    while True:
+        path_x, path_y,cali_x,cali_y = CalibrateScale.drawingPath(x, y, xx, yy)
+        scale_line = CalibrateScale.displayScale(path_x, path_y, cali_x, cali_y)
+        cv2.imshow('cali', CalibrateScale.show_image())
+
+        key = cv2.waitKey(10)
+
+        # is_metric = input('use this as ')
+        if key == ord('q'):
+            # cv2.destroyAllWindows()
+            break
+        # elif is_metric:
+            # break
+    # CalibrateScale.convertScale(scale_line)
+    cv2.imshow('cali', CalibrateScale.show_image())
+    return scale_line
 
 
 if __name__ == '__main__':
-    main()
+
+    line = ini_cali()
+    print(line)
+
+
+
+
+    #cv2.destroyAllWindows()
+
+
+    # CalibrateMetric.displayCaliLine()
+    # print(is_true)
+    # if is_true:
+    #     data = main()
+    #     export_data(data)
+    # elif not is_true:
+    #     exit()

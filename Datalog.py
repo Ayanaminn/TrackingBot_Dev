@@ -5,11 +5,159 @@ import numpy as np
 import pandas as pd
 import cv2
 from datetime import  datetime,timedelta
+from scipy.spatial import distance
+from Interactive import DrawObjectWidget
 
 # now = datetime.now()
 
 # print(now.strftime('%Y%m%d%H%M'))
 # output_filepath = now.strftime('%Y%m%d%H%M')+'_tracked.csv'
+
+class CalibrateScale(object):
+
+    def __init__(self,video):
+
+        myFrameNumber = 1
+        self.cap = cv2.VideoCapture(video)
+
+        # set frame position
+        self.cap.set(cv2.CAP_PROP_POS_FRAMES, myFrameNumber)
+        ret, self.frame = self.cap.read()
+        self.scale_frame = self.frame.copy()
+
+        self.ini_start = (0,0)
+        self.ini_end = (0, 0)
+        self.line_coordinates = [(0, 0), (0, 0)]
+        self.isDrawing = False
+        self.resetDrawing = False
+
+    # def loadCaliFrame(self,video):
+    #
+    #     myFrameNumber = 1
+    #     cap = cv2.VideoCapture(video)
+    #
+    #     # set frame position
+    #     cap.set(cv2.CAP_PROP_POS_FRAMES, myFrameNumber)
+    #     ret, frame = cap.read()
+    #     cali_frame = frame.copy()
+    #     cv2.namedWindow('cali',cv2.WINDOW_NORMAL)
+    #     cv2.setMouseCallback('cali', self.drawCaliLine)
+    #     # cv2.line(cali_frame, self.line_coordinates[0], self.line_coordinates[1], (0, 0, 255), 2)
+    #     # cali_line = DrawObjectWidget(frame)
+    #     # cali_start, cali_end = cali_line.drawingPath(self.ini_start, self.ini_start)
+    #     # print(cali_start)
+    #     # cali_line.displayDrawing(cali_start, cali_start, self.drawingMode)
+    #
+    #     cv2.imshow('cali',cali_frame)
+    #
+    #     cv2.waitKey(-1)
+    #     cv2.destroyAllWindows()
+    #     # cv2.imshow("frame", frame)
+    #     # return frame
+    #     # cali_frame = frame.copy()
+    #
+    #     # cv2.waitKey(-1)
+    #     # is_continue = input('Sure? Y/N')
+    #     #
+    #     # if is_continue == 'Y':
+    #     #     cap.release()
+    #     #     cv2.destroyAllWindows()
+    #     #     return True
+    #     # elif is_continue == 'N':
+    #     #     return False
+    #     #     # cv2.destroyAllWindows()
+    #
+    def drawScale(self, event, x, y, flags, param):
+
+        global startPoint, pathPoint, endPoint
+
+        if event == cv2.EVENT_LBUTTONDOWN:
+            self.line_coordinates.clear()
+            self.isDrawing = True
+            self.resetDrawing = False
+            startPoint = (x, y)
+            self.line_coordinates.append(startPoint)
+            #print(self.line_coordinates)
+
+        elif event == cv2.EVENT_MOUSEMOVE:
+            # Draw line
+            if self.isDrawing:
+                pathPoint = (x, y)
+
+            pathPoint = (x, y)
+
+        elif event == cv2.EVENT_LBUTTONUP and self.isDrawing == True:
+            # deactivate drawing mode, store coordinates as endpoint of line
+            self.isDrawing = False
+            #self.resetDrawing = False
+            endPoint = (x, y)
+            self.line_coordinates.append(endPoint)
+
+
+        # Clear drawing boxes on right mouse button click
+        elif event == cv2.EVENT_RBUTTONDOWN:
+
+            self.resetDrawing = True
+            self.scale_frame = self.frame.copy()
+
+
+    def drawingPath(self, x, y,xx,yy):
+        # the name of window have to match the main function!!!
+        cv2.setMouseCallback('cali', self.drawScale)
+        # while drawing mode is activate
+        # return the start point and keep return all point on the path
+        # that mouse drag through
+        # in order to draw line from start point and draw the path continuously
+        # when drag the mouse
+        if self.isDrawing and not self.resetDrawing:
+            x = startPoint
+            y = pathPoint
+
+        # while drawing mode is deactivate
+        # return start and end point stored in the list
+        # in order to draw a final line in between
+        elif not self.isDrawing and not self.resetDrawing:
+            self.scale_frame = self.frame.copy()
+
+            x = self.line_coordinates[0]
+            y = self.line_coordinates[1]
+            xx = self.line_coordinates[0]
+            yy= self.line_coordinates[1]
+        elif self.resetDrawing:
+            x = self.ini_start
+            y = self.ini_end
+        else:
+            x = self.ini_start
+            y = self.ini_end
+        return x, y, xx,yy
+
+    def show_image(self):
+        return self.scale_frame
+
+    def displayScale(self, x, y, xx, yy):
+
+        # cv2.rectangle(self.show_image(), x, y, (0, 255, 255), 1)
+
+        cv2.arrowedLine(self.show_image(), xx, yy, (0, 255, 255), 1,
+                        tipLength = 0.1)
+        cv2.arrowedLine(self.show_image(), yy, xx, (0, 255, 255), 1,
+                        tipLength=0.1)
+
+        return self.line_coordinates
+
+    def convertScale(self, scale):
+
+        pixel_length = distance.euclidean(scale[0],scale[1])
+        metric = int(input('input metric value (mm): '))
+        try:
+            pixel_per_metric = pixel_length/round(metric,3)
+            if (metric < 1 or metric >= 1000):
+                raise Exception
+        except Exception as e:
+            print(e)
+        return pixel_per_metric
+
+
 
 class TrackingDataLog(object):
 
@@ -32,10 +180,9 @@ class TrackingDataLog(object):
 
 
         self.is_stamp = False
+        self.is_min = 1
         is_stampSec = local_elapse % 1000
         is_stampMin = local_elapse % 60000
-        # is_stampSec = frame_count % frame_rate
-        # is_stampMin = frame_count % (frame_rate * 60)
 
         if interval == None:
             if is_stampSec == 0:
@@ -48,28 +195,33 @@ class TrackingDataLog(object):
                 self.is_stamp = True
             return self.is_stamp , video_elapse
 
-        if interval == '1sec':
-            if is_stampSec == 0:
-                self.result_index +=1
-                video_elapse = f"{str(timedelta(milliseconds=local_elapse)).split('.')[0]}.000"
-                self.is_stamp = True
-            else:
-                video_elapse = f"{str(timedelta(milliseconds=local_elapse)).split('.')[0]}.{str(timedelta(milliseconds=local_elapse)).split('.')[1][:-3]}"
-                self.is_stamp = False
-            return self.is_stamp , video_elapse
+        ## can store time bin data by define timebin parameter and calling this function
+        ## but since already stored all raw data , maybe auto sort the raw data to time bin dataframe
+        ## is more efficiency?
 
-        if interval == '1min':
-            if is_stampSec == 0:
-                video_elapse = f"{str(timedelta(milliseconds=local_elapse)).split('.')[0]}.000"
-                self.is_stamp = False
-            elif is_stampMin == 0:
-                video_elapse = f"{str(timedelta(milliseconds=local_elapse)).split('.')[0]}.{str(timedelta(milliseconds=local_elapse)).split('.')[1][:-3]}"
-                self.is_stamp = True
-                print('1min')
-            else:
-                video_elapse = f"{str(timedelta(milliseconds=local_elapse)).split('.')[0]}.{str(timedelta(milliseconds=local_elapse)).split('.')[1][:-3]}"
-                self.is_stamp = False
-            return self.is_stamp , video_elapse
+        # if interval == '1sec':
+        #     if is_stampSec == 0:
+        #         self.result_index +=1
+        #         video_elapse = f"{str(timedelta(milliseconds=local_elapse)).split('.')[0]}.000"
+        #         self.is_stamp = True
+        #     else:
+        #         video_elapse = f"{str(timedelta(milliseconds=local_elapse)).split('.')[0]}.{str(timedelta(milliseconds=local_elapse)).split('.')[1][:-3]}"
+        #         self.is_stamp = False
+        #     return self.is_stamp , video_elapse
+        #
+        # if interval == '1min':
+        #     if is_stampSec == 0 and not is_stampMin == 0:
+        #         video_elapse = f"{str(timedelta(milliseconds=local_elapse)).split('.')[0]}.000"
+        #         self.is_stamp = False
+        #     elif is_stampMin == 0:
+        #         self.result_index += 1
+        #         self.is_min += 1
+        #         video_elapse = f"{str(timedelta(milliseconds=local_elapse)).split('.')[0]}.000"
+        #         self.is_stamp = True
+        #     else:
+        #         video_elapse = f"{str(timedelta(milliseconds=local_elapse)).split('.')[0]}.{str(timedelta(milliseconds=local_elapse)).split('.')[1][:-3]}"
+        #         self.is_stamp = False
+        #     return self.is_stamp , video_elapse
 
     def localDataFrame(self,video_elapse,frame_count,tracked_object, id_marks):
 
@@ -95,9 +247,10 @@ class TrackingDataLog(object):
 
 
     def dataToCSV(self,dataframe):
-        data = pd.DataFrame(np.array(dataframe),
+
+        raw_data = pd.DataFrame(np.array(dataframe),
                             columns=[self.result_index_label, 'Video elapse (s)', 'Video frame', 'pos_x', 'pos_y', 'Object'])
 
         # use 300 frame to test
-        data.to_csv('test_datalog_with time stamp 1min.csv', sep=',',index=False)
+        raw_data.to_csv('test_datalog_with time stamp 1min.csv', sep=',',index=False)
 

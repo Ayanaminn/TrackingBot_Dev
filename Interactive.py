@@ -99,6 +99,7 @@ class DrawObjectWidget(object):
         if drawingMode  == 'Line':
             cv2.line(self.show_image(), x, y, (0, 0, 255), 2)
             lineLen = ((x[0]-y[0])**2 + (x[1]-y[1])**2)**0.5
+            # dis1 = distance.euclidean(list[0], list[1])
             # print('Length of the line is : {}'.format(lineLen))
 
 
