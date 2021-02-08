@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 import pandas as pd
 import time
+import threading
 from collections import namedtuple
 import memory_profiler
 # from Kalman import KalmanFilter
@@ -476,13 +477,17 @@ def ini_cali():
         # elif is_metric:
             # break
     # CalibrateScale.convertScale(scale_line)
-    cv2.imshow('cali', CalibrateScale.show_image())
+    CalibrateScale.cap.release()
+    cv2.destroyAllWindows()
+    # cv2.imshow('cali', CalibrateScale.show_image())
     return scale_line
 
 
 if __name__ == '__main__':
 
     line = ini_cali()
+    #metric = threading.Thread(target=CalibrateScale.convertScale, args=line)
+    #metric.start()
     print(line)
 
 

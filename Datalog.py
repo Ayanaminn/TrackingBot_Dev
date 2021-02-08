@@ -18,13 +18,13 @@ class CalibrateScale(object):
     def __init__(self,video):
 
         myFrameNumber = 1
-        self.cap = cv2.VideoCapture(video)
+        self.cap = cv2.VideoCapture(video,cv2.CAP_DSHOW)
 
         # set frame position
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, myFrameNumber)
         ret, self.frame = self.cap.read()
         self.scale_frame = self.frame.copy()
-
+        cv2.namedWindow('cali', cv2.WINDOW_NORMAL)
         self.ini_start = (0,0)
         self.ini_end = (0, 0)
         self.line_coordinates = [(0, 0), (0, 0)]
