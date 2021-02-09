@@ -8,7 +8,7 @@ import cv2
 import numpy as np
 import pandas as pd
 import time
-import threading
+import concurrent.futures
 from collections import namedtuple
 import memory_profiler
 # from Kalman import KalmanFilter
@@ -458,37 +458,33 @@ def main():
 
     return tracking_data
 
-def ini_cali():
+def iniCalibrationImage():
 
     x,y,xx,yy =(0, 0), (0, 0),(0,0),(0,0)
-    #metric = int(input('input metric value (mm): '))
 
     while True:
         path_x, path_y,cali_x,cali_y = CalibrateScale.drawingPath(x, y, xx, yy)
         scale_line = CalibrateScale.displayScale(path_x, path_y, cali_x, cali_y)
-        cv2.imshow('cali', CalibrateScale.show_image())
+        # print(scale_line)
+        cv2.imshow('Calibration', CalibrateScale.show_image())
 
         key = cv2.waitKey(10)
 
-        # is_metric = input('use this as ')
         if key == ord('q'):
             # cv2.destroyAllWindows()
             break
-        # elif is_metric:
-            # break
-    # CalibrateScale.convertScale(scale_line)
+
     CalibrateScale.cap.release()
     cv2.destroyAllWindows()
-    # cv2.imshow('cali', CalibrateScale.show_image())
     return scale_line
 
 
 if __name__ == '__main__':
-
-    line = ini_cali()
-    #metric = threading.Thread(target=CalibrateScale.convertScale, args=line)
-    #metric.start()
-    print(line)
+    # iniCalibrationImage()
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        ini_cali_img = executor.submit(iniCalibrationImage)
+        return_value = iniCalibrationImage.result()
+    #     # input_scale = executor.submit(CalibrateScale.inputScale)
 
 
 
@@ -496,7 +492,7 @@ if __name__ == '__main__':
     #cv2.destroyAllWindows()
 
 
-    # CalibrateMetric.displayCaliLine()
+
     # print(is_true)
     # if is_true:
     #     data = main()

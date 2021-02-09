@@ -24,7 +24,7 @@ class CalibrateScale(object):
         self.cap.set(cv2.CAP_PROP_POS_FRAMES, myFrameNumber)
         ret, self.frame = self.cap.read()
         self.scale_frame = self.frame.copy()
-        cv2.namedWindow('cali', cv2.WINDOW_NORMAL)
+        cv2.namedWindow('Calibration', cv2.WINDOW_NORMAL)
         self.ini_start = (0,0)
         self.ini_end = (0, 0)
         self.line_coordinates = [(0, 0), (0, 0)]
@@ -77,7 +77,7 @@ class CalibrateScale(object):
             self.resetDrawing = False
             startPoint = (x, y)
             self.line_coordinates.append(startPoint)
-            #print(self.line_coordinates)
+            print(self.line_coordinates)
 
         elif event == cv2.EVENT_MOUSEMOVE:
             # Draw line
@@ -103,7 +103,7 @@ class CalibrateScale(object):
 
     def drawingPath(self, x, y,xx,yy):
         # the name of window have to match the main function!!!
-        cv2.setMouseCallback('cali', self.drawScale)
+        cv2.setMouseCallback('Calibration', self.drawScale)
         # while drawing mode is activate
         # return the start point and keep return all point on the path
         # that mouse drag through
@@ -145,16 +145,30 @@ class CalibrateScale(object):
 
         return self.line_coordinates
 
-    def convertScale(self, scale):
+    def inputScale(self):
+        metric = int(input('input metric value (mm): '))
+        is_int = isinstance(metric, int)
+        if is_int:
+            if (metric < 1 or metric >= 1000):
+                print('Out of range')
+                self.inputScale()
+            else:
+                is_confirm = input('Use input number? Y/N')
+                if is_confirm == 'Y':
+                    return metric
+                elif is_confirm == 'N':
+                    self.inputScale()
+                else:
+                    print('Error')
+        else:
+            print('please input a number')
+            self.inputScale()
+
+    def convertScale(self, scale, metric):
 
         pixel_length = distance.euclidean(scale[0],scale[1])
-        metric = int(input('input metric value (mm): '))
-        try:
-            pixel_per_metric = pixel_length/round(metric,3)
-            if (metric < 1 or metric >= 1000):
-                raise Exception
-        except Exception as e:
-            print(e)
+        pixel_per_metric = round(pixel_length,3)/metric
+
         return pixel_per_metric
 
 
