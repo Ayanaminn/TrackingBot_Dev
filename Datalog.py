@@ -4,6 +4,8 @@ This is data log module for the video tracking
 import numpy as np
 import pandas as pd
 import cv2
+import  threading
+import concurrent.futures
 from datetime import  datetime,timedelta
 from scipy.spatial import distance
 from Interactive import DrawObjectWidget
@@ -15,58 +17,49 @@ from Interactive import DrawObjectWidget
 
 class CalibrateScale(object):
 
-    def __init__(self,video):
+    def __init__(self,video_source):
 
-        myFrameNumber = 1
-        self.cap = cv2.VideoCapture(video,cv2.CAP_DSHOW)
-
-        # set frame position
-        self.cap.set(cv2.CAP_PROP_POS_FRAMES, myFrameNumber)
-        ret, self.frame = self.cap.read()
-        self.scale_frame = self.frame.copy()
-        cv2.namedWindow('Calibration', cv2.WINDOW_NORMAL)
+        self.video_source = video_source
+        self.myFrameNumber = 1
         self.ini_start = (0,0)
         self.ini_end = (0, 0)
         self.line_coordinates = [(0, 0), (0, 0)]
         self.isDrawing = False
         self.resetDrawing = False
 
-    # def loadCaliFrame(self,video):
-    #
-    #     myFrameNumber = 1
-    #     cap = cv2.VideoCapture(video)
-    #
-    #     # set frame position
-    #     cap.set(cv2.CAP_PROP_POS_FRAMES, myFrameNumber)
-    #     ret, frame = cap.read()
-    #     cali_frame = frame.copy()
-    #     cv2.namedWindow('cali',cv2.WINDOW_NORMAL)
-    #     cv2.setMouseCallback('cali', self.drawCaliLine)
-    #     # cv2.line(cali_frame, self.line_coordinates[0], self.line_coordinates[1], (0, 0, 255), 2)
-    #     # cali_line = DrawObjectWidget(frame)
-    #     # cali_start, cali_end = cali_line.drawingPath(self.ini_start, self.ini_start)
-    #     # print(cali_start)
-    #     # cali_line.displayDrawing(cali_start, cali_start, self.drawingMode)
-    #
-    #     cv2.imshow('cali',cali_frame)
-    #
-    #     cv2.waitKey(-1)
-    #     cv2.destroyAllWindows()
-    #     # cv2.imshow("frame", frame)
-    #     # return frame
-    #     # cali_frame = frame.copy()
-    #
-    #     # cv2.waitKey(-1)
-    #     # is_continue = input('Sure? Y/N')
-    #     #
-    #     # if is_continue == 'Y':
-    #     #     cap.release()
-    #     #     cv2.destroyAllWindows()
-    #     #     return True
-    #     # elif is_continue == 'N':
-    #     #     return False
-    #     #     # cv2.destroyAllWindows()
-    #
+    def loadScaleFrame(self):
+
+       #  myFrameNumber = 1
+        x, y, xx, yy = (0, 0), (0, 0), (0, 0), (0, 0)
+        # for live camera
+        self.cap = cv2.VideoCapture(self.video_source, cv2.CAP_DSHOW)
+        # for local video file
+        # self.cap = cv2.VideoCapture(self.video_source)
+
+        cv2.namedWindow('Calibration', cv2.WINDOW_NORMAL)
+
+        while True:
+            ret, self.frame = self.cap.read()
+            self.scale_frame = self.frame.copy()
+            # set frame position
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, self.myFrameNumber)
+
+            path_x, path_y, cali_x, cali_y = self.drawingPath(x, y, xx, yy)
+            # print(cali_x, cali_y)
+            self.displayScale(path_x, path_y, cali_x, cali_y)
+            # print(scale_line)
+            cv2.imshow('Calibration', self.show_image())
+
+            key = cv2.waitKey(1)
+
+            if key == ord('q'):
+                # cv2.destroyAllWindows()
+                break
+
+        self.cap.release()
+        cv2.destroyAllWindows()
+        return self.line_coordinates
+
     def drawScale(self, event, x, y, flags, param):
 
         global startPoint, pathPoint, endPoint
@@ -77,7 +70,7 @@ class CalibrateScale(object):
             self.resetDrawing = False
             startPoint = (x, y)
             self.line_coordinates.append(startPoint)
-            print(self.line_coordinates)
+            # print(self.line_coordinates)
 
         elif event == cv2.EVENT_MOUSEMOVE:
             # Draw line
@@ -92,14 +85,13 @@ class CalibrateScale(object):
             #self.resetDrawing = False
             endPoint = (x, y)
             self.line_coordinates.append(endPoint)
-
+            # print(self.line_coordinates)
 
         # Clear drawing boxes on right mouse button click
         elif event == cv2.EVENT_RBUTTONDOWN:
 
             self.resetDrawing = True
             self.scale_frame = self.frame.copy()
-
 
     def drawingPath(self, x, y,xx,yy):
         # the name of window have to match the main function!!!
@@ -160,6 +152,7 @@ class CalibrateScale(object):
                     self.inputScale()
                 else:
                     print('Error')
+                    self.inputScale()
         else:
             print('please input a number')
             self.inputScale()
@@ -170,6 +163,16 @@ class CalibrateScale(object):
         pixel_per_metric = round(pixel_length,3)/metric
 
         return pixel_per_metric
+
+    def run(self):
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            main = executor.submit(self.loadScaleFrame)
+            input = executor.submit(self.inputScale)
+            coor = main.result()
+            return_value = input.result()
+            # ppm = executor.submit(self.convertScale,args = coor,return_value)
+        return coor,return_value
 
 
 
@@ -267,4 +270,49 @@ class TrackingDataLog(object):
 
         # use 300 frame to test
         raw_data.to_csv('test_datalog_with time stamp 1min.csv', sep=',',index=False)
+
+
+class TestCallClass(object):
+
+    def __init__(self,video_source):
+        self.video_source = video_source
+
+    def mouse_event(self,event,x,y,flags,param):
+        if event == cv2.EVENT_LBUTTONDOWN:
+            print(x,y)
+
+    def main(self):
+        video = cv2.VideoCapture(self.video_source)
+        cv2.namedWindow('Calibration', cv2.WINDOW_NORMAL)
+        # cv2.setMouseCallback('Calibration',cv2.WINDOW_NORMAL)
+        x, y, xx, yy = (0, 0), (0, 0), (0, 0), (0, 0)
+        cv2.setMouseCallback('Calibration', self.mouse_event)
+        while True:
+            # path_x, path_y, cali_x, cali_y = CalibrateScale.drawingPath(x, y, xx, yy)
+            # scale_line = CalibrateScale.displayScale(path_x, path_y, cali_x, cali_y)
+            # cv2.imshow('Calibration', CalibrateScale.show_image())
+
+            ret, input_vid = video.read()
+            cv2.imshow('Calibration', input_vid)
+            key = cv2.waitKey(10)
+            if key == ord('q'):
+                break
+        cv2.destroyAllWindows()
+
+    def input(self):
+        bar = input('anthing:')
+        return bar
+
+    def run(self):
+        # t1 = threading.Thread(target=self.input)
+        # t2 = threading.Thread(target=self.main)
+        # t1.start()
+        # t2.start()
+        # t1.join()
+        # t2.join()
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            main = executor.submit(self.main)
+            input = executor.submit(self.input)
+            return_value = input.result()
+        return return_value
 

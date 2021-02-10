@@ -23,8 +23,8 @@ from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from sklearn.cluster import MiniBatchKMeans
 
-# video_source = 'zebrafish_video.mp4'
-video_source = 0
+video_source = 'zebrafish_video.mp4'
+# video_source = 0
 # Video_load = 'randomball.mp4'
 
 # time_code = datetime.now()
@@ -480,10 +480,11 @@ def iniCalibrationImage():
 
 
 if __name__ == '__main__':
-    # iniCalibrationImage()
-    with concurrent.futures.ThreadPoolExecutor() as executor:
-        ini_cali_img = executor.submit(iniCalibrationImage)
-        return_value = iniCalibrationImage.result()
+    iniCalibrationImage()
+    # main()
+    # with concurrent.futures.ThreadPoolExecutor() as executor:
+    #     ini_cali_img = executor.submit(iniCalibrationImage)
+    #     return_value = iniCalibrationImage.result()
     #     # input_scale = executor.submit(CalibrateScale.inputScale)
 
 
