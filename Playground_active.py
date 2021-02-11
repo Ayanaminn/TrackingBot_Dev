@@ -458,45 +458,18 @@ def main():
 
     return tracking_data
 
-def iniCalibrationImage():
-
-    x,y,xx,yy =(0, 0), (0, 0),(0,0),(0,0)
-
-    while True:
-        path_x, path_y,cali_x,cali_y = CalibrateScale.drawingPath(x, y, xx, yy)
-        scale_line = CalibrateScale.displayScale(path_x, path_y, cali_x, cali_y)
-        # print(scale_line)
-        cv2.imshow('Calibration', CalibrateScale.show_image())
-
-        key = cv2.waitKey(10)
-
-        if key == ord('q'):
-            # cv2.destroyAllWindows()
-            break
-
-    CalibrateScale.cap.release()
-    cv2.destroyAllWindows()
-    return scale_line
 
 
 if __name__ == '__main__':
-    iniCalibrationImage()
-    # main()
-    # with concurrent.futures.ThreadPoolExecutor() as executor:
-    #     ini_cali_img = executor.submit(iniCalibrationImage)
-    #     return_value = iniCalibrationImage.result()
-    #     # input_scale = executor.submit(CalibrateScale.inputScale)
+    scale_coordinates, metric, is_metric = CalibrateScale.run()
+    print(f'scale coordinates is {scale_coordinates}, metric is {metric}')
+    ppm = CalibrateScale.convertScale(scale_coordinates,metric)
+    print(f'ppm is {ppm}')
 
-
-
-
-    #cv2.destroyAllWindows()
-
-
-
-    # print(is_true)
-    # if is_true:
-    #     data = main()
-    #     export_data(data)
-    # elif not is_true:
-    #     exit()
+    print(is_metric)
+    is_start = input('start tracking? Y/N')
+    if is_metric and is_start == 'Y':
+        data = main()
+        export_data(data)
+    elif is_start == 'N':
+        exit()
