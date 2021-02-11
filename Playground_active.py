@@ -23,8 +23,8 @@ from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from sklearn.cluster import MiniBatchKMeans
 
-video_source = 'zebrafish_video.mp4'
-# video_source = 0
+# video_source = 'zebrafish_video.mp4'
+video_source = 0
 # Video_load = 'randomball.mp4'
 
 # time_code = datetime.now()
@@ -35,7 +35,7 @@ debug = 0
 
 mask_on = False
 
-obj_num = 1 #is this still useful?
+obj_num = 1 #is this still useful?# yes, this will used for data convert
 obj_id = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'
           'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 colours = [(0, 0, 255), (0, 255, 255), (255, 0, 255), (255, 255, 255), (255, 255, 0),
@@ -70,8 +70,11 @@ scaling = 1.0
 # for KF_track
 # dist_thresh, max_undetected_frames, max_trajectory_len
 TrackingMethod = TrackingMethod(50, 60, 100)
+
 DataLog = TrackingDataLog()
 CalibrateScale=CalibrateScale(video_source)
+
+codec = 'mp4v'
 
 ## video thresholding
 def thresh_video(vid, block_size, offset):
@@ -267,6 +270,10 @@ def main():
 
     print('Memory consumption (before): {}Mb'.format(memory_profiler.memory_usage()))
 
+    fourcc = cv2.VideoWriter_fourcc(*codec)
+    output_framesize = (int(video.read()[1].shape[1] * scaling), int(video.read()[1].shape[0] * scaling))
+    out = cv2.VideoWriter(filename='testrec.mp4', fourcc=fourcc, fps=30.0, frameSize=output_framesize, isColor=True)
+
     # # test , so direct connect
     # arduino = serial.Serial('COM9', 9600)
     # time.sleep(1)
@@ -293,7 +300,7 @@ def main():
 
     while True:
         ret, input_vid = video.read()
-
+        out.write(input_vid)
         update_video_prop = local_video_prop(video)
 
         frame_count += 1
@@ -381,13 +388,13 @@ def main():
             pass
 
             # # # run tracking method
-            # TrackingMethod.identify(pos_detection)
-            # TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
-            #                          is_mark=True,is_trajectory=True)
-            #
+            TrackingMethod.identify(pos_detection)
+            TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
+                                     is_mark=True,is_trajectory=True)
+
             # # store tracking data when local tracking
-            # if is_timeStamp:
-            #     tracking_data = DataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
+            if is_timeStamp:
+                tracking_data = DataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
 
             # display video properties on top of video
             display_video_prop(contour_vid,get_date,get_clock,frame_count,video_elapse,get_video_prop)
@@ -461,15 +468,17 @@ def main():
 
 
 if __name__ == '__main__':
-    scale_coordinates, metric, is_metric = CalibrateScale.run()
-    print(f'scale coordinates is {scale_coordinates}, metric is {metric}')
-    ppm = CalibrateScale.convertScale(scale_coordinates,metric)
-    print(f'ppm is {ppm}')
+    # scale_coordinates, metric, is_metric = CalibrateScale.run()
+    # print(f'scale coordinates is {scale_coordinates}, metric is {metric}')
+    # ppm = CalibrateScale.convertScale(scale_coordinates,metric)
+    # print(f'ppm is {ppm}')
 
-    print(is_metric)
+    # print(is_metric)
+    is_metric = True
     is_start = input('start tracking? Y/N')
     if is_metric and is_start == 'Y':
         data = main()
         export_data(data)
+        # DataLog.dataConvert(obj_num)
     elif is_start == 'N':
         exit()

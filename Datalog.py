@@ -265,8 +265,7 @@ class TrackingDataLog(object):
     #
     #     return self.df
 
-    def dataConvert(self):
-        pass
+
 
     def dataToCSV(self, dataframe):
 
@@ -275,6 +274,13 @@ class TrackingDataLog(object):
                                          'Object'])
 
         # use 300 frame to test
-        raw_data.to_csv('test_datalog_with time stamp 1min.csv', sep=',', index=False)
+        raw_data.to_csv('test_datalog_with time stamp8.csv', sep=',', index=False)
 
+    def dataConvert(self,obj_num):
+        df = pd.read_csv('test_datalog_with time stamp8.csv')
 
+        dx = df['pos_x'] - df['pos_x'].shift(obj_num)
+        dy = df['pos_y'] - df['pos_y'].shift(obj_num)
+        df['speed'] = np.sqrt(int(dx) ** 2 + int(dy) ** 2)
+        df['speed2'] = distance.euclidean(int(dx),int(dy))
+        df.to_csv('test_datalog_with time stamp8.csv', index = False)
