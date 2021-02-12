@@ -251,8 +251,8 @@ class TrackingDataLog(object):
 
         for i in range(len(tracked_object)):
             # test create output dataframe
-            self.df.append([self.result_index, video_elapse, frame_count, tracked_object[i].pos_prediction[0],
-                            tracked_object[i].pos_prediction[1], id_marks[i]])
+            self.df.append([self.result_index, video_elapse, frame_count, tracked_object[i].pos_prediction[0][0],
+                            tracked_object[i].pos_prediction[1][0], id_marks[i]])
 
         return self.df
 
