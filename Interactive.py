@@ -4,6 +4,7 @@ on video use mouse operation in realtime and display the drawing
 '''
 import cv2
 from math import  pi
+import numpy as np
 
 isDrawing = False
 resetDrawing = False
@@ -98,7 +99,7 @@ class DrawObjectWidget(object):
 
         if drawingMode  == 'Line':
             cv2.line(self.show_image(), x, y, (0, 0, 255), 2)
-            lineLen = ((x[0]-y[0])**2 + (x[1]-y[1])**2)**0.5
+            lineLen = np.sqrt((x[0]-y[0])**2 + (x[1]-y[1])**2)
             # dis1 = distance.euclidean(list[0], list[1])
             # print('Length of the line is : {}'.format(lineLen))
 
@@ -110,7 +111,7 @@ class DrawObjectWidget(object):
 
 
         elif drawingMode == 'Circle':
-            r = int(((x[0]-y[0])**2 + (x[1]-y[1])**2)**0.5)
+            r = int(np.sqrt((x[0]-y[0])**2 + (x[1]-y[1])**2))
             areaCir = pi * (r**2)
             cv2.circle(self.show_image(), x, r, (0, 0, 255), 2)
             # print('Area of the selected circular zone is : {}\n'
