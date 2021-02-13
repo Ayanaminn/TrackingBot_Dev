@@ -23,9 +23,11 @@ from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from sklearn.cluster import MiniBatchKMeans
 
-# video_source = 'zebrafish_video.mp4'
-video_source = 0
+video_source = 'zebrafish_video.mp4'
+# video_source = 0
 # Video_load = 'randomball.mp4'
+recording_save_path = datetime.now().strftime('%Y-%m-%d-%H:%M') + '_recording.mp4'
+data_save_path = 'data_export_test' + '_tracked.csv'
 
 # time_code = datetime.now()
 
@@ -35,7 +37,7 @@ debug = 0
 
 mask_on = False
 
-obj_num = 1 #is this still useful?# yes, this will used for data convert
+obj_num = 5 #is this still useful?# yes, this will used for data convert
 obj_id = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N'
           'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
 colours = [(0, 0, 255), (0, 255, 255), (255, 0, 255), (255, 255, 255), (255, 255, 0),
@@ -232,11 +234,11 @@ def display_video_prop(video_souce,date,clock,frame,elapse,video_prop):
                 f'elapsed time: {elapse}', (450, int(video_prop.height - 10)),
                 1, 1, (0, 0, 255), 2)
 
-def export_data(dataframe):
+def export_data(dataframe,save_path):
     is_export = input('Export data in .csv file? Y/N')
     if is_export == 'Y':
         try:
-            DataLog.dataToCSV(dataframe)
+            DataLog.dataToCSV(dataframe,save_path)
             print(dataframe)
         except Exception as e:
             print(e)
@@ -272,7 +274,9 @@ def main():
 
     fourcc = cv2.VideoWriter_fourcc(*codec)
     output_framesize = (int(video.read()[1].shape[1] * scaling), int(video.read()[1].shape[0] * scaling))
-    out = cv2.VideoWriter(filename='testrec.mp4', fourcc=fourcc, fps=30.0, frameSize=output_framesize, isColor=True)
+    out = cv2.VideoWriter(filename=recording_save_path, fourcc=fourcc,
+                          fps=get_video_prop.fps, frameSize=output_framesize,
+                          isColor=True)
 
     # # test , so direct connect
     # arduino = serial.Serial('COM9', 9600)
@@ -468,17 +472,18 @@ def main():
 
 
 if __name__ == '__main__':
-    # scale_coordinates, metric, is_metric = CalibrateScale.run()
-    # print(f'scale coordinates is {scale_coordinates}, metric is {metric}')
-    # ppm = CalibrateScale.convertScale(scale_coordinates,metric)
-    # print(f'ppm is {ppm}')
+    scale_coordinates, metric, is_metric = CalibrateScale.run()
+    print(f'scale coordinates is {scale_coordinates}, metric is {metric}')
+    pixel_per_metric = CalibrateScale.convertScale(scale_coordinates, metric)
+    print(f'ppm is {pixel_per_metric}')
 
-    # print(is_metric)
-    is_metric = True
+    print(is_metric)
+    # is_metric = True
     is_start = input('start tracking? Y/N')
     if is_metric and is_start == 'Y':
         data = main()
-        export_data(data)
-        # DataLog.dataConvert(obj_num)
+        export_data(data, data_save_path)
+        DataLog.dataConvert(data_save_path,obj_num, pixel_per_metric)
+        print('Finished')
     elif is_start == 'N':
         exit()
