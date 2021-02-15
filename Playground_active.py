@@ -23,17 +23,16 @@ from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from sklearn.cluster import MiniBatchKMeans
 
-video_source = 'zebrafish_video.mp4'
-# video_source = 0
-# Video_load = 'randomball.mp4'
-recording_save_path = datetime.now().strftime('%Y-%m-%d-%H:%M') + '_recording.mp4'
+# video_source = 'zebrafish_video.mp4'
+video_source = 0
+
+recording_save_path = datetime.now().strftime('%Y-%m-%d-%H:%M') + '_recording.mp4' # living function
 data_save_path = 'data_export_test' + '_tracked.csv'
 
-# time_code = datetime.now()
 
 Mask_file_load = 'mask1.png'
 
-debug = 0
+debug = 0 # for debugging script only
 
 mask_on = False
 
@@ -55,10 +54,11 @@ colours = [(0, 0, 255), (0, 255, 255), (255, 0, 255), (255, 255, 255), (255, 255
 ## blocksize_max: the max value of block size track bar
 ## offset_ini: the initial value of offset used for adaptive thresholding
 blocksize_ini = 13
-offset_ini = 11
+offset_ini = 9
 
-cnt_min_th = 100
-cnt_max_th = 1500
+# (100,1500)for zebrafish video
+cnt_min_th = 1000
+cnt_max_th = 6500
 
 scaling = 1.0
 
@@ -76,7 +76,7 @@ TrackingMethod = TrackingMethod(50, 60, 100)
 DataLog = TrackingDataLog()
 CalibrateScale=CalibrateScale(video_source)
 
-codec = 'mp4v'
+codec = 'mp4v' # for living only
 
 ## video thresholding
 def thresh_video(vid, block_size, offset):
@@ -131,11 +131,11 @@ def apply_mask(raw_mask, raw_vid):
     return bitwise_mask
 
 
-def nothing(x):
-    """
-    call back function for trackbar
-    """
-    pass
+# def nothing(x):
+#     """
+#     call back function for trackbar
+#     """
+#     pass
 
 
 def detect_contours(vid, masked_th, min_th, max_th):
@@ -200,7 +200,8 @@ def detect_contours(vid, masked_th, min_th, max_th):
 
 def local_video_prop(video_source):
 
-    total_sec = video_source.get(cv2.CAP_PROP_FRAME_COUNT) / video_source.get(cv2.CAP_PROP_FPS)
+    #total_sec = video_source.get(cv2.CAP_PROP_FRAME_COUNT) / video_source.get(cv2.CAP_PROP_FPS)
+    total_sec = video_source.get(cv2.CAP_PROP_FRAME_COUNT) / 25
     video_duraion = str(timedelta(seconds=total_sec))
     video_prop = namedtuple('video_prop',['width','height','fps','length','elapse','duration'])
     get_video_prop= video_prop(video_source.get(cv2.CAP_PROP_FRAME_WIDTH),
@@ -234,16 +235,16 @@ def display_video_prop(video_souce,date,clock,frame,elapse,video_prop):
                 f'elapsed time: {elapse}', (450, int(video_prop.height - 10)),
                 1, 1, (0, 0, 255), 2)
 
-def export_data(dataframe,save_path):
-    is_export = input('Export data in .csv file? Y/N')
-    if is_export == 'Y':
-        try:
-            DataLog.dataToCSV(dataframe,save_path)
-            print(dataframe)
-        except Exception as e:
-            print(e)
-    elif is_export == 'N':
-        exit()
+# def export_data(dataframe,save_path):
+#     is_export = input('Export data in .csv file? Y/N')
+#     if is_export == 'Y':
+#         try:
+#             DataLog.dataToCSV(dataframe,save_path)
+#             print(dataframe)
+#         except Exception as e:
+#             print(e)
+#     elif is_export == 'N':
+#         exit()
 
 
 def main():
@@ -251,7 +252,7 @@ def main():
     video = cv2.VideoCapture(video_source)
     get_video_prop = local_video_prop(video)
 
-    cv2.namedWindow('Test', cv2.WINDOW_NORMAL)
+    cv2.namedWindow('Tracking', cv2.WINDOW_NORMAL)
 
     print(get_video_prop.fps)
     print(get_video_prop.duration)
@@ -272,6 +273,7 @@ def main():
 
     print('Memory consumption (before): {}Mb'.format(memory_profiler.memory_usage()))
 
+    # for living only
     fourcc = cv2.VideoWriter_fourcc(*codec)
     output_framesize = (int(video.read()[1].shape[1] * scaling), int(video.read()[1].shape[0] * scaling))
     out = cv2.VideoWriter(filename=recording_save_path, fourcc=fourcc,
@@ -304,13 +306,13 @@ def main():
 
     while True:
         ret, input_vid = video.read()
-        out.write(input_vid)
+        out.write(input_vid) # for living only
         update_video_prop = local_video_prop(video)
 
         frame_count += 1
 
         # pass time stamp parameters to datalog module
-        # and return time stamp conditon
+        # and return time stamp mark
         get_date,_ = DataLog.updateClock()
         _,get_clock = DataLog.updateClock()
 
@@ -343,9 +345,9 @@ def main():
             TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
                                      is_mark=True,is_trajectory=True)
 
-            # store tracking data when local tracking
+            # # store tracking data when local tracking
             if is_timeStamp:
-                df = DataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
+                tracking_data = DataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
 
             # display video properties on top of video
             display_video_prop(contour_vid, get_date, get_clock, frame_count, video_elapse, get_video_prop)
@@ -391,14 +393,14 @@ def main():
         # display current date on video
             pass
 
-            # # # run tracking method
-            TrackingMethod.identify(pos_detection)
-            TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
-                                     is_mark=True,is_trajectory=True)
-
-            # # store tracking data when local tracking
-            if is_timeStamp:
-                tracking_data = DataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
+            # # # # run tracking method
+            # TrackingMethod.identify(pos_detection)
+            # TrackingMethod.visualize(contour_vid,obj_id,is_centroid=True,
+            #                          is_mark=True,is_trajectory=True)
+            #
+            # # # store tracking data when local tracking
+            # if is_timeStamp:
+            #     tracking_data = DataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
 
             # display video properties on top of video
             display_video_prop(contour_vid,get_date,get_clock,frame_count,video_elapse,get_video_prop)
@@ -426,7 +428,7 @@ def main():
         #     lineLen = ((draw_start[0]-draw_end[0])**2 + (draw_start[1]-draw_end[1])**2)**0.5
         #     print('Length of the line is : {}'.format(lineLen))
 
-        cv2.imshow('Test', draw_object.show_image())
+        cv2.imshow('Tracking', draw_object.show_image())
 
         # wait 1ms if no input continue
         key = cv2.waitKey(1)
@@ -472,17 +474,17 @@ def main():
 
 
 if __name__ == '__main__':
-    scale_coordinates, metric, is_metric = CalibrateScale.run()
-    print(f'scale coordinates is {scale_coordinates}, metric is {metric}')
-    pixel_per_metric = CalibrateScale.convertScale(scale_coordinates, metric)
-    print(f'ppm is {pixel_per_metric}')
-
-    print(is_metric)
-    # is_metric = True
+    # scale_coordinates, metric, is_metric = CalibrateScale.run()
+    # print(f'scale coordinates is {scale_coordinates}, metric is {metric}')
+    # pixel_per_metric = CalibrateScale.convertScale(scale_coordinates, metric)
+    # print(f'ppm is {pixel_per_metric}')
+    #
+    # print(is_metric)
+    is_metric = True
     is_start = input('start tracking? Y/N')
     if is_metric and is_start == 'Y':
         data = main()
-        export_data(data, data_save_path)
+        DataLog.export_data(data, data_save_path)
         DataLog.dataConvert(data_save_path,obj_num, pixel_per_metric)
         print('Finished')
     elif is_start == 'N':
