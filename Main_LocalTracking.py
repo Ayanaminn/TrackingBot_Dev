@@ -1,6 +1,6 @@
 import time as time
 import cv2
-import Detection as det
+import Detection as Detection
 from Tracking import TrackingMethod
 from collections import namedtuple
 import memory_profiler
@@ -67,7 +67,7 @@ def main():
     cv2.namedWindow('Tracking', cv2.WINDOW_NORMAL)
 
     ## create trackbar for blocksize adjust
-    cv2.createTrackbar('Block size', 'Tracking', blocksize_ini, blocksize_max, det.nothing)
+    cv2.createTrackbar('Block size', 'Tracking', blocksize_ini, blocksize_max, Detection.nothing)
     ## disable off set trackbar
     # cv2.createTrackbar('offset', 'Test', offset_ini, offset_max, nothing)
 
@@ -117,14 +117,14 @@ def main():
 
         if mask_on == True:
             ## create a mask and apply on video
-            ret, mask = det.create_mask(mask_img)
-            masked_vid = det.apply_mask(mask, input_vid)
+            ret, mask = Detection.create_mask(mask_img)
+            masked_vid = Detection.apply_mask(mask, input_vid)
             ## if disable trackbar, set 2nd arg to blocksize_ini
-            th_masked = det.thresh_video(masked_vid, set_blocksize, offset_ini)
-            contour_vid, cnt, pos_detection, pos_archive = det.detect_contours(input_vid,
-                                                                               th_masked,
-                                                                               cnt_min_th,
-                                                                               cnt_max_th, )
+            th_masked = Detection.thresh_video(masked_vid, set_blocksize, offset_ini)
+            contour_vid, cnt, pos_detection, pos_archive = Detection.detect_contours(input_vid,
+                                                                                     th_masked,
+                                                                                     cnt_min_th,
+                                                                                     cnt_max_th, )
             TrackingMethod.identify(pos_detection)
 
             TrackingMethod.visualize(contour_vid, obj_id, is_centroid=True,
@@ -139,12 +139,12 @@ def main():
 
         else:
             ## if disable trackbar, set 2nd arg to blocksize_ini
-            th_masked = det.thresh_video(input_vid, set_blocksize, offset_ini)
+            th_masked = Detection.thresh_video(input_vid, set_blocksize, offset_ini)
 
-            contour_vid, cnt, pos_detection, pos_archive = det.detect_contours(input_vid,
-                                                                               th_masked,
-                                                                               cnt_min_th,
-                                                                               cnt_max_th, )
+            contour_vid, cnt, pos_detection, pos_archive = Detection.detect_contours(input_vid,
+                                                                                     th_masked,
+                                                                                     cnt_min_th,
+                                                                                     cnt_max_th, )
 
             TrackingMethod.identify(pos_detection)
 
