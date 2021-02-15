@@ -72,7 +72,7 @@ class DrawObjectWidget(object):
 
     def drawingPath(self, x, y):
         # the name of window have to match the main function!!!
-        cv2.setMouseCallback('Test', self.extract_coordinates)
+        cv2.setMouseCallback('Tracking', self.extract_coordinates)
         # while drawing mode is activate
         # return the start point and keep return all point on the path
         # that mouse drag through
