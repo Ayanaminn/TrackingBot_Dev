@@ -6,6 +6,7 @@ import pandas as pd
 import cv2
 import threading
 import concurrent.futures
+import time
 from datetime import datetime, timedelta
 from scipy.spatial import distance
 from Interactive import DrawObjectWidget
@@ -221,9 +222,10 @@ class TrackingDataLog(object):
 
 
     def updateClock(self):
-        get_date = datetime.now().strftime('%Y-%m-%d')
-        get_clock = datetime.now().strftime('%H:%M:%S:%f')[:-3]
-        return get_date, get_clock
+
+        get_clock = datetime.now().strftime('%Y-%m-%d %H:%M:%S:%f')[:-3]
+
+        return get_clock
 
         # store, calculate and convert time stamp parameters
 
@@ -311,16 +313,46 @@ class TrackingDataLog(object):
 
         return dataframe
 
-    # def liveDataFrame(self, clock,elapse,tracked_object, id_marks):
-    #
-    #     for i in range(len(tracked_object)):
-    #         # test create output dataframe
-    #         self.df.append([clock,elapse,self.time_index,tracked_object[i].pos_prediction[0],
-    #                         tracked_object[i].pos_prediction[1], id_marks[i]])
-    #
-    #     return self.df
+    def liveTimeStamp(self, frame_rate, live_elapse, frame_count, interval=None):
+        """Create time stamp when tracking live video source
+           and store data based on time stamp mark
+        Args:
+            live_elapse: time elapsed between each frame by read current position of video files in milisec
 
-    def export_data(self,dataframe, save_path):
+        Return:
+            self.is_stamp: store data if time mark condition is true
+            video_elapse: absolute time elapsed between each frame
+                          display while video playing
+        """
+        self.is_stamp = False
+        self.is_min = 1  # count how many mintues passed
+
+        # is_stampSec = live_elapse % 1000  # bool condition when reach one sec mark
+                                           # 1sec mark in living tracking need modify
+        # is_stampMin = live_elapse % 60000
+
+        # store data every frame
+        if interval == None:
+            self.result_index += 1
+            video_elapse = f"{str(time.strftime('%H:%M:%S', time.gmtime(live_elapse)))}"
+            self.is_stamp = True
+
+            return self.is_stamp, video_elapse
+
+    def liveDataFrame(self,clock, video_elapse,tracked_object, id_marks):
+
+        for i in range(len(tracked_object)):
+            # test create output dataframe
+            self.df.append([self.result_index,clock,video_elapse,tracked_object[i].pos_prediction[0][0],
+                            tracked_object[i].pos_prediction[1][0], id_marks[i]])
+
+        dataframe = pd.DataFrame(np.array(self.df),
+                                 columns=[self.result_index_label, 'Recording Time', 'Time elapsed(s)','pos_x', 'pos_y',
+                                          'Object'])
+
+        return dataframe
+
+    def exportData(self, dataframe, save_path):
         is_export = input('Export data in .csv file? Y/N')
         if is_export == 'Y':
             try:
@@ -366,4 +398,18 @@ class TrackingDataLog(object):
 
         df.to_csv(save_path, index=False)
 
+# open another thread?
+class TrackingVideoLog(object):
+    '''
+    This class is used to store and export live tracking video
+    '''
+    def __init__(self, video):
+        self.video = video # frame to be write
+        self.codec = 'mp4v'
 
+    def exportVideo(self,save_path, fps,frame_size):
+        # for living only
+        fourcc = cv2.VideoWriter_fourcc(*self.codec)
+        frame_size = (int(frame_size[1]), int(frame_size[0]))
+        cv2.VideoWriter(filename=save_path, fourcc=fourcc,fps=fps,
+                        frameSize=frame_size,isColor=True).write(self.video)

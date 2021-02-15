@@ -48,7 +48,7 @@ scaling = 1.0
 TrackingMethod = TrackingMethod(50, 60, 100)
 
 # initialize other functional class object
-DataLog = TrackingDataLog()
+TrackingDataLog = TrackingDataLog()
 CalibrateScale = CalibrateScale(video_source)
 
 
@@ -73,26 +73,27 @@ def main():
 
     tracking_data = []
 
-    tic = time.perf_counter()
+
     print('Memory consumption (before): {}Mb'.format(memory_profiler.memory_usage()))
 
     while True:
+        tic = time.perf_counter()
+
         ret, input_vid = video.read()
+        mask_img = cv2.imread(Mask_file_load, 1)
 
         update_video_prop = local_video_prop(video)
         frame_count += 1
 
         # get current date and time
-        get_date, _ = DataLog.updateClock()
-        _, get_clock = DataLog.updateClock()
+        get_clock = TrackingDataLog.updateClock()
 
         # get time stamp mark
-        is_timeStamp, video_elapse = DataLog.localTimeStamp(get_video_prop.fps,
+        is_timeStamp, video_elapse =TrackingDataLog.localTimeStamp(get_video_prop.fps,
                                                             update_video_prop.elapse,
                                                             frame_count,
                                                             interval=None)
 
-        mask_img = cv2.imread(Mask_file_load, 1)
         input_vid = cv2.resize(input_vid,
                                None,
                                fx=scaling,
@@ -132,10 +133,10 @@ def main():
 
             # # store tracking data when local tracking
             if is_timeStamp:
-                tracking_data = DataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
+                tracking_data = TrackingDataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
 
             # display video properties on top of video
-            display_video_prop(contour_vid, get_date, get_clock, frame_count, video_elapse, get_video_prop)
+            display_video_prop(contour_vid, get_clock, frame_count, video_elapse, get_video_prop)
 
         else:
             ## if disable trackbar, set 2nd arg to blocksize_ini
@@ -152,12 +153,12 @@ def main():
             TrackingMethod.visualize(contour_vid, obj_id, is_centroid=True,
                                      is_mark=True, is_trajectory=True)
 
-            # # store tracking data when local tracking
+            # # # store tracking data when local tracking
             if is_timeStamp:
-                tracking_data = DataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
+                tracking_data = TrackingDataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
 
             # display video properties on top of video
-            display_video_prop(contour_vid, get_date, get_clock, frame_count, video_elapse, get_video_prop)
+            display_video_prop(contour_vid, get_clock, frame_count, video_elapse, get_video_prop)
 
 
         ## drawing block
@@ -167,6 +168,9 @@ def main():
 
 
         cv2.imshow('Tracking', draw_object.show_image())
+
+        toc = time.perf_counter()
+        print(f'Time Elapsed Per Loop {toc - tic:.3f}')
 
         # wait 1ms if no input continue
         key = cv2.waitKey(1)
@@ -208,9 +212,6 @@ def main():
 
     video.release()
     cv2.destroyAllWindows()
-
-    toc = time.perf_counter()
-    print(f'Time Elapsed Per Loop {toc - tic:.3f}')
     print(f'Memory consumption (after): {memory_profiler.memory_usage()}Mb')
 
     return tracking_data
@@ -241,15 +242,14 @@ def local_video_prop(video_source):
     return get_video_prop
 
 
-def display_video_prop(video_souce, date, clock, frame, elapse, video_prop):
+def display_video_prop(video_souce, clock, frame, elapse, video_prop):
     """
     Display video parameters while video playing
     Parameters
     ----------
     video_souce
-    date : current date
     clock : current time
-    frame : video fps
+    frame : accumulated frame
     elapse : absolute time elapsed when video is playing
     video_prop
 
@@ -258,14 +258,9 @@ def display_video_prop(video_souce, date, clock, frame, elapse, video_prop):
 
     """
 
-    # display current date on video
-    cv2.putText(video_souce,
-                '{}'.format(date), (10, int(video_prop.height - 10)),
-                1, 1, (0, 0, 255), 2)
-
     # display current time on video
     cv2.putText(video_souce,
-                '{}'.format(clock), (120, int(video_prop.height - 10)),
+                '{}'.format(clock), (10, int(video_prop.height - 10)),
                 1, 1, (0, 0, 255), 2)
 
     # display current frame on video
@@ -280,16 +275,16 @@ def display_video_prop(video_souce, date, clock, frame, elapse, video_prop):
 
 
 if __name__ == '__main__':
-    scale_coordinates, metric, is_metric = CalibrateScale.run()
-    print(f'scale coordinates is {scale_coordinates}, metric is {metric}')
-    pixel_per_metric = CalibrateScale.convertScale(scale_coordinates, metric)
-    print(f'ppm is {pixel_per_metric}')
-    # is_metric = True
+    # scale_coordinates, metric, is_metric = CalibrateScale.run()
+    # print(f'scale coordinates is {scale_coordinates}, metric is {metric}')
+    # pixel_per_metric = CalibrateScale.convertScale(scale_coordinates, metric)
+    # print(f'ppm is {pixel_per_metric}')
+    is_metric = True
     is_start = input('start tracking? Y/N')
     if is_metric and is_start == 'Y':
         data = main()
-        DataLog.export_data(data, data_save_path)
-        DataLog.dataConvert(data_save_path,obj_num, pixel_per_metric)
+        TrackingDataLog.exportData(data, data_save_path)
+        # TrackingDataLog.dataConvert(data_save_path,obj_num, pixel_per_metric)
         print('Finished')
     elif is_start == 'N':
         exit()

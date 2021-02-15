@@ -23,8 +23,8 @@ from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from sklearn.cluster import MiniBatchKMeans
 
-# video_source = 'zebrafish_video.mp4'
-video_source = 0
+video_source = 'zebrafish_video.mp4'
+# video_source = 0
 
 recording_save_path = datetime.now().strftime('%Y-%m-%d-%H:%M') + '_recording.mp4' # living function
 data_save_path = 'data_export_test' + '_tracked.csv'
@@ -57,8 +57,8 @@ blocksize_ini = 13
 offset_ini = 9
 
 # (100,1500)for zebrafish video
-cnt_min_th = 1000
-cnt_max_th = 6500
+cnt_min_th = 100
+cnt_max_th = 1500
 
 scaling = 1.0
 
@@ -73,7 +73,7 @@ scaling = 1.0
 # dist_thresh, max_undetected_frames, max_trajectory_len
 TrackingMethod = TrackingMethod(50, 60, 100)
 
-DataLog = TrackingDataLog()
+TrackingDataLog = TrackingDataLog()
 CalibrateScale=CalibrateScale(video_source)
 
 codec = 'mp4v' # for living only
@@ -129,13 +129,6 @@ def apply_mask(raw_mask, raw_vid):
     mask_inv = cv2.bitwise_not(raw_mask)
     bitwise_mask = cv2.bitwise_and(raw_vid, raw_vid, mask=mask_inv)
     return bitwise_mask
-
-
-# def nothing(x):
-#     """
-#     call back function for trackbar
-#     """
-#     pass
 
 
 def detect_contours(vid, masked_th, min_th, max_th):
@@ -197,7 +190,6 @@ def detect_contours(vid, masked_th, min_th, max_th):
             pass
     return vid_draw, contours, pos_detection, pos_archive
 
-
 def local_video_prop(video_source):
 
     #total_sec = video_source.get(cv2.CAP_PROP_FRAME_COUNT) / video_source.get(cv2.CAP_PROP_FPS)
@@ -213,16 +205,11 @@ def local_video_prop(video_source):
 
     return get_video_prop
 
-def display_video_prop(video_souce,date,clock,frame,elapse,video_prop):
-
-    # display current date on video
-    cv2.putText(video_souce,
-                '{}'.format(date), (10, int(video_prop.height - 10)),
-                1, 1, (0, 0, 255), 2)
+def display_video_prop(video_souce,clock,frame,elapse,video_prop):
 
     # display current time on video
     cv2.putText(video_souce,
-                '{}'.format(clock), (120, int(video_prop.height - 10)),
+                '{}'.format(clock), (10, int(video_prop.height - 10)),
                 1, 1, (0, 0, 255), 2)
 
     # display current frame on video
@@ -235,21 +222,13 @@ def display_video_prop(video_souce,date,clock,frame,elapse,video_prop):
                 f'elapsed time: {elapse}', (450, int(video_prop.height - 10)),
                 1, 1, (0, 0, 255), 2)
 
-# def export_data(dataframe,save_path):
-#     is_export = input('Export data in .csv file? Y/N')
-#     if is_export == 'Y':
-#         try:
-#             DataLog.dataToCSV(dataframe,save_path)
-#             print(dataframe)
-#         except Exception as e:
-#             print(e)
-#     elif is_export == 'N':
-#         exit()
 
 
 def main():
 
     video = cv2.VideoCapture(video_source)
+    mask_img = cv2.imread(Mask_file_load, 1)
+
     get_video_prop = local_video_prop(video)
 
     cv2.namedWindow('Tracking', cv2.WINDOW_NORMAL)
@@ -258,7 +237,6 @@ def main():
     print(get_video_prop.duration)
 
     frame_count = -1
-
 
     drawingMode = 'Line'
     resetDrawing = False
@@ -269,7 +247,7 @@ def main():
 
     tracking_data=[]
 
-    tic = time.perf_counter()
+
 
     print('Memory consumption (before): {}Mb'.format(memory_profiler.memory_usage()))
 
@@ -305,24 +283,23 @@ def main():
     # cv2.destroyAllWindows()
 
     while True:
+        tic = time.perf_counter()
         ret, input_vid = video.read()
-        out.write(input_vid) # for living only
+        # out.write(input_vid) # for living only
         update_video_prop = local_video_prop(video)
 
         frame_count += 1
 
         # pass time stamp parameters to datalog module
         # and return time stamp mark
-        get_date,_ = DataLog.updateClock()
-        _,get_clock = DataLog.updateClock()
+        get_clock = TrackingDataLog.updateClock()
 
 
-        is_timeStamp,video_elapse = DataLog.localTimeStamp(get_video_prop.fps,
-                                         update_video_prop.elapse,
-                                         frame_count,
-                                         interval= None)
+        is_timeStamp,video_elapse = TrackingDataLog.localTimeStamp(get_video_prop.fps,
+                                                                   update_video_prop.elapse,
+                                                                   frame_count,
+                                                                   interval= None)
 
-        mask_img = cv2.imread(Mask_file_load, 1)
         # input_vid = cv2.resize(input_vid,
         #                        None,
         #                        fx=scaling,
@@ -347,10 +324,10 @@ def main():
 
             # # store tracking data when local tracking
             if is_timeStamp:
-                tracking_data = DataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
+                tracking_data = TrackingDataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
 
             # display video properties on top of video
-            display_video_prop(contour_vid, get_date, get_clock, frame_count, video_elapse, get_video_prop)
+            display_video_prop(contour_vid, get_clock, frame_count, video_elapse, get_video_prop)
 
 
         else:
@@ -403,7 +380,7 @@ def main():
             #     tracking_data = DataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
 
             # display video properties on top of video
-            display_video_prop(contour_vid,get_date,get_clock,frame_count,video_elapse,get_video_prop)
+            display_video_prop(contour_vid,get_clock,frame_count,video_elapse,get_video_prop)
 
 
 
@@ -429,6 +406,8 @@ def main():
         #     print('Length of the line is : {}'.format(lineLen))
 
         cv2.imshow('Tracking', draw_object.show_image())
+        toc = time.perf_counter()
+        print(f'Time Elapsed Per Loop {toc - tic:.3f}')
 
         # wait 1ms if no input continue
         key = cv2.waitKey(1)
@@ -465,8 +444,8 @@ def main():
 
     video.release()
     cv2.destroyAllWindows()
-    toc = time.perf_counter()
-    print(f'Time Elapsed Per Loop {toc - tic:.3f}')
+    # toc = time.perf_counter()
+    # print(f'Time Elapsed Per Loop {toc - tic:.3f}')
     print(f'Memory consumption (after): {memory_profiler.memory_usage()}Mb')
 
     return tracking_data
@@ -484,8 +463,8 @@ if __name__ == '__main__':
     is_start = input('start tracking? Y/N')
     if is_metric and is_start == 'Y':
         data = main()
-        DataLog.export_data(data, data_save_path)
-        DataLog.dataConvert(data_save_path,obj_num, pixel_per_metric)
+        TrackingDataLog.exportData(data, data_save_path)
+        TrackingDataLog.dataConvert(data_save_path, obj_num, pixel_per_metric)
         print('Finished')
     elif is_start == 'N':
         exit()

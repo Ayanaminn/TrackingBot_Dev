@@ -6,7 +6,7 @@ from collections import namedtuple
 import memory_profiler
 from Interactive import DrawObjectWidget
 from datetime import datetime, timedelta
-from Datalog import TrackingDataLog, CalibrateScale
+from Datalog import TrackingDataLog, CalibrateScale, TrackingVideoLog
 
 video_source = 0
 
@@ -14,8 +14,8 @@ Mask_file_load = 'mask1.png'
 mask_on = False
 
 data_save_path = 'data_export_test' + '_tracked.csv'
-recording_save_path = datetime.now().strftime('%Y-%m-%d-%H:%M') + '_recording.mp4' # living function
-codec = 'mp4v'
+recording_save_path = datetime.now().strftime('%Y-%m-%d %H%M') + '.mp4'  # living function
+export_fps = 25
 
 ## number of objects to be detected in video
 obj_num = 5
@@ -50,12 +50,13 @@ scaling = 1.0
 TrackingMethod = TrackingMethod(50, 60, 100)
 
 # initialize other functional class object
-DataLog = TrackingDataLog()
+TrackingDataLog = TrackingDataLog()
+
 CalibrateScale = CalibrateScale(video_source)
 
 
 def main():
-    video = cv2.VideoCapture(video_source)
+    video = cv2.VideoCapture(video_source, cv2.CAP_DSHOW)
     get_video_prop = live_video_prop(video)
 
     frame_count = -1  # first frame start from 0
@@ -80,35 +81,31 @@ def main():
 
     while True:
         ret, input_vid = video.read()
+        mask_img = cv2.imread(Mask_file_load, 1)
 
         # update_video_prop = local_video_prop(video)
         frame_count += 1
 
         # absolute time elapsed after start capturing
         end_delta = time.perf_counter()
-        elapse_delta = timedelta(seconds=end_delta-start_delta).total_seconds()
+        elapse_delta = timedelta(seconds=end_delta - start_delta).total_seconds()
 
         # frame rate of living camera source
-        fps=round(frame_count/elapse_delta)
+        fps = round(frame_count / elapse_delta)
 
         # get current date and time
-        get_date, _ = DataLog.updateClock()
-        _, get_clock = DataLog.updateClock()
+        get_clock = TrackingDataLog.updateClock()
 
         # get time stamp mark
-        is_timeStamp, video_elapse = DataLog.localTimeStamp(fps,
-                                                            elapse_delta,
-                                                            frame_count,
-                                                            interval=None)
-        '''
-        review bookmark
-        video output block
-        '''
-        mask_img = cv2.imread(Mask_file_load, 1)
-        input_vid = cv2.resize(input_vid,
-                               None,
-                               fx=scaling,
-                               fy=scaling,
+        is_timeStamp, video_elapse = TrackingDataLog.liveTimeStamp(fps,
+                                                                   elapse_delta,
+                                                                   frame_count,
+                                                                   interval=None)
+
+        VideoLog = TrackingVideoLog(input_vid)
+        VideoLog.exportVideo(recording_save_path,export_fps,get_video_prop)
+
+        input_vid = cv2.resize(input_vid, None, fx=scaling, fy=scaling,
                                interpolation=cv2.INTER_LINEAR)
 
         ## set parameter for thresholding
@@ -144,10 +141,10 @@ def main():
 
             # # store tracking data when local tracking
             if is_timeStamp:
-                tracking_data = DataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
+                tracking_data = TrackingDataLog.liveDataFrame(get_clock, video_elapse,TrackingMethod.registration, obj_id)
 
             # display video properties on top of video
-            display_video_prop(contour_vid, get_date, get_clock, frame_count, video_elapse, get_video_prop)
+            display_video_prop(contour_vid, get_clock, fps, video_elapse, get_video_prop)
 
         else:
             ## if disable trackbar, set 2nd arg to blocksize_ini
@@ -164,19 +161,17 @@ def main():
             TrackingMethod.visualize(contour_vid, obj_id, is_centroid=True,
                                      is_mark=True, is_trajectory=True)
 
-            # # store tracking data when local tracking
+            # # store tracking data when live tracking
             if is_timeStamp:
-                tracking_data = DataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
+                tracking_data = TrackingDataLog.liveDataFrame(get_clock, video_elapse,TrackingMethod.registration, obj_id)
 
             # display video properties on top of video
-            display_video_prop(contour_vid, get_date, get_clock, frame_count, video_elapse, get_video_prop)
-
+            display_video_prop(contour_vid, get_clock, fps, video_elapse, get_video_prop)
 
         ## drawing block
         draw_object = DrawObjectWidget(contour_vid)
         draw_start, draw_end = draw_object.drawingPath(ini_start, ini_end)
-        draw_object.displayDrawing(draw_start,draw_end,drawingMode)
-
+        draw_object.displayDrawing(draw_start, draw_end, drawingMode)
 
         cv2.imshow('Tracking', draw_object.show_image())
 
@@ -185,7 +180,7 @@ def main():
 
         # pause
         if key == ord('p'):
-            cv2.waitKey(-1) # wait until any key is pressed
+            cv2.waitKey(-1)  # wait until any key is pressed
 
         # exit
         if key == ord('q'):
@@ -194,14 +189,14 @@ def main():
 
         # reset not working here, need find a solution
 
-        elif key == ord('m') and drawingMode  == 'Line':
-            draw_start, draw_end = ini_start,ini_end
-            drawingMode  = 'Rectangle'
+        elif key == ord('m') and drawingMode == 'Line':
+            draw_start, draw_end = ini_start, ini_end
+            drawingMode = 'Rectangle'
             print('Drawing mode : Rectangle')
             continue
-        elif key == ord('m') and drawingMode  == 'Rectangle':
+        elif key == ord('m') and drawingMode == 'Rectangle':
             resetDrawing = True
-            drawingMode  = 'Circle'
+            drawingMode = 'Circle'
             print('Drawing mode : Circle')
             continue
         elif key == ord('m') and drawingMode == 'Circle':
@@ -227,6 +222,7 @@ def main():
 
     return tracking_data
 
+
 def live_video_prop(video_source):
     """
     read parameters of live camera
@@ -246,15 +242,14 @@ def live_video_prop(video_source):
     return get_video_prop
 
 
-def display_video_prop(video_souce, date, clock, frame, elapse, video_prop):
+def display_video_prop(video_souce, clock, fps, elapse, video_prop):
     """
     Display video parameters while video playing
     Parameters
     ----------
     video_souce
-    date : current date
     clock : current time
-    frame : video fps
+    fps : video fps
     elapse : absolute time elapsed when video is playing
     video_prop
 
@@ -263,38 +258,33 @@ def display_video_prop(video_souce, date, clock, frame, elapse, video_prop):
 
     """
 
-    # display current date on video
-    cv2.putText(video_souce,
-                '{}'.format(date), (10, int(video_prop.height - 10)),
-                1, 1, (0, 0, 255), 2)
-
     # display current time on video
     cv2.putText(video_souce,
-                '{}'.format(clock), (120, int(video_prop.height - 10)),
+                '{}'.format(clock), (10, int(video_prop.height - 10)),
                 1, 1, (0, 0, 255), 2)
 
-    # display current frame on video
+    # display current fps on video
     cv2.putText(video_souce,
-                'current frame: {}'.format(frame), (250, int(video_prop.height - 10)),
+                'FPS: {}'.format(fps), (250, int(video_prop.height - 10)),
                 1, 1, (0, 0, 255), 2)
 
     # display elapsed video time
     cv2.putText(video_souce,
-                f'elapsed time: {elapse}', (450, int(video_prop.height - 10)),
+                f'elapsed time: {elapse}', (420, int(video_prop.height - 10)),
                 1, 1, (0, 0, 255), 2)
 
 
 if __name__ == '__main__':
-    scale_coordinates, metric, is_metric = CalibrateScale.run()
-    print(f'scale coordinates is {scale_coordinates}, metric is {metric}')
-    pixel_per_metric = CalibrateScale.convertScale(scale_coordinates, metric)
-    print(f'ppm is {pixel_per_metric}')
-    # is_metric = True
+    # scale_coordinates, metric, is_metric = CalibrateScale.run()
+    # print(f'scale coordinates is {scale_coordinates}, metric is {metric}')
+    # pixel_per_metric = CalibrateScale.convertScale(scale_coordinates, metric)
+    # print(f'ppm is {pixel_per_metric}')
+    is_metric = True
     is_start = input('start tracking? Y/N')
     if is_metric and is_start == 'Y':
         data = main()
-        DataLog.export_data(data, data_save_path)
-        DataLog.dataConvert(data_save_path,obj_num, pixel_per_metric)
+        TrackingDataLog.exportData(data, data_save_path)
+        # TrackingDataLog.dataConvert(data_save_path, obj_num, pixel_per_metric)
         print('Finished')
     elif is_start == 'N':
         exit()
