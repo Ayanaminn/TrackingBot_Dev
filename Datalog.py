@@ -219,8 +219,8 @@ class TrackingDataLog(object):
         # self.get_date = datetime.now().strftime('%Y-%m-%d')
         # self.get_time = datetime.now().strftime('%H:%M:%S:%f')[:-3]
 
-    @staticmethod
-    def updateClock():
+
+    def updateClock(self):
         get_date = datetime.now().strftime('%Y-%m-%d')
         get_clock = datetime.now().strftime('%H:%M:%S:%f')[:-3]
         return get_date, get_clock
@@ -229,18 +229,19 @@ class TrackingDataLog(object):
 
     def localTimeStamp(self, frame_rate, local_elapse, frame_count, interval=None):
         """Create time stamp when tracking local video files
-           and store data based on time stamp
+           and store data based on time stamp mark
         Args:
             local_elapse: time elapsed between each frame by read current position of video files in milisec
 
         Return:
-            self.is_stamp: store data if true
+            self.is_stamp: store data if time mark condition is true
             video_elapse: absolute time elapsed between each frame
                           display while video playing
         """
         self.is_stamp = False
         self.is_min = 1  # count how many mintues passed
-        is_stampSec = local_elapse % 1000  # bool condition when reach one sec
+        is_stampSec = local_elapse % 1000  # bool condition when reach one sec mark
+                                           # this condition is need to avoid display format error when at each second
         is_stampMin = local_elapse % 60000
 
         # store data every frame
@@ -259,6 +260,10 @@ class TrackingDataLog(object):
         ## can store time bin data by define timebin parameter and calling this function
         ## but since already stored all raw data , maybe auto sort the raw data to time bin dataframe
         ## is more efficiency?
+
+        ## better to use frame rate for time mark?
+        ## the reseason to use elapsed time is due to the concern of e.g.:24.96fps
+
 
         # if interval == '1sec':
         #     if is_stampSec == 0:
@@ -315,6 +320,17 @@ class TrackingDataLog(object):
     #
     #     return self.df
 
+    def export_data(self,dataframe, save_path):
+        is_export = input('Export data in .csv file? Y/N')
+        if is_export == 'Y':
+            try:
+                self.dataToCSV(dataframe, save_path)
+                print(dataframe)
+            except Exception as e:
+                print(e)
+        elif is_export == 'N':
+            exit()
+
     def dataToCSV(self, dataframe, save_path):
         """
         save dataframe as .csv file
@@ -349,3 +365,5 @@ class TrackingDataLog(object):
         df['Distance (mm)'] = (np.sqrt(dx ** 2 + dy ** 2)) / metric
 
         df.to_csv(save_path, index=False)
+
+
