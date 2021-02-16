@@ -54,6 +54,7 @@ CalibrateScale = CalibrateScale(video_source)
 
 def main():
     video = cv2.VideoCapture(video_source)
+    mask_img = cv2.imread(Mask_file_load, 1)
 
     # update POS_MSEC and count accumulative frame
     get_video_prop = local_video_prop(video)
@@ -80,7 +81,7 @@ def main():
         tic = time.perf_counter()
 
         ret, input_vid = video.read()
-        mask_img = cv2.imread(Mask_file_load, 1)
+
 
         update_video_prop = local_video_prop(video)
         frame_count += 1
@@ -117,6 +118,7 @@ def main():
         # set_offset = offset_ini
 
         if mask_on == True:
+
             ## create a mask and apply on video
             ret, mask = Detection.create_mask(mask_img)
             masked_vid = Detection.apply_mask(mask, input_vid)

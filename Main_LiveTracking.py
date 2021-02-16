@@ -55,6 +55,8 @@ CalibrateScale = CalibrateScale(video_source)
 
 def main():
     video = cv2.VideoCapture(video_source, cv2.CAP_DSHOW)
+    mask_img = cv2.imread(Mask_file_load, 1)
+
     cv2.namedWindow('Tracking', cv2.WINDOW_NORMAL)
 
     get_video_prop = live_video_prop(video)
@@ -127,7 +129,7 @@ def main():
 
         if mask_on == True:
 
-            mask_img = cv2.imread(Mask_file_load, 1)
+
             ## create a mask and apply on video
             ret, mask = Detection.create_mask(mask_img)
             masked_vid = Detection.apply_mask(mask, input_vid)
