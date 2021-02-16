@@ -24,8 +24,6 @@ obj_id = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
 colours = [(0, 0, 255), (0, 255, 255), (255, 0, 255), (255, 255, 255), (255, 255, 0), (255, 0, 0),
            (0, 255, 0), (0, 0, 0), (54, 0, 7), (0, 72, 0), (8, 77, 134), (130, 56, 99), (255, 0, 0)]
 
-# if true,show centroid and object id,otherwise not
-mark_on = 0
 
 ## define constant for color threshold
 ## blocksize_ini: the initial value of block size used for adaptive thresholding
@@ -38,8 +36,8 @@ offset_ini = 9
 ## define constant for contour threshold
 ## cnt_min_th: minimum contour area for threshold
 ## cnt_max_th: maximum contour area for threshold
-cnt_min_th = 100
-cnt_max_th = 1500
+cnt_min_th = 4000
+cnt_max_th = 6500
 
 ## offset trackbar disabled
 # offset_max = 100
@@ -57,6 +55,8 @@ CalibrateScale = CalibrateScale(video_source)
 
 def main():
     video = cv2.VideoCapture(video_source, cv2.CAP_DSHOW)
+    cv2.namedWindow('Tracking', cv2.WINDOW_NORMAL)
+
     get_video_prop = live_video_prop(video)
 
     frame_count = -1  # first frame start from 0
@@ -67,7 +67,6 @@ def main():
     ini_end = (0, 0)
     drawingMode = 'Line'
 
-    cv2.namedWindow('Tracking', cv2.WINDOW_NORMAL)
 
     ## create trackbar for blocksize adjust
     cv2.createTrackbar('Block size', 'Tracking', blocksize_ini, blocksize_max, Detection.nothing)
@@ -76,14 +75,16 @@ def main():
 
     tracking_data = []
 
-    tic = time.perf_counter()
+
     print('Memory consumption (before): {}Mb'.format(memory_profiler.memory_usage()))
 
     while True:
         ret, input_vid = video.read()
-        mask_img = cv2.imread(Mask_file_load, 1)
+        # mask_img = cv2.imread(Mask_file_load, 1) # this will slow down the perf_counter
+        # presumbaly take time to load img in each loop?
 
-        # update_video_prop = local_video_prop(video)
+        tic = time.perf_counter()
+
         frame_count += 1
 
         # absolute time elapsed after start capturing
@@ -91,7 +92,7 @@ def main():
         elapse_delta = timedelta(seconds=end_delta - start_delta).total_seconds()
 
         # frame rate of living camera source
-        fps = round(frame_count / elapse_delta)
+        fps = round(frame_count/elapse_delta)
 
         # get current date and time
         get_clock = TrackingDataLog.updateClock()
@@ -102,11 +103,11 @@ def main():
                                                                    frame_count,
                                                                    interval=None)
 
-        VideoLog = TrackingVideoLog(input_vid)
-        VideoLog.exportVideo(recording_save_path,export_fps,get_video_prop)
+        # VideoLog = TrackingVideoLog(input_vid)
+        # VideoLog.exportVideo(recording_save_path,export_fps,get_video_prop)
 
-        input_vid = cv2.resize(input_vid, None, fx=scaling, fy=scaling,
-                               interpolation=cv2.INTER_LINEAR)
+        # input_vid = cv2.resize(input_vid, None, fx=scaling, fy=scaling,
+        #                        interpolation=cv2.INTER_LINEAR)
 
         ## set parameter for thresholding
         ## read track bar position
@@ -125,6 +126,8 @@ def main():
         # set_offset = offset_ini
 
         if mask_on == True:
+
+            mask_img = cv2.imread(Mask_file_load, 1)
             ## create a mask and apply on video
             ret, mask = Detection.create_mask(mask_img)
             masked_vid = Detection.apply_mask(mask, input_vid)
@@ -174,6 +177,8 @@ def main():
         draw_object.displayDrawing(draw_start, draw_end, drawingMode)
 
         cv2.imshow('Tracking', draw_object.show_image())
+        toc = time.perf_counter()
+        print(f'Time Elapsed Per Loop {toc - tic:.3f}')
 
         # wait 1ms if no input continue
         key = cv2.waitKey(1)
@@ -215,9 +220,6 @@ def main():
 
     video.release()
     cv2.destroyAllWindows()
-
-    toc = time.perf_counter()
-    print(f'Time Elapsed Per Loop {toc - tic:.3f}')
     print(f'Memory consumption (after): {memory_profiler.memory_usage()}Mb')
 
     return tracking_data
@@ -288,3 +290,6 @@ if __name__ == '__main__':
         print('Finished')
     elif is_start == 'N':
         exit()
+
+
+
