@@ -149,16 +149,16 @@ def main():
                                                                                      th_masked,
                                                                                      cnt_min_th,
                                                                                      cnt_max_th, )
+            # Call tracking function
+            TrackingMethod.identify(pos_detection)
 
-            # TrackingMethod.identify(pos_detection)
-            #
-            # ## mark indentity of each objects
-            # TrackingMethod.visualize(contour_vid, obj_id, is_centroid=True,
-            #                          is_mark=True, is_trajectory=True)
-            #
-            # # # # store tracking data when local tracking
-            # if is_timeStamp:
-            #     tracking_data = TrackingDataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
+            ## mark indentity of each objects
+            TrackingMethod.visualize(contour_vid, obj_id, is_centroid=True,
+                                     is_mark=True, is_trajectory=True)
+
+            # # # store tracking data when local tracking
+            if is_timeStamp:
+                tracking_data = TrackingDataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
 
             # display video properties on top of video
             display_video_prop(contour_vid, get_clock, frame_count, video_elapse, get_video_prop)
@@ -278,11 +278,11 @@ def display_video_prop(video_souce, clock, frame, elapse, video_prop):
 
 
 if __name__ == '__main__':
-    # scale_coordinates, metric, is_metric = CalibrateScale.run()
-    # print(f'scale coordinates is {scale_coordinates}, metric is {metric}')
-    # pixel_per_metric = CalibrateScale.convertScale(scale_coordinates, metric)
-    # print(f'ppm is {pixel_per_metric}')
-    is_metric = True
+    scale_coordinates, metric, is_metric = CalibrateScale.run()
+    print(f'scale coordinates is {scale_coordinates}, metric is {metric}')
+    pixel_per_metric = CalibrateScale.convertScale(scale_coordinates, metric)
+    print(f'ppm is {pixel_per_metric}')
+    # is_metric = True
     is_start = input('start tracking? Y/N')
     if is_metric and is_start == 'Y':
         data = main()
