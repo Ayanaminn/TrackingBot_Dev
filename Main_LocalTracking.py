@@ -58,6 +58,7 @@ def main():
 
     # update POS_MSEC and count accumulative frame
     get_video_prop = local_video_prop(video)
+
     frame_count = -1  # first frame start from 0
 
     # default drawing start coordinates
@@ -149,15 +150,15 @@ def main():
                                                                                      cnt_min_th,
                                                                                      cnt_max_th, )
 
-            TrackingMethod.identify(pos_detection)
-
-            ## mark indentity of each objects
-            TrackingMethod.visualize(contour_vid, obj_id, is_centroid=True,
-                                     is_mark=True, is_trajectory=True)
-
-            # # # store tracking data when local tracking
-            if is_timeStamp:
-                tracking_data = TrackingDataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
+            # TrackingMethod.identify(pos_detection)
+            #
+            # ## mark indentity of each objects
+            # TrackingMethod.visualize(contour_vid, obj_id, is_centroid=True,
+            #                          is_mark=True, is_trajectory=True)
+            #
+            # # # # store tracking data when local tracking
+            # if is_timeStamp:
+            #     tracking_data = TrackingDataLog.localDataFrame(video_elapse, frame_count, TrackingMethod.registration, obj_id)
 
             # display video properties on top of video
             display_video_prop(contour_vid, get_clock, frame_count, video_elapse, get_video_prop)
@@ -174,8 +175,8 @@ def main():
         toc = time.perf_counter()
         print(f'Time Elapsed Per Loop {toc - tic:.3f}')
 
-        # wait 1ms if no input continue
-        key = cv2.waitKey(1)
+        # wait fps if no input continue
+        key = cv2.waitKey(int(1000/get_video_prop.fps))
 
         # pause
         if key == ord('p'):
