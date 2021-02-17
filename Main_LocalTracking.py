@@ -287,7 +287,7 @@ if __name__ == '__main__':
     if is_metric and is_start == 'Y':
         data = main()
         TrackingDataLog.exportData(data, data_save_path)
-        # TrackingDataLog.dataConvert(data_save_path,obj_num, pixel_per_metric)
+        TrackingDataLog.dataConvert(data_save_path,obj_num, pixel_per_metric)
         print('Finished')
     elif is_start == 'N':
         exit()
