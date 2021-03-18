@@ -13,6 +13,7 @@ from collections import namedtuple
 import memory_profiler
 # from Kalman import KalmanFilter
 #from Kalman_branch import KalmanFilter
+from Threshold import Threshold
 from KF_Track import TrackingMethod
 from Interactive import DrawObjectWidget
 from datetime import datetime, timedelta
@@ -75,6 +76,7 @@ TrackingMethod = TrackingMethod(50, 60, 100)
 
 TrackingDataLog = TrackingDataLog()
 CalibrateScale=CalibrateScale(video_source)
+Threshold=Threshold(video_source)
 
 codec = 'mp4v' # for living only
 
@@ -459,12 +461,13 @@ if __name__ == '__main__':
     # print(f'ppm is {pixel_per_metric}')
     #
     # print(is_metric)
-    is_metric = True
-    is_start = input('start tracking? Y/N')
-    if is_metric and is_start == 'Y':
-        data = main()
-        TrackingDataLog.exportData(data, data_save_path)
-        TrackingDataLog.dataConvert(data_save_path, obj_num, pixel_per_metric)
-        print('Finished')
-    elif is_start == 'N':
-        exit()
+    Threshold.run()
+    # is_metric = True
+    # is_start = input('start tracking? Y/N')
+    # if is_metric and is_start == 'Y':
+    #     data = main()
+    #     TrackingDataLog.exportData(data, data_save_path)
+    #     TrackingDataLog.dataConvert(data_save_path, obj_num, pixel_per_metric)
+    #     print('Finished')
+    # elif is_start == 'N':
+    #     exit()
