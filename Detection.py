@@ -29,6 +29,7 @@ def thresh_video(vid, block_size, offset):
     ## Dilation followed by erosion to closing small holes inside the foreground objects
     kernel = np.ones((5, 5), np.uint8)
     vid_closing = cv2.morphologyEx(vid_th, cv2.MORPH_CLOSE, kernel)
+
     return vid_closing
     # return vid_th
 
@@ -62,8 +63,8 @@ def apply_mask(raw_mask, raw_vid):
 
 def detect_contours(vid, masked_th, min_th, max_th):
     """
-    vid : original video source
-    vid_detect : the masked video
+    vid : original video source for drawing and visualize contours
+    vid_detect : the masked video for detect contours
     min_th: minimum contour area threshold used to identify object of interest
     max_th: maximum contour area threshold used to identify object of interest
 
