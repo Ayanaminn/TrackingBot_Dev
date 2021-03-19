@@ -34,7 +34,7 @@ class CalibrateScale(object):
         self.isDrawing = False
         self.resetDrawing = False
 
-    def selectVideoSouce(self):
+    def selectVideoSource(self):
 
         if self.video_source in self.camera_num:
             # for live camera
@@ -50,7 +50,7 @@ class CalibrateScale(object):
             pixel coordinate of scale line
         """
 
-        self.selectVideoSouce()
+        self.selectVideoSource()
         x, y, xx, yy = (0, 0), (0, 0), (0, 0), (0, 0)
         cv2.namedWindow('Calibration', cv2.WINDOW_NORMAL)
 
