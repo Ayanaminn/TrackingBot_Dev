@@ -1,6 +1,7 @@
 import cv2
 import Detection as Detection
 import concurrent.futures
+from collections import namedtuple
 
 class Threshold(object):
     '''
@@ -34,15 +35,19 @@ class Threshold(object):
         # for live camera
         if self.video_source in self.camera_num:
             self.cap = cv2.VideoCapture(self.video_source,cv2.CAP_DSHOW)
+            self.fps = 1000
         # for local video file
         else:
             self.cap = cv2.VideoCapture(self.video_source)
+            self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+        return self.fps
 
     def loadThresholdWindow(self):
         '''
         load live video or local file but only for thresholding
         '''
-        self.selectVideoSource()
+        fps = self.selectVideoSource()
+
         cv2.namedWindow('Threshold', cv2.WINDOW_GUI_EXPANDED)
         cv2.namedWindow('Detection', cv2.WINDOW_GUI_EXPANDED)
         ## create trackbar for blocksize adjust
@@ -50,10 +55,11 @@ class Threshold(object):
         cv2.createTrackbar('offset', 'Threshold', self.offset_ini, self.offset_max, Detection.nothing)
         cv2.createTrackbar('min range', 'Threshold', self.cnt_lower_ini, self.cnt_lower_max, Detection.nothing)
         cv2.createTrackbar('max range', 'Threshold', self.cnt_upper_ini, self.cnt_upper_max, Detection.nothing)
+        print('After find a proper threshold range, press \'Q\' to exit and start tracking')
 
         while True:
             ret, self.vid = self.cap.read()
-
+            self.invert_vid = cv2.bitwise_not(self.vid)
             ## set parameter for thresholding
             ## read track bar position for each parameter
             self.set_blocksize = cv2.getTrackbarPos('block size', 'Threshold')
@@ -68,7 +74,7 @@ class Threshold(object):
             self.set_cnt_max = cv2.getTrackbarPos('max range', 'Threshold')
 
             ## visualize threshold debugging
-            self.th_vid = Detection.thresh_video(self.vid, self.set_blocksize, self.set_offset)
+            self.th_vid = Detection.thresh_video(self.invert_vid, self.set_blocksize, self.set_offset)
 
             self.contour_vid, self.cnt, _,_ = Detection.detect_contours(self.vid,
                                                                       self.th_vid,
@@ -82,7 +88,8 @@ class Threshold(object):
 
 
             # wait 1ms if no input continue
-            key = cv2.waitKey(1)
+            key = cv2.waitKey(int(1000/fps))
+
 
             # pause
             if key == ord('p'):

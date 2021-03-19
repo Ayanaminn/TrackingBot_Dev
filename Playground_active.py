@@ -24,8 +24,8 @@ from scipy.spatial.distance import cdist
 from sklearn.cluster import KMeans
 from sklearn.cluster import MiniBatchKMeans
 
-video_source = 'zebrafish_video.mp4'
-# video_source = 0
+# video_source = 'zebrafish_video.mp4'
+video_source = 0
 
 recording_save_path = datetime.now().strftime('%Y-%m-%d-%H:%M') + '_recording.mp4' # living function
 data_save_path = 'data_export_test' + '_tracked.csv'
@@ -90,7 +90,8 @@ def thresh_video(vid, block_size, offset):
              4) perform morphological operation to closing small holes inside objects
     """
     vid = cv2.GaussianBlur(vid, (5, 5), 1)
-    # vid = cv2.blur(vid, (5, 5))
+    # vid = cv2.bilateralFilter(vid,5,50,50)
+
     vid_gray = cv2.cvtColor(vid, cv2.COLOR_BGR2GRAY)
     vid_th = cv2.adaptiveThreshold(vid_gray,
                                    255,
@@ -150,6 +151,7 @@ def detect_contours(vid, masked_th, min_th, max_th):
         (  [[x0],[y0]]  ,  [[x1],[y1]]  , [[x2],[y2]] .....)
     """
 
+    #contours, _ = cv2.findContours(masked_th.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     contours, _ = cv2.findContours(masked_th.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
     vid_draw = vid.copy()
     ## initialize contour number
@@ -287,6 +289,8 @@ def main():
     while True:
         tic = time.perf_counter()
         ret, input_vid = video.read()
+        invert_vid = cv2.bitwise_not(input_vid)
+
         # out.write(input_vid) # for living only
         update_video_prop = local_video_prop(video)
 
@@ -333,9 +337,9 @@ def main():
 
 
         else:
-            th_masked = thresh_video(input_vid, blocksize_ini, offset_ini)
+            th_masked = thresh_video(invert_vid, blocksize_ini, offset_ini)
 
-            contour_vid, cnt, pos_detection, pos_archive = detect_contours(input_vid,
+            contour_vid, cnt, pos_detection, pos_archive = detect_contours(invert_vid,
                                                                            th_masked,
                                                                            cnt_min_th,
                                                                           cnt_max_th, )
@@ -461,7 +465,8 @@ if __name__ == '__main__':
     # print(f'ppm is {pixel_per_metric}')
     #
     # print(is_metric)
-    Threshold.run()
+    blocksize,offset,cnt_min,cnt_max = Threshold.run()
+    # main()
     # is_metric = True
     # is_start = input('start tracking? Y/N')
     # if is_metric and is_start == 'Y':
