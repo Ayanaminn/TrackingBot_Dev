@@ -11,6 +11,8 @@ class Threshold(object):
 
         self.video_source = video_source
         self.camera_num = [0,1,2] # used to set condition when select video source
+        # enable all debug window
+        # self.debug_mode = True
         ## define constant for color threshold
         ## blocksize_ini: the initial value of block size used for adaptive thresholding
         ## blocksize_max: the max value of block size track bar
@@ -42,7 +44,7 @@ class Threshold(object):
         '''
         self.selectVideoSource()
         cv2.namedWindow('Threshold', cv2.WINDOW_GUI_EXPANDED)
-
+        cv2.namedWindow('Detection', cv2.WINDOW_GUI_EXPANDED)
         ## create trackbar for blocksize adjust
         cv2.createTrackbar('block size', 'Threshold', self.blocksize_ini, self.blocksize_max, Detection.nothing)
         cv2.createTrackbar('offset', 'Threshold', self.offset_ini, self.offset_max, Detection.nothing)
@@ -50,16 +52,33 @@ class Threshold(object):
         cv2.createTrackbar('max range', 'Threshold', self.cnt_upper_ini, self.cnt_upper_max, Detection.nothing)
 
         while True:
-            ret, self.th_vid = self.cap.read()
+            ret, self.vid = self.cap.read()
 
             ## set parameter for thresholding
             ## read track bar position for each parameter
             self.set_blocksize = cv2.getTrackbarPos('block size', 'Threshold')
+            # block_size must be odd value
+            if self.set_blocksize % 2 == 0:
+                self.set_blocksize += 1
+            if self.set_blocksize < 3:
+                self.set_blocksize = 3
 
+            self.set_offset = cv2.getTrackbarPos('offset', 'Threshold')
+            self.set_cnt_min = cv2.getTrackbarPos('min range','Threshold')
+            self.set_cnt_max = cv2.getTrackbarPos('max range', 'Threshold')
+
+            ## visualize threshold debugging
+            self.th_vid = Detection.thresh_video(self.vid, self.set_blocksize, self.set_offset)
+
+            self.contour_vid, self.cnt, _,_ = Detection.detect_contours(self.vid,
+                                                                      self.th_vid,
+                                                                      self.set_cnt_min,
+                                                                      self.set_cnt_max)
 
 
 
             cv2.imshow('Threshold', self.th_vid)
+            cv2.imshow('Detection', self.contour_vid)
 
 
             # wait 1ms if no input continue
@@ -76,6 +95,7 @@ class Threshold(object):
 
         self.cap.release()
         cv2.destroyAllWindows()
+        return self.set_blocksize,self.set_offset,self.set_cnt_min,self.set_cnt_max
 
     def run(self):
         """
@@ -84,6 +104,8 @@ class Threshold(object):
 
         with concurrent.futures.ThreadPoolExecutor() as executor:
             load_threshold_window = executor.submit(self.loadThresholdWindow)
+            set_blocksize,set_offset,set_cnt_min,set_cnt_max = load_threshold_window.result()
+        return set_blocksize,set_offset,set_cnt_min,set_cnt_max
 
 
 
