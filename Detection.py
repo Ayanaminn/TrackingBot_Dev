@@ -96,7 +96,7 @@ def detect_contours(vid, masked_th, min_th, max_th):
                 del contours[i]
             ## draw contour if meet the threshold
             else:
-                cv2.drawContours(vid_draw, contours, i, (0, 0, 255), 1)
+                cv2.drawContours(vid_draw, contours, i, (0, 0, 255), 2, cv2.LINE_8)
                 ## calculate the centroid of current contour
                 M = cv2.moments(contours[i])
                 if M['m00'] != 0:

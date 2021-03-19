@@ -21,7 +21,7 @@ class Threshold(object):
         self.blocksize_ini = 13
         self.blocksize_max = 255
         self.offset_ini = 9
-        self.offset_max = 100
+        self.offset_max = 255
         ## define constant for contour threshold
         ## cnt_min_th: minimum contour area for threshold
         ## cnt_max_th: maximum contour area for threshold
