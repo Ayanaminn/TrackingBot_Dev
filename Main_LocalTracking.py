@@ -1,5 +1,6 @@
 import time as time
 import cv2
+from Threshold import Threshold
 import Detection as Detection
 from Tracking import TrackingMethod
 from collections import namedtuple
@@ -25,23 +26,6 @@ colours = [(0, 0, 255), (0, 255, 255), (255, 0, 255), (255, 255, 255), (255, 255
 # if true,show centroid and object id,otherwise not
 mark_on = 0
 
-## define constant for color threshold
-## blocksize_ini: the initial value of block size used for adaptive thresholding
-## blocksize_max: the max value of block size track bar
-## offset_ini: the initial value of offset used for adaptive thresholding
-blocksize_ini = 13
-blocksize_max = 255
-offset_ini = 9
-
-## define constant for contour threshold
-## cnt_min_th: minimum contour area for threshold
-## cnt_max_th: maximum contour area for threshold
-cnt_min_th = 100
-cnt_max_th = 1500
-
-## offset trackbar disabled
-# offset_max = 100
-
 scaling = 1.0
 
 # dist_thresh, max_undetected_frames, max_trajectory_len
@@ -50,9 +34,9 @@ TrackingMethod = TrackingMethod(50, 60, 100)
 # initialize other functional class object
 TrackingDataLog = TrackingDataLog()
 CalibrateScale = CalibrateScale(video_source)
+Threshold=Threshold(video_source)
 
-
-def main():
+def main(blocksize,offset,cnt_min, cnt_max):
     video = cv2.VideoCapture(video_source)
     mask_img = cv2.imread(Mask_file_load, 1)
 
@@ -67,11 +51,6 @@ def main():
     drawingMode = 'Line'
 
     cv2.namedWindow('Tracking', cv2.WINDOW_NORMAL)
-
-    ## create trackbar for blocksize adjust
-    cv2.createTrackbar('Block size', 'Tracking', blocksize_ini, blocksize_max, Detection.nothing)
-    ## disable off set trackbar
-    # cv2.createTrackbar('offset', 'Test', offset_ini, offset_max, nothing)
 
     tracking_data = []
 
@@ -102,33 +81,17 @@ def main():
                                fy=scaling,
                                interpolation=cv2.INTER_LINEAR)
 
-        ## set parameter for thresholding
-        ## read track bar position
-        set_blocksize = cv2.getTrackbarPos('Block size', 'Tracking')
-
-        # block_size must be odd value
-        if set_blocksize % 2 == 0:
-            set_blocksize += 1
-        if set_blocksize < 3:
-            set_blocksize = 3
-
-        ## offset trackbar disabled
-        # offs = cv2.getTrackbarPos('Offset', 'Test')
-
-        # set_blocksize =blocksize_ini
-        # set_offset = offset_ini
-
         if mask_on == True:
 
             ## create a mask and apply on video
             ret, mask = Detection.create_mask(mask_img)
             masked_vid = Detection.apply_mask(mask, input_vid)
             ## if disable trackbar, set 2nd arg to blocksize_ini
-            th_masked = Detection.thresh_video(masked_vid, set_blocksize, offset_ini)
+            th_masked = Detection.thresh_video(masked_vid, blocksize, offset)
             contour_vid, cnt, pos_detection, pos_archive = Detection.detect_contours(input_vid,
                                                                                      th_masked,
-                                                                                     cnt_min_th,
-                                                                                     cnt_max_th, )
+                                                                                     cnt_min,
+                                                                                     cnt_max, )
             TrackingMethod.identify(pos_detection)
 
             TrackingMethod.visualize(contour_vid, obj_id, is_centroid=True,
@@ -143,12 +106,12 @@ def main():
 
         else:
             ## if disable trackbar, set 2nd arg to blocksize_ini
-            th_masked = Detection.thresh_video(input_vid, set_blocksize, offset_ini)
+            th_masked = Detection.thresh_video(input_vid, blocksize, offset)
 
             contour_vid, cnt, pos_detection, pos_archive = Detection.detect_contours(input_vid,
                                                                                      th_masked,
-                                                                                     cnt_min_th,
-                                                                                     cnt_max_th, )
+                                                                                     cnt_min,
+                                                                                     cnt_max, )
             # Call tracking function
             TrackingMethod.identify(pos_detection)
 
@@ -282,10 +245,11 @@ if __name__ == '__main__':
     print(f'scale coordinates is {scale_coordinates}, metric is {metric}')
     pixel_per_metric = CalibrateScale.convertScale(scale_coordinates, metric)
     print(f'ppm is {pixel_per_metric}')
+    blocksize, offset, cnt_min, cnt_max = Threshold.run()
     # is_metric = True
     is_start = input('start tracking? Y/N')
     if is_metric and is_start == 'Y':
-        data = main()
+        data = main(blocksize, offset, cnt_min, cnt_max)
         TrackingDataLog.exportData(data, data_save_path)
         TrackingDataLog.dataConvert(data_save_path,obj_num, pixel_per_metric)
         print('Finished')
