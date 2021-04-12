@@ -84,9 +84,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
     def enableLocalMode(self):
         self.tabWidget.setTabEnabled(1, True)
         self.tabWidget.setCurrentIndex(1)
-        self.caliTabLinkButton.setEnabled(True)
-
-        self.reloadVidButton.setEnabled(True)
 
     def enableLiveMode(self):
         self.tabWidget.setTabEnabled(5, True)
@@ -144,7 +141,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.videoThread.set_fps(video_prop.fps)
 
             self.setVidProgressBar(video_prop)
-
+            self.caliTabLinkButton.setEnabled(True)
+            self.reloadVidButton.setEnabled(True)
 
             # set a function here link to labels that display the parameters
 
