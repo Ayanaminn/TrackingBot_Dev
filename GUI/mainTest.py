@@ -3,7 +3,7 @@ from PyQt5.QtWidgets import QFileDialog, QMessageBox, QStyle, QApplication,QLabe
 from PyQt5.QtGui import QImage, QPixmap,QPainter, QPen
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QObject, QMutex, QMutexLocker,QRect, QLine
 from PyQt5.QtCore import QTimer
-
+import os
 import cv2, imutils
 import time
 from collections import namedtuple
@@ -50,6 +50,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         #####################################################
         # signals for the tab 1
         self.loadVidButton.clicked.connect(self.selectVideoFile)
+        self.loadNewVidButton.clicked.connect(self.selectNewFile)
 
         self.playButton.clicked.connect(self.videoPlayControl)
         self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
@@ -112,7 +113,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                 # enable video control
                 self.playButton.setEnabled(True)
                 self.stopButton.setEnabled(True)
-
+                self.loadNewVidButton.setEnabled(True)
                 # self.vidProgressBar.setEnabled(True)
                 # display image on top of other widgets
                 # can use either way
@@ -140,6 +141,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             video_cap = cv2.VideoCapture(file_path)
             video_prop = self.readVideoProp(video_cap)
             print(video_prop)
+            video_name = os.path.split(file_path)
 
             self.videoThread.set_fps(video_prop.fps)
 
@@ -148,7 +150,10 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.loadNewVidButton.setEnabled(True)
 
             # set a function here link to labels that display the parameters
-
+            self.vidNameText.setText(f'{str(video_name[1])}')
+            self.vidDurText.setText(f'{str(video_prop.duration).split(".")[0]}')
+            self.vidFpsText.setText(str(round(video_prop.fps,2)))
+            self.vidResText.setText(f'{str(int(video_prop.width))} X {str(int(video_prop.height))}')
             # display 1st frame of video in window as preview
             set_preview_frame = 1
             video_cap.set(cv2.CAP_PROP_POS_FRAMES, set_preview_frame)
@@ -199,6 +204,10 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                                     video_duraion)
 
         return get_video_prop
+
+    def selectNewFile(self):
+        self.resetVideo()
+        self.selectVideoFile()
 
     def displayVideo(self):
         # print('emited signal connected')
