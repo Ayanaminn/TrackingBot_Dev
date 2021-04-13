@@ -20,6 +20,7 @@ class Drawing(QLabel):
         self.y0 = 0
         self.x1 = 0
         self.y1 = 0
+        self.line_coordinates = []
         self.draw_flag = False
         self.erase_flag = False
 
@@ -27,17 +28,21 @@ class Drawing(QLabel):
     def mousePressEvent(self, event):
         self.draw_flag = True
         self.erase_flag = False
+        self.line_coordinates.clear()
         self.x0 = event.x()
         self.y0 = event.y()
         self.x1 = self.x0
         self.y1 = self.y0
         print(self.x0,self.y0)
-
+        start = (self.x0, self.y0)
+        self.line_coordinates.append(start)
 
     # Mouse release event
     def mouseReleaseEvent(self, event):
         self.draw_flag = False
         self.erase_flag = False
+        end = (self.x1, self.y1)
+        self.line_coordinates.append(end)
 
     # Mouse movement events
     def mouseMoveEvent(self, event):
@@ -59,14 +64,23 @@ class Drawing(QLabel):
             self.y1 = 0
             # self.update()
         else:
+            painter.setPen(QPen(Qt.red, 2, Qt.SolidLine))
             # rect =QRect(self.x0, self.y0, abs(self.x1-self.x0), abs(self.y1-self.y0))
-            self.newline = QLine(self.x0,self.y0,self.x1,self.y1)
-            # painter = QPainter(self)
-            painter.setPen(QPen(Qt.red,2,Qt.SolidLine))
             # painter.drawRect(rect)
+            self.newline = QLine(self.x0,self.y0,self.x1,self.y1)
             painter.drawLine(self.newline)
 
     def earse(self):
         self.erase_flag = True
         self.update()
 
+
+# class Calibrate():
+#
+#     def __init__(self):
+#
+#         self.draw = Drawing()
+#
+#     def logScale(self):
+#         t = self.draw.logdata(self)
+#         print(f'log scale for cal is {t}')
