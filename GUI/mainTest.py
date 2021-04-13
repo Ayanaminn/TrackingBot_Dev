@@ -8,6 +8,9 @@ import cv2, imutils
 import time
 from collections import namedtuple
 from datetime import datetime, timedelta
+from scipy.spatial import distance
+import threading
+import concurrent.futures
 import mainGUI
 import mainGUI_calibration as Calibration
 
@@ -21,7 +24,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
 
-        self.draw_scale = Calibration.Drawing()
+        # self.draw_scale = Calibration.Drawing()
+        # self.convert_scale = Calibration.Calibrate()
 
         self.tabWidget.setTabEnabled(1, False)
         self.tabWidget.setTabEnabled(2, False)
@@ -31,13 +35,13 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         # add a canvas for drawing
         # self.VBoxCanvasLabel = Drawing(self.caliTab)
-        self.VBoxCanvasLabel = Calibration.Drawing(self.caliTab)
-        self.VBoxCanvasLabel.setEnabled(False)
-        self.VBoxCanvasLabel.lower()
-        self.VBoxCanvasLabel.setGeometry(QRect(0, 0, 1024, 576))
-        self.VBoxCanvasLabel.setAlignment(QtCore.Qt.AlignCenter)
-        self.VBoxCanvasLabel.setFrameShape(QtWidgets.QFrame.Box)
-        self.VBoxCanvasLabel.setCursor(Qt.CrossCursor)
+        self.caliBoxCanvasLabel = Calibration.Drawing(self.caliTab)
+        self.caliBoxCanvasLabel.setEnabled(False)
+        self.caliBoxCanvasLabel.lower()
+        self.caliBoxCanvasLabel.setGeometry(QRect(0, 0, 1024, 576))
+        self.caliBoxCanvasLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.caliBoxCanvasLabel.setFrameShape(QtWidgets.QFrame.Box)
+        self.caliBoxCanvasLabel.setCursor(Qt.CrossCursor)
         ####################################################
         # signals for the tab 0
         # need one button for back to main menu
@@ -52,8 +56,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.stopButton.clicked.connect(self.stopVideo)
         self.stopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
-
-        self.endVideo.clicked.connect(self.clearDrawing)
 
         self.caliTabLinkButton.clicked.connect(self.enableCalibration)
 
@@ -76,7 +78,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         ##########################################
         # signal on tab 2
         self.drawScaleButton.clicked.connect(self.localCalibration)
-        self.resetScaleButton.clicked.connect(self.VBoxCanvasLabel.earse)
+        self.resetScaleButton.clicked.connect(self.clearScale)
+        self.applyScaleButton.clicked.connect(self.convertScale)
+        self.threTabLinkButton.clicked.connect(self.enableThreshold)
 
     def selectMainMenu(self):
         self.tabWidget.setCurrentIndex(0)
@@ -93,7 +97,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.resetVideo()
         self.tabWidget.setTabEnabled(2, True)
         self.tabWidget.setCurrentIndex(2)
-
 
     def selectVideoFile(self):
 
@@ -113,7 +116,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                 # self.vidProgressBar.setEnabled(True)
                 # display image on top of other widgets
                 # can use either way
-                self.VBoxCanvasLabel.raise_()
+                # self.caliBoxCanvasLabel.raise_()
                 self.loadImgButton.hide()
                 self.loadVidButton.hide()
 
@@ -142,7 +145,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
             self.setVidProgressBar(video_prop)
             self.caliTabLinkButton.setEnabled(True)
-            self.reloadVidButton.setEnabled(True)
+            self.loadNewVidButton.setEnabled(True)
 
             # set a function here link to labels that display the parameters
 
@@ -158,6 +161,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.VBoxLabel.setPixmap(frame_display)
 
             self.setCalibrationFrame(frame_display)
+            self.setThresholdFrame(frame_display)
             video_cap.release()
 
         except:
@@ -385,11 +389,15 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         play_elapse = self.vidProgressBar.value()
         self.vidPosLabel.setText(f"{str(timedelta(seconds=play_elapse)).split('.')[0]}")
-        self.endVideo.setText(str(play_elapse))
 
-    def clearDrawing(self):
-        self.VBoxCanvasLabel.earse()
 
+    def clearScale(self):
+        self.caliBoxCanvasLabel.earse()
+        self.metricNumInput.clear()
+        self.drawScaleButton.setEnabled(True)
+        self.caliBoxCanvasLabel.setEnabled(True)
+        self.metricNumInput.setEnabled(True)
+        self.threTabLinkButton.setEnabled(False)
 
     def setCalibrationFrame(self,frame):
         self.caliBoxLabel.setPixmap(frame)
@@ -397,11 +405,72 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
     def localCalibration(self):
 
         self.caliBoxLabel.setEnabled(True)
-        self.VBoxCanvasLabel.setEnabled(True)
-        self.caliNumInput.setEnabled(True)
+        self.caliBoxCanvasLabel.setEnabled(True)
+        self.metricNumInput.setEnabled(True)
         self.resetScaleButton.setEnabled(True)
-        self.VBoxCanvasLabel.raise_()
+        self.applyScaleButton.setEnabled(True)
+        self.caliBoxCanvasLabel.raise_()
 
+    def convertScale(self):
+        # scale, metric = self.run()
+        try:
+            metric = int(self.metricNumInput.text())
+            print(f'metric is {metric}')
+            if (metric >= 1 and metric <= 1000):
+                scale = self.caliBoxCanvasLabel.line_coordinates
+                print(f'scale is {scale}')
+
+                pixel_length = distance.euclidean(scale[0], scale[1])
+                pixel_per_metric = round(pixel_length, 2) / metric
+                print(f'pixel_per_metric{pixel_per_metric}')
+
+                self.drawScaleButton.setEnabled(False)
+                self.caliBoxCanvasLabel.setEnabled(False)
+                self.metricNumInput.setEnabled(False)
+
+                self.threTabLinkButton.setEnabled(True)
+            else:
+                self.error_msg = QMessageBox()
+                self.error_msg.setWindowTitle('Error')
+                self.error_msg.setText('Input value out of range.')
+                self.error_msg.setInformativeText('Input can only numbers between 1 to 1000.')
+                self.error_msg.setIcon(QMessageBox.Warning)
+                self.error_msg.exec()
+        except Exception:
+            self.error_msg = QMessageBox()
+            self.error_msg.setWindowTitle('Error')
+            self.error_msg.setText('Must draw scale and input value, input and can only be an integer.')
+            self.error_msg.setIcon(QMessageBox.Warning)
+            self.error_msg.exec()
+
+    def setThresholdFrame(self,frame):
+        self.threBoxLabel.setPixmap(frame)
+
+    def enableThreshold(self):
+        self.tabWidget.setTabEnabled(3, True)
+        self.tabWidget.setCurrentIndex(3)
+
+
+
+    def localThreshold(self):
+        pass
+
+
+    def run(self):
+        """
+        call input calibration scale function and draw scale function in separate thread
+        """
+
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+
+            cali_num_imput = executor.submit(self.metricNumInput.text())
+            line_scale = executor.submit(self.caliBoxCanvasLabel.logdata(self))
+            metric = cali_num_imput.result()
+            scale = line_scale.result()
+            print(f'metric is {metric}')
+            print(f'scale is {scale}')
+
+        return scale, metric
 
 
 
