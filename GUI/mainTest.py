@@ -85,9 +85,20 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         ###############################################
         # signal on tab 3
 
-        self.threPlayButton.clicked.connect(self.thresh_vid.play)
+        self.threPlayButton.clicked.connect(self.thresh_vid.playControl)
         self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-        self.thresh_vid.playClicked.connect(self.changeicon)
+        self.threStopButton.clicked.connect(self.thresh_vid.stop)
+        self.threStopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
+        self.thresh_vid.playClicked.connect(self.setPauseIcon)
+        self.thresh_vid.pauseClicked.connect(self.setPlayIcon)
+        self.thresh_vid.resumeClicked.connect(self.setPauseIcon)
+        self.thresh_vid.stopClicked.connect(self.setPlayIcon)
+
+        self.thresh_vid.updateThreshDisplay.connect(self.displayThresholdVideo)
+
+        self.applyMaskcheckBox.stateChanged.connect(self.enalbleApplyMask)
+
+
 
     def selectMainMenu(self):
         self.tabWidget.setCurrentIndex(0)
@@ -144,7 +155,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.error_msg.exec()
 
     def readVideoFile(self, file_path):
-
+        # read file property and display the first frame
         try:
             video_cap = cv2.VideoCapture(file_path)
             video_prop = self.readVideoProp(video_cap)
@@ -333,8 +344,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # self.playCapture.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
 
         self.videoThread.start()
-        self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
         self.status = MainWindow.STATUS_PLAYING
+        self.setPauseIcon()
 
     def pauseVideo(self):
 
@@ -344,13 +355,13 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         #     self.playCapture.release()
         # print(self.playCapture.get(cv2.CAP_PROP_POS_FRAMES))
         self.status = MainWindow.STATUS_PAUSE
-        self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        self.setPlayIcon()
 
     def resumeVideo(self):
 
         self.videoThread.start()
         self.status = MainWindow.STATUS_PLAYING
-        self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
+        self.setPauseIcon()
 
     def pauseFromSlider(self):
 
@@ -385,7 +396,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.playCapture.release()
             self.readVideoFile(self.video_file[0])
             self.status = MainWindow.STATUS_INIT
-            self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+            self.setPlayIcon()
 
     def resetVideo(self):
         self.videoThread.stop()
@@ -545,74 +556,26 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         return scale, metric
 
 
-    def changeicon(self):
-        print('signal from other file recieved')
+    def setPauseIcon(self):
+        self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
         self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
 
+    def setPlayIcon(self):
+        self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
-
-
-
-
-
-class Drawing(QLabel):
-
-
-    def __init__(self, parent = None):
-        QLabel.__init__(self,parent)
-
-        self.x0 = 0
-        self.y0 = 0
-        self.x1 = 0
-        self.y1 = 0
-        self.draw_flag = False
-        self.erase_flag = False
-
-    # Mouse click event
-    def mousePressEvent(self, event):
-        self.draw_flag = True
-        self.erase_flag = False
-        self.x0 = event.x()
-        self.y0 = event.y()
-        self.x1 = self.x0
-        self.y1 = self.y0
-        print(self.x0,self.y0)
-
-    # Mouse release event
-    def mouseReleaseEvent(self, event):
-        self.draw_flag = False
-        self.erase_flag = False
-
-    # Mouse movement events
-    def mouseMoveEvent(self, event):
-        if self.draw_flag:
-            self.x1 = event.x()
-            self.y1 = event.y()
-            self.update()
-
-     #Draw events
-    def paintEvent(self, event):
-        super().paintEvent(event)
-        painter = QPainter(self)
-        # painter = QGraphicsLineItem(self)
-        if self.erase_flag:
-            # painter.clear()
-            self.x0 = 0
-            self.y0 = 0
-            self.x1 = 0
-            self.y1 = 0
-            # self.update()
+    def enalbleApplyMask(self):
+        if self.applyMaskcheckBox.isChecked():
+            self.thresh_vid.apply_mask = True
+            self.thresh_vid.loadMask()
         else:
-            # rect =QRect(self.x0, self.y0, abs(self.x1-self.x0), abs(self.y1-self.y0))
-            self.newline = QLine(self.x0,self.y0,self.x1,self.y1)
-            # painter = QPainter(self)
-            painter.setPen(QPen(Qt.red,2,Qt.SolidLine))
-            # painter.drawRect(rect)
-            painter.drawLine(self.newline)
+            self.thresh_vid.apply_mask = False
 
-    def earse(self):
-        self.erase_flag = True
-        self.update()
+    def displayThresholdVideo(self,frame):
+        frame_display = QPixmap.fromImage(frame)
+        self.threBoxLabel.setPixmap(frame_display)
+
+
 
 class Communicate(QObject):
     signal = pyqtSignal(str)
