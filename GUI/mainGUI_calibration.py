@@ -37,6 +37,7 @@ class Drawing(QLabel):
         start = (self.x0, self.y0)
         self.line_coordinates.append(start)
 
+
     # Mouse release event
     def mouseReleaseEvent(self, event):
         self.draw_flag = False

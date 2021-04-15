@@ -87,6 +87,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.threPlayButton.clicked.connect(self.thresh_vid.play)
         self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        self.thresh_vid.playClicked.connect(self.changeicon)
 
     def selectMainMenu(self):
         self.tabWidget.setCurrentIndex(0)
@@ -341,7 +342,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # for camera
         # if self.video_type is MainWindow.VIDEO_TYPE_REAL_TIME:
         #     self.playCapture.release()
-        print(self.playCapture.get(cv2.CAP_PROP_POS_FRAMES))
+        # print(self.playCapture.get(cv2.CAP_PROP_POS_FRAMES))
         self.status = MainWindow.STATUS_PAUSE
         self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
@@ -472,11 +473,54 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         print(self.video_file[0])
         print(self.playCapture.isOpened())
 
-    def updateThreTab(self, flag):
-        '''
-        update widget elements on threshold tab
-        :return:
-        '''
+    def thresholdPlayControl(self, flag):
+
+        if self.thresh_vid.video_file[0] == '' or self.thresh_vid.video_file[0] is None:
+            print('No video is selected')
+            return
+
+        if self.thresh_vid.status is self.thresh_vid.STATUS_INIT:
+            try:
+                self.thresh_vid.play()
+            except:
+                self.error_msg = QMessageBox()
+                self.error_msg.setWindowTitle('Error')
+                self.error_msg.setText('An error happened when trying to play video file.')
+                self.error_msg.setIcon(QMessageBox.Warning)
+                self.error_msg.setDetailedText('You caught a bug! \n'
+                                               'Please submit this issue on GitHub to help us improve. ')
+                self.error_msg.exec()
+
+        elif self.thresh_vid.status is self.thresh_vid.STATUS_PLAYING:
+            try:
+                self.pause()
+                self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
+            except:
+                self.error_msg = QMessageBox()
+                self.error_msg.setWindowTitle('Error')
+                self.error_msg.setText('An error happened when trying to pause video file.')
+                self.error_msg.setIcon(QMessageBox.Warning)
+                self.error_msg.setDetailedText('You caught a bug! \n'
+                                               'Please submit this issue on GitHub to help us improve. ')
+                self.error_msg.exec()
+
+            # if self.video_type is VideoBox.VIDEO_TYPE_REAL_TIME:
+            #     self.playCapture.release()
+
+        elif self.thresh_vid.status is self.thresh_vid.STATUS_PAUSE:
+            try:
+                self.thresh_vid.resume()
+            except:
+                self.error_msg = QMessageBox()
+                self.error_msg.setWindowTitle('Error')
+                self.error_msg.setText('An error happened when trying to resume playing.')
+                self.error_msg.setIcon(QMessageBox.Warning)
+                self.error_msg.setDetailedText('You caught a bug! \n'
+                                               'Please submit this issue on GitHub to help us improve. ')
+                self.error_msg.exec()
+            # if self.video_type is VideoBox.VIDEO_TYPE_REAL_TIME:
+            #     self.playCapture.open(self.video_url)
+            # self.videoThread.start()
 
 
     # def localThreshold(self):
@@ -501,7 +545,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         return scale, metric
 
 
-
+    def changeicon(self):
+        print('signal from other file recieved')
+        self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
 
 
 

@@ -504,7 +504,7 @@ class Ui_MainWindow(object):
         self.threLenLabel.setObjectName("threLenLabel")
         self.threSliderLayout.addWidget(self.threLenLabel)
         self.trackTabLinkButton = QtWidgets.QCommandLinkButton(self.threTab)
-        self.trackTabLinkButton.setEnabled(False)
+        self.trackTabLinkButton.setEnabled(True)
         self.trackTabLinkButton.setGeometry(QtCore.QRect(1159, 750, 131, 41))
         font = QtGui.QFont()
         font.setFamily("Segoe UI")
