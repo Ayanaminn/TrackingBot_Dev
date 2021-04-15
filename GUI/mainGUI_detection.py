@@ -155,9 +155,11 @@ class ThresholdVideo(QtWidgets.QMainWindow):
     @QtCore.pyqtSlot()
     def displayThreshold(self):
 
+        print(self.apply_mask)
+
         if self.playCapture.isOpened():
             ret, frame = self.playCapture.read()
-            print('return frame')
+            # print('return frame')
             if ret:
                 if self.apply_mask is True:
                     pass
@@ -290,7 +292,6 @@ class VideoThread(QThread):
             if self.stopped:
                 return
             self.timeSignal.signal.emit('1')
-            print('thread singal emitted')
             time.sleep(1 / self.fps)
 
     def stop(self):

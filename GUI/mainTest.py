@@ -29,7 +29,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.tabWidget.setTabEnabled(1, False)
         self.tabWidget.setTabEnabled(2, False)
-        self.tabWidget.setTabEnabled(3, False)
+        self.tabWidget.setTabEnabled(3, True)
         self.tabWidget.setTabEnabled(4, False)
         self.tabWidget.setTabEnabled(5, False)
 
@@ -568,6 +568,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         if self.applyMaskcheckBox.isChecked():
             self.thresh_vid.apply_mask = True
             self.thresh_vid.loadMask()
+            # need to reset video
+            # or force user select before threshold
         else:
             self.thresh_vid.apply_mask = False
 
