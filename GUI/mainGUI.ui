@@ -66,7 +66,7 @@ QTabBar::tab:selected {
      <enum>QTabWidget::Triangular</enum>
     </property>
     <property name="currentIndex">
-     <number>1</number>
+     <number>3</number>
     </property>
     <property name="iconSize">
      <size>
@@ -1098,7 +1098,7 @@ QTabBar::tab:selected {
        <item>
         <widget class="QPushButton" name="threPlayButton">
          <property name="enabled">
-          <bool>false</bool>
+          <bool>true</bool>
          </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
@@ -1126,7 +1126,7 @@ QTabBar::tab:selected {
        <item>
         <widget class="QPushButton" name="threStopButton">
          <property name="enabled">
-          <bool>false</bool>
+          <bool>true</bool>
          </property>
          <property name="maximumSize">
           <size>
@@ -1152,9 +1152,9 @@ QTabBar::tab:selected {
         </widget>
        </item>
        <item>
-        <widget class="QSlider" name="vidProgressBar_2">
+        <widget class="QSlider" name="threProgressBar">
          <property name="enabled">
-          <bool>false</bool>
+          <bool>true</bool>
          </property>
          <property name="maximumSize">
           <size>
