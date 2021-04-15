@@ -2,9 +2,9 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QStyle, QApplication,QLabel,QWidget,QGraphicsLineItem
 from PyQt5.QtGui import QImage, QPixmap,QPainter, QPen
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QObject, QMutex, QMutexLocker,QRect, QLine
-from PyQt5.QtCore import QTimer
+
 import os
-import cv2, imutils
+import cv2
 import time
 from collections import namedtuple
 from datetime import datetime, timedelta
@@ -13,7 +13,7 @@ import threading
 import concurrent.futures
 import mainGUI
 import mainGUI_calibration as Calibration
-
+import mainGUI_detection as Detection
 
 class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
     STATUS_INIT = 0
@@ -24,7 +24,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
 
-        # self.draw_scale = Calibration.Drawing()
+        self.thresh_vid = Detection.ThresholdVideo()
         # self.convert_scale = Calibration.Calibrate()
 
         self.tabWidget.setTabEnabled(1, False)
@@ -82,6 +82,11 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.resetScaleButton.clicked.connect(self.clearScale)
         self.applyScaleButton.clicked.connect(self.convertScale)
         self.threTabLinkButton.clicked.connect(self.enableThreshold)
+        ###############################################
+        # signal on tab 3
+
+        self.threPlayButton.clicked.connect(self.thresh_vid.play)
+        self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
     def selectMainMenu(self):
         self.tabWidget.setCurrentIndex(0)
@@ -125,6 +130,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                 print(self.video_file)
                 self.readVideoFile(self.video_file[0])
 
+                self.thresh_vid.updateVideoFile(self.video_file)
+
         except:
             self.error_msg = QMessageBox()
             self.error_msg.setWindowTitle('Error')
@@ -141,6 +148,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             video_cap = cv2.VideoCapture(file_path)
             video_prop = self.readVideoProp(video_cap)
             print(video_prop)
+
+            self.thresh_vid.updateVideoProp(video_prop)
+
             video_name = os.path.split(file_path)
 
             self.videoThread.set_fps(video_prop.fps)
@@ -399,7 +409,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         play_elapse = self.vidProgressBar.value()
         self.vidPosLabel.setText(f"{str(timedelta(seconds=play_elapse)).split('.')[0]}")
 
-
     def clearScale(self):
         self.caliBoxCanvasLabel.earse()
         self.metricNumInput.clear()
@@ -456,13 +465,23 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.threBoxLabel.setPixmap(frame)
 
     def enableThreshold(self):
+        # when enable cali tab, vid been reset, self.playCapture released
+        # self.playCapture is closed now
         self.tabWidget.setTabEnabled(3, True)
         self.tabWidget.setCurrentIndex(3)
+        print(self.video_file[0])
+        print(self.playCapture.isOpened())
+
+    def updateThreTab(self, flag):
+        '''
+        update widget elements on threshold tab
+        :return:
+        '''
 
 
-
-    def localThreshold(self):
-        pass
+    # def localThreshold(self):
+    #     self.playCapture.open(self.video_file[0])
+    # #     self.th_masked = Detection.thresh_video(input_vid, block_size = 9, offset = 13)
 
 
     def run(self):
