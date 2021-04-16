@@ -69,7 +69,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         # slider
         self.vidProgressBar.sliderPressed.connect(self.pauseFromSlider)
-        # self.vidProgressBar.valueChanged.connect(self.updatePosition)
+        self.vidProgressBar.valueChanged.connect(self.updatePosition)
         self.vidProgressBar.sliderReleased.connect(self.resumeFromSlider)
 
         # init
@@ -95,6 +95,11 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.thresh_vid.stopClicked.connect(self.setPlayIcon)
 
         self.thresh_vid.updateThreshDisplay.connect(self.displayThresholdVideo)
+
+        self.blockSizeSlider.sliderPressed.connect(self.thresh_vid.pause)
+        self.blockSizeSlider.valueChanged.connect(self.setBlockSizeSlider)
+        self.blockSizeSlider.sliderReleased.connect(self.thresh_vid.resume)
+        self.blockSizeSpin.valueChanged.connect(self.setBlockSizeSpin)
 
         self.applyMaskcheckBox.stateChanged.connect(self.enalbleApplyMask)
 
@@ -414,7 +419,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.vidProgressBar.setSingleStep(int(vid_prop.fps)*5) # 5 sec
         self.vidProgressBar.setPageStep(int(vid_prop.fps)*60) # 60 sec
 
-        self.vidProgressBar.valueChanged.connect(self.updatePosition)
+        # self.vidProgressBar.valueChanged.connect(self.updatePosition)
 
     def updatePosition(self):
 
@@ -484,59 +489,17 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         print(self.video_file[0])
         print(self.playCapture.isOpened())
 
-    def thresholdPlayControl(self, flag):
+    def setBlockSizeSlider(self):
+        block_size = self.blockSizeSlider.value()
+        self.blockSizeSpin.setValue(block_size)
+        self.thresh_vid.updateBlockSize(block_size)
+        print(self.thresh_vid.block_size)
 
-        if self.thresh_vid.video_file[0] == '' or self.thresh_vid.video_file[0] is None:
-            print('No video is selected')
-            return
-
-        if self.thresh_vid.status is self.thresh_vid.STATUS_INIT:
-            try:
-                self.thresh_vid.play()
-            except:
-                self.error_msg = QMessageBox()
-                self.error_msg.setWindowTitle('Error')
-                self.error_msg.setText('An error happened when trying to play video file.')
-                self.error_msg.setIcon(QMessageBox.Warning)
-                self.error_msg.setDetailedText('You caught a bug! \n'
-                                               'Please submit this issue on GitHub to help us improve. ')
-                self.error_msg.exec()
-
-        elif self.thresh_vid.status is self.thresh_vid.STATUS_PLAYING:
-            try:
-                self.pause()
-                self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
-            except:
-                self.error_msg = QMessageBox()
-                self.error_msg.setWindowTitle('Error')
-                self.error_msg.setText('An error happened when trying to pause video file.')
-                self.error_msg.setIcon(QMessageBox.Warning)
-                self.error_msg.setDetailedText('You caught a bug! \n'
-                                               'Please submit this issue on GitHub to help us improve. ')
-                self.error_msg.exec()
-
-            # if self.video_type is VideoBox.VIDEO_TYPE_REAL_TIME:
-            #     self.playCapture.release()
-
-        elif self.thresh_vid.status is self.thresh_vid.STATUS_PAUSE:
-            try:
-                self.thresh_vid.resume()
-            except:
-                self.error_msg = QMessageBox()
-                self.error_msg.setWindowTitle('Error')
-                self.error_msg.setText('An error happened when trying to resume playing.')
-                self.error_msg.setIcon(QMessageBox.Warning)
-                self.error_msg.setDetailedText('You caught a bug! \n'
-                                               'Please submit this issue on GitHub to help us improve. ')
-                self.error_msg.exec()
-            # if self.video_type is VideoBox.VIDEO_TYPE_REAL_TIME:
-            #     self.playCapture.open(self.video_url)
-            # self.videoThread.start()
-
-
-    # def localThreshold(self):
-    #     self.playCapture.open(self.video_file[0])
-    # #     self.th_masked = Detection.thresh_video(input_vid, block_size = 9, offset = 13)
+    def setBlockSizeSpin(self):
+        block_size = self.blockSizeSpin.value()
+        self.blockSizeSlider.setValue(block_size)
+        self.thresh_vid.updateBlockSize(block_size)
+        print(self.thresh_vid.block_size)
 
 
     def run(self):
@@ -564,6 +527,10 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
+    def displayThresholdVideo(self,frame):
+        frame_display = QPixmap.fromImage(frame)
+        self.threBoxLabel.setPixmap(frame_display)
+
     def enalbleApplyMask(self):
         if self.applyMaskcheckBox.isChecked():
             self.thresh_vid.apply_mask = True
@@ -572,12 +539,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             # or force user select before threshold
         else:
             self.thresh_vid.apply_mask = False
-
-    def displayThresholdVideo(self,frame):
-        frame_display = QPixmap.fromImage(frame)
-        self.threBoxLabel.setPixmap(frame_display)
-
-
 
 class Communicate(QObject):
     signal = pyqtSignal(str)

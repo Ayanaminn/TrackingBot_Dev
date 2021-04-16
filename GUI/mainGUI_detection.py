@@ -24,13 +24,20 @@ class ThresholdVideo(QtWidgets.QMainWindow):
         super().__init__()
 
 
-        self.video_file = ('C:/Users/BioMEMS/Desktop/Yutao/Real-time object tracking project/OpenCV/zebrafish_video.mp4', 'Videos(*.mp4 *.avi)')
+        # self.video_file = ('C:/Users/BioMEMS/Desktop/Yutao/Real-time object tracking project/OpenCV/zebrafish_video.mp4', 'Videos(*.mp4 *.avi)')
+        self.video_file = (
+        'C:/Users/phenomicslab/Desktop/Yutao/Real-time tracking project/OpenCV/TrackingBot Dev/zebrafish_video.mp4',
+        'Videos(*.mp4 *.avi)')
         self.mask_file = mask_file
         self.playCapture = cv2.VideoCapture()
         self.status = self.STATUS_INIT
         self.apply_mask = False
 
         self.detection = Detection()
+        self.block_size = 9
+        self.offset = 11
+        self.min_contour = 100
+        self.max_contour = 1500
 
         self.videoThread = VideoThread()
         self.videoThread.timeSignal.signal[str].connect(self.displayThreshold)
@@ -46,6 +53,18 @@ class ThresholdVideo(QtWidgets.QMainWindow):
     def updateVideoProp(self,current_prop):
         self.video_prop = current_prop
         # self.videoThread.set_fps(self.video_prop.fps)
+
+    def updateBlockSize(self, set_block_size):
+        self.block_size = set_block_size
+
+    def updateOffset(self,set_offset):
+        pass
+
+    def updateMinCnt(self,set_min_cnt):
+        pass
+
+    def updateMaxCnt(self,set_max_cnt):
+        pass
 
     def playControl(self):
 
@@ -164,12 +183,12 @@ class ThresholdVideo(QtWidgets.QMainWindow):
                 if self.apply_mask is True:
                     pass
                 else:
-                    th_masked = self.detection.thresh_video(frame, block_size = 9, offset = 11)
+                    th_masked = self.detection.thresh_video(frame, self.block_size, self.offset)
 
                     contour_vid, cnt, pos_detection, pos_archive = self.detection.detect_contours(frame,
                                                                                          th_masked,
-                                                                                         min_th = 100,
-                                                                                         max_th = 1500, )
+                                                                                         self.min_contour,
+                                                                                         self.max_contour)
                     vid_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
                     vid_cvt = QImage(vid_rgb, vid_rgb.shape[1], vid_rgb.shape[0], vid_rgb.strides[0],
                                        QImage.Format_RGB888)
@@ -180,6 +199,12 @@ class ThresholdVideo(QtWidgets.QMainWindow):
 
 
 class Detection():
+
+    def __init__(self):
+        super().__init__()
+
+
+
     ## video thresholding
     def thresh_video(self,vid, block_size, offset):
         """
@@ -210,7 +235,7 @@ class Detection():
 
         return vid_closing
 
-    def detect_contours(self,vid, masked_th, min_th, max_th):
+    def detect_contours(self, vid, vid_th, min_th, max_th):
         """
         vid : original video source for drawing and visualize contours
         vid_detect : the masked video for detect contours
@@ -226,7 +251,7 @@ class Detection():
             individual's location detected on current frame
             (  [[x0],[y0]]  ,  [[x1],[y1]]  , [[x2],[y2]] .....)
         """
-        contours, _ = cv2.findContours(masked_th.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+        contours, _ = cv2.findContours(vid_th.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         vid_draw = vid.copy()
         ## initialize contour number
         i = 0

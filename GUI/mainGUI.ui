@@ -923,7 +923,7 @@ QTabBar::tab:selected {
        <set>Qt::AlignCenter</set>
       </property>
      </widget>
-     <widget class="QSlider" name="horizontalSlider">
+     <widget class="QSlider" name="blockSizeSlider">
       <property name="geometry">
        <rect>
         <x>1030</x>
@@ -936,7 +936,7 @@ QTabBar::tab:selected {
        <enum>Qt::Horizontal</enum>
       </property>
      </widget>
-     <widget class="QSpinBox" name="spinBox">
+     <widget class="QSpinBox" name="blockSizeSpin">
       <property name="geometry">
        <rect>
         <x>1250</x>
@@ -946,7 +946,7 @@ QTabBar::tab:selected {
        </rect>
       </property>
      </widget>
-     <widget class="QSlider" name="horizontalSlider_2">
+     <widget class="QSlider" name="offsetSlider">
       <property name="geometry">
        <rect>
         <x>1030</x>
@@ -959,7 +959,7 @@ QTabBar::tab:selected {
        <enum>Qt::Horizontal</enum>
       </property>
      </widget>
-     <widget class="QSpinBox" name="spinBox_2">
+     <widget class="QSpinBox" name="offsetSpin">
       <property name="geometry">
        <rect>
         <x>1250</x>
