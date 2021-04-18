@@ -2,6 +2,7 @@ from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QStyle, QApplication,QLabel,QWidget,QGraphicsLineItem
 from PyQt5.QtGui import QImage, QPixmap,QPainter, QPen
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QObject, QMutex, QMutexLocker,QRect, QLine
+from qtwidgets import Toggle, AnimatedToggle
 
 import os
 import cv2
@@ -23,6 +24,20 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
     def __init__(self, video_file=''):
         super().__init__()
         self.setupUi(self)
+
+        # toggle_1 = Toggle()
+        # toggle_2 = AnimatedToggle(
+        #     checked_color="#FFB000",
+        #     pulse_checked_color="#44FFB000"
+        # )
+
+        # container = QtWidgets.QWidget()
+        # layout = QtWidgets.QVBoxLayout()
+        # layout.addWidget(toggle_1)
+        # layout.addWidget(toggle_2)
+        # container.setLayout(layout)
+        #
+        # self.setCentralWidget(container)
 
         self.thresh_vid = Detection.ThresholdVideo()
         # self.convert_scale = Calibration.Calibrate()
@@ -491,13 +506,23 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
     def setBlockSizeSlider(self):
         block_size = self.blockSizeSlider.value()
+        if block_size % 2 == 0:
+            block_size += 1
+        if block_size < 3:
+            block_size = 3
         self.blockSizeSpin.setValue(block_size)
+        # self.thresh_vid.block_size = block_size
         self.thresh_vid.updateBlockSize(block_size)
         print(self.thresh_vid.block_size)
 
     def setBlockSizeSpin(self):
         block_size = self.blockSizeSpin.value()
+        if block_size % 2 == 0:
+            block_size += 1
+        if block_size < 3:
+            block_size = 3
         self.blockSizeSlider.setValue(block_size)
+        # self.thresh_vid.block_size = block_size
         self.thresh_vid.updateBlockSize(block_size)
         print(self.thresh_vid.block_size)
 

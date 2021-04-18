@@ -24,10 +24,10 @@ class ThresholdVideo(QtWidgets.QMainWindow):
         super().__init__()
 
 
-        # self.video_file = ('C:/Users/BioMEMS/Desktop/Yutao/Real-time object tracking project/OpenCV/zebrafish_video.mp4', 'Videos(*.mp4 *.avi)')
-        self.video_file = (
-        'C:/Users/phenomicslab/Desktop/Yutao/Real-time tracking project/OpenCV/TrackingBot Dev/zebrafish_video.mp4',
-        'Videos(*.mp4 *.avi)')
+        self.video_file = ('C:/Users/BioMEMS/Desktop/Yutao/Real-time object tracking project/OpenCV/zebrafish_video.mp4', 'Videos(*.mp4 *.avi)')
+        # self.video_file = (
+        # 'C:/Users/phenomicslab/Desktop/Yutao/Real-time tracking project/OpenCV/TrackingBot Dev/zebrafish_video.mp4',
+        # 'Videos(*.mp4 *.avi)')
         self.mask_file = mask_file
         self.playCapture = cv2.VideoCapture()
         self.status = self.STATUS_INIT
@@ -184,6 +184,8 @@ class ThresholdVideo(QtWidgets.QMainWindow):
                     pass
                 else:
                     th_masked = self.detection.thresh_video(frame, self.block_size, self.offset)
+
+                    # add preview label box and use toggle button to turn on/off display
 
                     contour_vid, cnt, pos_detection, pos_archive = self.detection.detect_contours(frame,
                                                                                          th_masked,

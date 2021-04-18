@@ -6,68 +6,300 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>507</width>
-    <height>424</height>
+    <width>1311</width>
+    <height>863</height>
    </rect>
   </property>
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <widget class="QLabel" name="label">
+   <widget class="QTabWidget" name="tabWidget">
     <property name="geometry">
      <rect>
-      <x>30</x>
-      <y>40</y>
-      <width>441</width>
-      <height>271</height>
+      <x>0</x>
+      <y>0</y>
+      <width>1311</width>
+      <height>841</height>
      </rect>
     </property>
-    <property name="frameShape">
-     <enum>QFrame::Box</enum>
+    <property name="font">
+     <font>
+      <pointsize>8</pointsize>
+      <weight>75</weight>
+      <bold>true</bold>
+     </font>
     </property>
-    <property name="text">
-     <string>TextLabel</string>
+    <property name="styleSheet">
+     <string notr="true">QTabWidget::pane {
+  border: 1px solid lightgray;
+  top:-1px; 
+  background:rgb(208, 208, 208);; 
+} 
+
+QTabBar::tab {
+  background: rgb(230, 230, 230);  
+  height:12px;
+  width: 80px;
+  border: 1px solid lightgray; 
+  padding: 7px;
+} 
+
+QTabBar::tab:selected { 
+  background: rgb(85, 170, 255); 
+  margin-bottom: -1px; 
+}</string>
     </property>
-   </widget>
-   <widget class="QPushButton" name="loadImage">
-    <property name="geometry">
-     <rect>
-      <x>120</x>
-      <y>330</y>
-      <width>75</width>
-      <height>23</height>
-     </rect>
+    <property name="tabPosition">
+     <enum>QTabWidget::North</enum>
     </property>
-    <property name="text">
-     <string>Load Image</string>
+    <property name="tabShape">
+     <enum>QTabWidget::Triangular</enum>
     </property>
-   </widget>
-   <widget class="QPushButton" name="loadVideo">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>330</y>
-      <width>75</width>
-      <height>23</height>
-     </rect>
+    <property name="currentIndex">
+     <number>1</number>
     </property>
-    <property name="text">
-     <string>Load Video</string>
-    </property>
-   </widget>
-   <widget class="QPushButton" name="endVideo">
-    <property name="geometry">
-     <rect>
-      <x>280</x>
-      <y>360</y>
-      <width>75</width>
-      <height>23</height>
-     </rect>
-    </property>
-    <property name="text">
-     <string>End Video</string>
-    </property>
+    <widget class="QWidget" name="menu_tab">
+     <attribute name="title">
+      <string>Menu</string>
+     </attribute>
+     <widget class="QLabel" name="label">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>971</width>
+        <height>651</height>
+       </rect>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Box</enum>
+      </property>
+      <property name="text">
+       <string>TextLabel</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="localMode">
+      <property name="geometry">
+       <rect>
+        <x>240</x>
+        <y>230</y>
+        <width>91</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Local tracking</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="liveMode">
+      <property name="geometry">
+       <rect>
+        <x>510</x>
+        <y>230</y>
+        <width>91</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Live Tracking</string>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="load_video_tab">
+     <attribute name="title">
+      <string>Load Video</string>
+     </attribute>
+     <widget class="QLabel" name="VBox">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>1091</width>
+        <height>701</height>
+       </rect>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Box</enum>
+      </property>
+      <property name="text">
+       <string>VBox</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="endVideo">
+      <property name="geometry">
+       <rect>
+        <x>1150</x>
+        <y>720</y>
+        <width>75</width>
+        <height>23</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>End Video</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="loadVideoFile">
+      <property name="geometry">
+       <rect>
+        <x>420</x>
+        <y>280</y>
+        <width>211</width>
+        <height>171</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>18</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string>Load Video</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="loadImageFile">
+      <property name="geometry">
+       <rect>
+        <x>420</x>
+        <y>90</y>
+        <width>211</width>
+        <height>161</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Load Image</string>
+      </property>
+     </widget>
+     <widget class="QWidget" name="horizontalLayoutWidget">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>700</y>
+        <width>1091</width>
+        <height>51</height>
+       </rect>
+      </property>
+      <layout class="QHBoxLayout" name="playControlLayout" stretch="0,0,0,0">
+       <property name="spacing">
+        <number>6</number>
+       </property>
+       <property name="sizeConstraint">
+        <enum>QLayout::SetDefaultConstraint</enum>
+       </property>
+       <property name="leftMargin">
+        <number>5</number>
+       </property>
+       <property name="rightMargin">
+        <number>5</number>
+       </property>
+       <item>
+        <widget class="QPushButton" name="playButton">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>1</width>
+           <height>1</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>35</width>
+           <height>35</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="stopButton">
+         <property name="maximumSize">
+          <size>
+           <width>35</width>
+           <height>35</height>
+          </size>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSlider" name="videoSlider">
+         <property name="maximumSize">
+          <size>
+           <width>900</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="videoProgress">
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
+         <property name="text">
+          <string>mm:hh:ss</string>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+    <widget class="QWidget" name="load_cam_tab">
+     <attribute name="title">
+      <string>Load Camera</string>
+     </attribute>
+     <widget class="QLabel" name="VBox_2">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>0</y>
+        <width>1091</width>
+        <height>701</height>
+       </rect>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Box</enum>
+      </property>
+      <property name="text">
+       <string>CamBox</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="openCameraSource">
+      <property name="geometry">
+       <rect>
+        <x>420</x>
+        <y>270</y>
+        <width>211</width>
+        <height>171</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>18</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string>Open Camera</string>
+      </property>
+     </widget>
+    </widget>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menubar">
@@ -75,12 +307,48 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>507</width>
+     <width>1311</width>
      <height>21</height>
     </rect>
    </property>
+   <widget class="QMenu" name="menuFile">
+    <property name="title">
+     <string>File</string>
+    </property>
+    <addaction name="actionNew_Local_Tracking"/>
+    <addaction name="actionNew_Live_Tracking"/>
+   </widget>
+   <widget class="QMenu" name="menuEdit">
+    <property name="title">
+     <string>Edit</string>
+    </property>
+   </widget>
+   <widget class="QMenu" name="menuSettings">
+    <property name="title">
+     <string>Settings</string>
+    </property>
+   </widget>
+   <widget class="QMenu" name="menuHelp">
+    <property name="title">
+     <string>Help</string>
+    </property>
+   </widget>
+   <addaction name="menuFile"/>
+   <addaction name="menuEdit"/>
+   <addaction name="menuSettings"/>
+   <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
+  <action name="actionNew_Local_Tracking">
+   <property name="text">
+    <string>New Local Tracking</string>
+   </property>
+  </action>
+  <action name="actionNew_Live_Tracking">
+   <property name="text">
+    <string>New Live Tracking</string>
+   </property>
+  </action>
  </widget>
  <resources/>
  <connections/>
