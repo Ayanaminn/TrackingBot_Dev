@@ -37,8 +37,8 @@ class ThresholdVideo(QtWidgets.QMainWindow):
         self.detection = Detection()
         self.block_size = 11
         self.offset = 11
-        self.min_contour = 100
-        self.max_contour = 1500
+        self.min_contour = 1
+        self.max_contour = 100
 
         self.videoThread = VideoThread()
         self.videoThread.timeSignal.signal[str].connect(self.displayThreshold)
@@ -62,10 +62,10 @@ class ThresholdVideo(QtWidgets.QMainWindow):
         self.offset = set_offset
 
     def updateMinCnt(self,set_min_cnt):
-        pass
+        self.min_contour = set_min_cnt
 
     def updateMaxCnt(self,set_max_cnt):
-        pass
+        self.max_contour = set_max_cnt
 
     def playControl(self):
 
