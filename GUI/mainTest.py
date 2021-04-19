@@ -117,6 +117,16 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.offsetSlider.sliderReleased.connect(self.thresh_vid.resume)
         self.offsetSpin.valueChanged.connect(self.setOffsetSpin)
 
+        self.cntMinSlider.sliderPressed.connect(self.thresh_vid.pause)
+        self.cntMinSlider.valueChanged.connect(self.setMinCntSlider)
+        self.cntMinSlider.sliderReleased.connect(self.thresh_vid.resume)
+        self.cntMinSpin.valueChanged.connect(self.setMinCntSpin)
+
+        self.cntMaxSlider.sliderPressed.connect(self.thresh_vid.pause)
+        self.cntMaxSlider.valueChanged.connect(self.setMaxCntSlider)
+        self.cntMaxSlider.sliderReleased.connect(self.thresh_vid.resume)
+        self.cntMaxSpin.valueChanged.connect(self.setMaxCntSpin)
+
         self.previewBoxLabel.lower()
         self.previewToggle = Toggle(self.threTab)
         self.previewToggle.setGeometry(QRect(1150, 360, 60, 35))
@@ -513,6 +523,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
     def setBlockSizeSlider(self):
         block_size = self.blockSizeSlider.value()
+        # block size must be an odd value
         if block_size % 2 == 0:
             block_size += 1
         if block_size < 3:
@@ -520,7 +531,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.blockSizeSpin.setValue(block_size)
         # self.thresh_vid.block_size = block_size
         self.thresh_vid.updateBlockSize(block_size)
-        print(self.thresh_vid.block_size)
 
     def setBlockSizeSpin(self):
         block_size = self.blockSizeSpin.value()
@@ -531,20 +541,36 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.blockSizeSlider.setValue(block_size)
         # self.thresh_vid.block_size = block_size
         self.thresh_vid.updateBlockSize(block_size)
-        print(self.thresh_vid.block_size)
 
     def setOffsetSlider(self):
         offset = self.offsetSlider.value()
         self.offsetSpin.setValue(offset)
         self.thresh_vid.updateOffset(offset)
-        print(self.thresh_vid.offset)
 
     def setOffsetSpin(self):
         offset = self.offsetSpin.value()
         self.offsetSlider.setValue(offset)
         self.thresh_vid.updateOffset(offset)
-        print(self.thresh_vid.offset)
 
+    def setMinCntSlider(self):
+        min_cnt = self.cntMinSlider.value()
+        self.cntMinSpin.setValue(min_cnt)
+        self.thresh_vid.updateMinCnt(min_cnt)
+
+    def setMinCntSpin(self):
+        min_cnt = self.cntMinSpin.value()
+        self.cntMinSlider.setValue(min_cnt)
+        self.thresh_vid.updateMinCnt(min_cnt)
+
+    def setMaxCntSlider(self):
+        max_cnt = self.cntMaxSlider.value()
+        self.cntMaxSpin.setValue(max_cnt)
+        self.thresh_vid.updateMaxCnt(max_cnt)
+
+    def setMaxCntSpin(self):
+        max_cnt = self.cntMaxSpin.value()
+        self.cntMaxSlider.setValue(max_cnt)
+        self.thresh_vid.updateMaxCnt(max_cnt)
     # def run(self):
     #     """
     #     call input calibration scale function and draw scale function in separate thread
