@@ -19,15 +19,16 @@ class ThresholdVideo(QtWidgets.QMainWindow):
     resumeClicked = QtCore.pyqtSignal(str)
     stopClicked = QtCore.pyqtSignal(str)
     updateThreshDisplay = QtCore.pyqtSignal(QImage)
+    updateThreshPreview = QtCore.pyqtSignal(QImage)
 
     def __init__(self, video_file = '',mask_file = ''):
         super().__init__()
 
 
-        self.video_file = ('C:/Users/BioMEMS/Desktop/Yutao/Real-time object tracking project/OpenCV/zebrafish_video.mp4', 'Videos(*.mp4 *.avi)')
-        # self.video_file = (
-        # 'C:/Users/phenomicslab/Desktop/Yutao/Real-time tracking project/OpenCV/TrackingBot Dev/zebrafish_video.mp4',
-        # 'Videos(*.mp4 *.avi)')
+        # self.video_file = ('C:/Users/BioMEMS/Desktop/Yutao/Real-time object tracking project/OpenCV/zebrafish_video.mp4', 'Videos(*.mp4 *.avi)')
+        self.video_file = (
+        'C:/Users/phenomicslab/Desktop/Yutao/Real-time tracking project/OpenCV/TrackingBot Dev/zebrafish_video.mp4',
+        'Videos(*.mp4 *.avi)')
         self.mask_file = mask_file
         self.playCapture = cv2.VideoCapture()
         self.status = self.STATUS_INIT
@@ -196,6 +197,12 @@ class ThresholdVideo(QtWidgets.QMainWindow):
                                        QImage.Format_RGB888)
                     vid_scaled = vid_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
                     self.updateThreshDisplay.emit(vid_scaled)
+
+                    thvid_rgb = cv2.cvtColor(th_masked, cv2.COLOR_BGR2RGB)
+                    thvid_cvt = QImage(thvid_rgb, thvid_rgb.shape[1], thvid_rgb.shape[0], thvid_rgb.strides[0],
+                                       QImage.Format_RGB888)
+                    thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
+                    self.updateThreshPreview.emit(thvid_scaled)
                     # vid_display = QPixmap.fromImage(vid_scaled)
                     # self.updateThreshDisplay.emit(vid_display)
 

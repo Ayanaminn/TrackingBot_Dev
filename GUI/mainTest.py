@@ -25,13 +25,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
 
-        # toggle_1 = Toggle()
-        # toggle_2 = AnimatedToggle(
-        #     checked_color="#FFB000",
-        #     pulse_checked_color="#44FFB000"
-        # )
 
-        # container = QtWidgets.QWidget()
+        # self.toggle_2.setGeometry(QRect(1030, 300, 211, 22))
         # layout = QtWidgets.QVBoxLayout()
         # layout.addWidget(toggle_1)
         # layout.addWidget(toggle_2)
@@ -110,11 +105,18 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.thresh_vid.stopClicked.connect(self.setPlayIcon)
 
         self.thresh_vid.updateThreshDisplay.connect(self.displayThresholdVideo)
+        self.thresh_vid.updateThreshPreview.connect(self.displayThresholdPreview)
 
         self.blockSizeSlider.sliderPressed.connect(self.thresh_vid.pause)
         self.blockSizeSlider.valueChanged.connect(self.setBlockSizeSlider)
         self.blockSizeSlider.sliderReleased.connect(self.thresh_vid.resume)
         self.blockSizeSpin.valueChanged.connect(self.setBlockSizeSpin)
+
+        self.previewBoxLabel.lower()
+        self.previewToggle = Toggle(self.threTab)
+        self.previewToggle.setGeometry(QRect(1150, 360, 60, 35))
+        self.previewToggle.lower()
+        self.previewToggle.stateChanged.connect(self.enableThrePreview)
 
         self.applyMaskcheckBox.stateChanged.connect(self.enalbleApplyMask)
 
@@ -554,7 +556,15 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
     def displayThresholdVideo(self,frame):
         frame_display = QPixmap.fromImage(frame)
+
         self.threBoxLabel.setPixmap(frame_display)
+
+
+    def displayThresholdPreview(self,preview_frame):
+
+        preview_display = QPixmap.fromImage(preview_frame)
+
+        self.previewBoxLabel.setPixmap(preview_display)
 
     def enalbleApplyMask(self):
         if self.applyMaskcheckBox.isChecked():
@@ -564,6 +574,12 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             # or force user select before threshold
         else:
             self.thresh_vid.apply_mask = False
+
+    def enableThrePreview(self):
+        if self.previewToggle.isChecked():
+            self.previewBoxLabel.raise_()
+        else:
+            self.previewBoxLabel.lower()
 
 class Communicate(QObject):
     signal = pyqtSignal(str)

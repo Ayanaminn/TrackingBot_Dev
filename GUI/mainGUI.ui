@@ -772,7 +772,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1030</x>
-        <y>240</y>
+        <y>420</y>
         <width>271</width>
         <height>111</height>
        </rect>
@@ -782,6 +782,12 @@ QTabBar::tab:selected {
         <layout class="QVBoxLayout" name="verticalLayout">
          <item>
           <widget class="QSlider" name="cntMaxSlider">
+           <property name="minimum">
+            <number>2</number>
+           </property>
+           <property name="maximum">
+            <number>9999</number>
+           </property>
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
@@ -789,6 +795,12 @@ QTabBar::tab:selected {
          </item>
          <item>
           <widget class="QSlider" name="cntMinSlider">
+           <property name="minimum">
+            <number>1</number>
+           </property>
+           <property name="maximum">
+            <number>9998</number>
+           </property>
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
@@ -822,6 +834,9 @@ QTabBar::tab:selected {
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="minimum">
+            <number>2</number>
+           </property>
            <property name="maximum">
             <number>9999</number>
            </property>
@@ -851,6 +866,9 @@ QTabBar::tab:selected {
              <verstretch>0</verstretch>
             </sizepolicy>
            </property>
+           <property name="minimum">
+            <number>1</number>
+           </property>
            <property name="maximum">
             <number>9998</number>
            </property>
@@ -864,7 +882,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1020</x>
-        <y>220</y>
+        <y>400</y>
         <width>81</width>
         <height>21</height>
        </rect>
@@ -885,7 +903,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1020</x>
-        <y>90</y>
+        <y>220</y>
         <width>71</width>
         <height>31</height>
        </rect>
@@ -906,7 +924,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1020</x>
-        <y>150</y>
+        <y>280</y>
         <width>51</width>
         <height>21</height>
        </rect>
@@ -927,7 +945,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1030</x>
-        <y>120</y>
+        <y>250</y>
         <width>211</width>
         <height>22</height>
        </rect>
@@ -949,17 +967,23 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1250</x>
-        <y>120</y>
+        <y>250</y>
         <width>51</width>
         <height>22</height>
        </rect>
+      </property>
+      <property name="minimum">
+       <number>1</number>
+      </property>
+      <property name="maximum">
+       <number>255</number>
       </property>
      </widget>
      <widget class="QSlider" name="offsetSlider">
       <property name="geometry">
        <rect>
         <x>1030</x>
-        <y>180</y>
+        <y>310</y>
         <width>211</width>
         <height>22</height>
        </rect>
@@ -981,10 +1005,16 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1250</x>
-        <y>170</y>
+        <y>300</y>
         <width>51</width>
         <height>22</height>
        </rect>
+      </property>
+      <property name="minimum">
+       <number>1</number>
+      </property>
+      <property name="maximum">
+       <number>255</number>
       </property>
      </widget>
      <widget class="QPushButton" name="applyThreButton">
@@ -1039,7 +1069,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1030</x>
-        <y>410</y>
+        <y>100</y>
         <width>111</width>
         <height>17</height>
        </rect>
@@ -1057,7 +1087,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1030</x>
-        <y>490</y>
+        <y>160</y>
         <width>111</width>
         <height>17</height>
        </rect>
@@ -1222,6 +1252,40 @@ QTabBar::tab:selected {
       </property>
       <property name="text">
        <string>Tracking</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="threTabText8">
+      <property name="geometry">
+       <rect>
+        <x>1030</x>
+        <y>360</y>
+        <width>121</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string>Threshold preview</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="previewBoxLabel">
+      <property name="geometry">
+       <rect>
+        <x>704</x>
+        <y>396</y>
+        <width>320</width>
+        <height>180</height>
+       </rect>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Box</enum>
+      </property>
+      <property name="text">
+       <string>preview</string>
       </property>
      </widget>
     </widget>
