@@ -35,7 +35,7 @@ class ThresholdVideo(QtWidgets.QMainWindow):
         self.apply_mask = False
 
         self.detection = Detection()
-        self.block_size = 9
+        self.block_size = 11
         self.offset = 11
         self.min_contour = 100
         self.max_contour = 1500
@@ -59,7 +59,7 @@ class ThresholdVideo(QtWidgets.QMainWindow):
         self.block_size = set_block_size
 
     def updateOffset(self,set_offset):
-        pass
+        self.offset = set_offset
 
     def updateMinCnt(self,set_min_cnt):
         pass
@@ -198,6 +198,7 @@ class ThresholdVideo(QtWidgets.QMainWindow):
                     vid_scaled = vid_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
                     self.updateThreshDisplay.emit(vid_scaled)
 
+                    # preview thresholded video
                     thvid_rgb = cv2.cvtColor(th_masked, cv2.COLOR_BGR2RGB)
                     thvid_cvt = QImage(thvid_rgb, thvid_rgb.shape[1], thvid_rgb.shape[0], thvid_rgb.strides[0],
                                        QImage.Format_RGB888)

@@ -112,6 +112,11 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.blockSizeSlider.sliderReleased.connect(self.thresh_vid.resume)
         self.blockSizeSpin.valueChanged.connect(self.setBlockSizeSpin)
 
+        self.offsetSlider.sliderPressed.connect(self.thresh_vid.pause)
+        self.offsetSlider.valueChanged.connect(self.setOffsetSlider)
+        self.offsetSlider.sliderReleased.connect(self.thresh_vid.resume)
+        self.offsetSpin.valueChanged.connect(self.setOffsetSpin)
+
         self.previewBoxLabel.lower()
         self.previewToggle = Toggle(self.threTab)
         self.previewToggle.setGeometry(QRect(1150, 360, 60, 35))
@@ -528,22 +533,33 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.thresh_vid.updateBlockSize(block_size)
         print(self.thresh_vid.block_size)
 
+    def setOffsetSlider(self):
+        offset = self.offsetSlider.value()
+        self.offsetSpin.setValue(offset)
+        self.thresh_vid.updateOffset(offset)
+        print(self.thresh_vid.offset)
 
-    def run(self):
-        """
-        call input calibration scale function and draw scale function in separate thread
-        """
+    def setOffsetSpin(self):
+        offset = self.offsetSpin.value()
+        self.offsetSlider.setValue(offset)
+        self.thresh_vid.updateOffset(offset)
+        print(self.thresh_vid.offset)
 
-        with concurrent.futures.ThreadPoolExecutor() as executor:
-
-            cali_num_imput = executor.submit(self.metricNumInput.text())
-            line_scale = executor.submit(self.caliBoxCanvasLabel.logdata(self))
-            metric = cali_num_imput.result()
-            scale = line_scale.result()
-            print(f'metric is {metric}')
-            print(f'scale is {scale}')
-
-        return scale, metric
+    # def run(self):
+    #     """
+    #     call input calibration scale function and draw scale function in separate thread
+    #     """
+    #
+    #     with concurrent.futures.ThreadPoolExecutor() as executor:
+    #
+    #         cali_num_imput = executor.submit(self.metricNumInput.text())
+    #         line_scale = executor.submit(self.caliBoxCanvasLabel.logdata(self))
+    #         metric = cali_num_imput.result()
+    #         scale = line_scale.result()
+    #         print(f'metric is {metric}')
+    #         print(f'scale is {scale}')
+    #
+    #     return scale, metric
 
 
     def setPauseIcon(self):
@@ -555,15 +571,13 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
     def displayThresholdVideo(self,frame):
+
         frame_display = QPixmap.fromImage(frame)
-
         self.threBoxLabel.setPixmap(frame_display)
-
 
     def displayThresholdPreview(self,preview_frame):
 
         preview_display = QPixmap.fromImage(preview_frame)
-
         self.previewBoxLabel.setPixmap(preview_display)
 
     def enalbleApplyMask(self):
@@ -576,6 +590,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.thresh_vid.apply_mask = False
 
     def enableThrePreview(self):
+        # enable real time preview window of threshold result
         if self.previewToggle.isChecked():
             self.previewBoxLabel.raise_()
         else:
