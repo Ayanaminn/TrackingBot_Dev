@@ -106,6 +106,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.thresh_vid.updateThreshDisplay.connect(self.displayThresholdVideo)
         self.thresh_vid.updateThreshPreview.connect(self.displayThresholdPreview)
+        self.thresh_vid.updateThreshCanvas.connect(self.displayThresholdCanvas)
 
         self.blockSizeSlider.sliderPressed.connect(self.thresh_vid.pause)
         self.blockSizeSlider.valueChanged.connect(self.setBlockSizeSlider)
@@ -605,6 +606,11 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         preview_display = QPixmap.fromImage(preview_frame)
         self.previewBoxLabel.setPixmap(preview_display)
+
+    def displayThresholdCanvas(self, canvas_frame):
+
+        frame_display = QPixmap.fromImage(canvas_frame)
+        self.threBoxLabel.setPixmap(frame_display)
 
     def enalbleApplyMask(self):
         if self.applyMaskcheckBox.isChecked():

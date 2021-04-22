@@ -21,6 +21,7 @@ class ThresholdVideo(QtWidgets.QMainWindow):
     stopClicked = QtCore.pyqtSignal(str)
     updateThreshDisplay = QtCore.pyqtSignal(QImage)
     updateThreshPreview = QtCore.pyqtSignal(QImage)
+    updateThreshCanvas = QtCore.pyqtSignal(QImage)
 
     def __init__(self, video_file = '',mask_file = ''):
         super().__init__()
@@ -30,9 +31,10 @@ class ThresholdVideo(QtWidgets.QMainWindow):
         # self.video_file = (
         # 'C:/Users/phenomicslab/Desktop/Yutao/Real-time tracking project/OpenCV/TrackingBot Dev/zebrafish_video.mp4',
         # 'Videos(*.mp4 *.avi)')
-        self.video_file = ('C:/Users/BioMEMS/Desktop/Yutao/Real-time object tracking project/OpenCV/bf_test.mp4','Videos(*.mp4 *.avi)')
+        # self.video_file = ('C:/Users/BioMEMS/Desktop/Yutao/Real-time object tracking project/OpenCV/bf_test.mp4','Videos(*.mp4 *.avi)')
         # self.video_file = ('C:/Users/BioMEMS/Videos/2020-07-04.mp4', 'Videos(*.mp4 *.avi)')
 
+        self.video_file = video_file
         self.mask_file = mask_file
         self.playCapture = cv2.VideoCapture()
         self.status = self.STATUS_INIT
@@ -58,6 +60,27 @@ class ThresholdVideo(QtWidgets.QMainWindow):
     def updateVideoProp(self,current_prop):
         self.video_prop = current_prop
         # self.videoThread.set_fps(self.video_prop.fps)
+
+    def updateCanvas(self):
+        try:
+            video_cap = cv2.VideoCapture(self.video_file[0])
+            video_cap.set(cv2.CAP_PROP_POS_FRAMES, 1)
+            ret, preview_frame = video_cap.read()
+            frame_rgb = cv2.cvtColor(preview_frame, cv2.COLOR_BGR2RGB)
+            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                               QImage.Format_RGB888)
+            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+            self.updateThreshCanvas.emit(frame_scaled)
+        except:
+            self.error_msg = QMessageBox()
+            self.error_msg.setWindowTitle('Error')
+            self.error_msg.setText('Failed to read video file.')
+            self.error_msg.setInformativeText('cv2.VideoCapture()does not execute correctly.\n'
+                                              'QImage is not converted correctly')
+            self.error_msg.setIcon(QMessageBox.Warning)
+            self.error_msg.setDetailedText('You caught a bug!\n'
+                                           'Please submit this issue on GitHub to help us improve.')
+            self.error_msg.exec()
 
     def updateBlockSize(self, set_block_size):
         self.block_size = set_block_size
@@ -144,15 +167,23 @@ class ThresholdVideo(QtWidgets.QMainWindow):
         # reset when video is paused
         if is_stopped:
             self.playCapture.release()
+            self.updateCanvas()
             # self.readVideoFile(self.video_file[0])
             self.status = ThresholdVideo.STATUS_INIT
         # reset when video still playing
         elif not is_stopped:
             self.videoThread.stop()
             self.playCapture.release()
+            self.updateCanvas()
             # self.readVideoFile(self.video_file[0])
             self.status = ThresholdVideo.STATUS_INIT
             self.stopClicked.emit('1')
+
+    @QtCore.pyqtSlot()
+    def reset(self):
+        self.videoThread.stop()
+        self.playCapture.release()
+        self.status = ThresholdVideo.STATUS_INIT
 
     def loadMask(self):
         try:
