@@ -7,6 +7,7 @@ from PyQt5.QtWidgets import QFileDialog,QMessageBox
 from PyQt5.QtGui import QImage, QPixmap
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QObject, QMutex, QMutexLocker
 import  time
+import concurrent.futures
 
 class ThresholdVideo(QtWidgets.QMainWindow):
 
@@ -26,9 +27,12 @@ class ThresholdVideo(QtWidgets.QMainWindow):
 
 
         # self.video_file = ('C:/Users/BioMEMS/Desktop/Yutao/Real-time object tracking project/OpenCV/zebrafish_video.mp4', 'Videos(*.mp4 *.avi)')
-        self.video_file = (
-        'C:/Users/phenomicslab/Desktop/Yutao/Real-time tracking project/OpenCV/TrackingBot Dev/zebrafish_video.mp4',
-        'Videos(*.mp4 *.avi)')
+        # self.video_file = (
+        # 'C:/Users/phenomicslab/Desktop/Yutao/Real-time tracking project/OpenCV/TrackingBot Dev/zebrafish_video.mp4',
+        # 'Videos(*.mp4 *.avi)')
+        self.video_file = ('C:/Users/BioMEMS/Desktop/Yutao/Real-time object tracking project/OpenCV/bf_test.mp4','Videos(*.mp4 *.avi)')
+        # self.video_file = ('C:/Users/BioMEMS/Videos/2020-07-04.mp4', 'Videos(*.mp4 *.avi)')
+
         self.mask_file = mask_file
         self.playCapture = cv2.VideoCapture()
         self.status = self.STATUS_INIT
@@ -187,11 +191,13 @@ class ThresholdVideo(QtWidgets.QMainWindow):
                     th_masked = self.detection.thresh_video(frame, self.block_size, self.offset)
 
                     # add preview label box and use toggle button to turn on/off display
+                    # run detection method in separate thread
+                    with concurrent.futures.ThreadPoolExecutor() as executor:
+                        future = executor.submit(self.detection.detect_contours, frame, th_masked,
+                                                 self.min_contour,
+                                                 self.max_contour)
+                        contour_vid, cnt, pos_detection, pos_archive = future.result()
 
-                    contour_vid, cnt, pos_detection, pos_archive = self.detection.detect_contours(frame,
-                                                                                         th_masked,
-                                                                                         self.min_contour,
-                                                                                         self.max_contour)
                     vid_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
                     vid_cvt = QImage(vid_rgb, vid_rgb.shape[1], vid_rgb.shape[0], vid_rgb.strides[0],
                                        QImage.Format_RGB888)
@@ -204,6 +210,8 @@ class ThresholdVideo(QtWidgets.QMainWindow):
                                        QImage.Format_RGB888)
                     thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
                     self.updateThreshPreview.emit(thvid_scaled)
+
+
                     # vid_display = QPixmap.fromImage(vid_scaled)
                     # self.updateThreshDisplay.emit(vid_display)
 
@@ -301,11 +309,11 @@ class Detection():
         return vid_draw, contours, pos_detection, pos_archive
 
 
-def nothing(x):
-    """
-    call back function for track bar
-    """
-    pass
+    def nothing(x):
+        """
+        call back function for track bar
+        """
+        pass
 
 class Communicate(QObject):
     signal = pyqtSignal(str)
@@ -328,6 +336,7 @@ class VideoThread(QThread):
                 return
             self.timeSignal.signal.emit('1')
             time.sleep(1 / self.fps)
+            # time.sleep(1/30)
 
     def stop(self):
         with QMutexLocker(self.mutex):
