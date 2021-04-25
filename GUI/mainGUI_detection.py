@@ -15,12 +15,14 @@ class ThresholdVideo(QtWidgets.QMainWindow):
     STATUS_PLAYING = 1
     STATUS_PAUSE = 2
 
+    setVideo = QtCore.pyqtSignal(str)
     playClicked = QtCore.pyqtSignal(str)
     pauseClicked = QtCore.pyqtSignal(str)
     resumeClicked = QtCore.pyqtSignal(str)
     stopClicked = QtCore.pyqtSignal(str)
-    updateThreshDisplay = QtCore.pyqtSignal(QImage)
-    updateThreshPreview = QtCore.pyqtSignal(QImage)
+
+    updateThreshDisplay = QtCore.pyqtSignal(str)
+    # updateThreshPreview = QtCore.pyqtSignal(QImage)
     updateThreshCanvas = QtCore.pyqtSignal(QImage)
 
     def __init__(self, video_file = '',mask_file = ''):
@@ -62,6 +64,10 @@ class ThresholdVideo(QtWidgets.QMainWindow):
         # self.videoThread.set_fps(self.video_prop.fps)
 
     def updateCanvas(self):
+        '''
+        display first frame in label box as preview when load or reset video
+        :return:
+        '''
         try:
             video_cap = cv2.VideoCapture(self.video_file[0])
             video_cap.set(cv2.CAP_PROP_POS_FRAMES, 1)
@@ -139,12 +145,12 @@ class ThresholdVideo(QtWidgets.QMainWindow):
     def play(self):
         # print('play button activated')
         # print(self.video_file)
-        self.playCapture.open(self.video_file[0])
-        print(self.playCapture.isOpened())
-        self.videoThread.start()
+        # emit signal to open capture
+        self.setVideo.emit('1')
+        # self.playCapture.open(self.video_file[0])
 
+        self.videoThread.start()
         self.status = ThresholdVideo.STATUS_PLAYING
-        # print(f'status is {self.status}')
 
         # set icon
         self.playClicked.emit('1')
@@ -209,50 +215,48 @@ class ThresholdVideo(QtWidgets.QMainWindow):
 
     @QtCore.pyqtSlot()
     def displayThreshold(self):
-
-        print(self.apply_mask)
-
-        if self.playCapture.isOpened():
-            ret, frame = self.playCapture.read()
-            # print('return frame')
-            if ret:
-                if self.apply_mask is True:
-                    pass
-                else:
-                    th_masked = self.detection.thresh_video(frame, self.block_size, self.offset)
-
-                    # add preview label box and use toggle button to turn on/off display
-                    # run detection method in separate thread
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        future = executor.submit(self.detection.detect_contours, frame, th_masked,
-                                                 self.min_contour,
-                                                 self.max_contour)
-                        contour_vid, cnt, pos_detection, pos_archive = future.result()
-
-                    vid_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
-                    vid_cvt = QImage(vid_rgb, vid_rgb.shape[1], vid_rgb.shape[0], vid_rgb.strides[0],
-                                       QImage.Format_RGB888)
-                    vid_scaled = vid_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
-                    self.updateThreshDisplay.emit(vid_scaled)
-
-                    # preview thresholded video
-                    thvid_rgb = cv2.cvtColor(th_masked, cv2.COLOR_BGR2RGB)
-                    thvid_cvt = QImage(thvid_rgb, thvid_rgb.shape[1], thvid_rgb.shape[0], thvid_rgb.strides[0],
-                                       QImage.Format_RGB888)
-                    thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
-                    self.updateThreshPreview.emit(thvid_scaled)
-
-
-                    # vid_display = QPixmap.fromImage(vid_scaled)
-                    # self.updateThreshDisplay.emit(vid_display)
+        self.updateThreshDisplay.emit('1')
+        # print(self.apply_mask)
+        #
+        # if self.playCapture.isOpened():
+        #     ret, frame = self.playCapture.read()
+        #     # print('return frame')
+        #     if ret:
+        #         if self.apply_mask is True:
+        #             pass
+        #         else:
+        #             th_masked = self.detection.thresh_video(frame, self.block_size, self.offset)
+        #
+        #             # add preview label box and use toggle button to turn on/off display
+        #             # run detection method in separate thread
+        #             with concurrent.futures.ThreadPoolExecutor() as executor:
+        #                 future = executor.submit(self.detection.detect_contours, frame, th_masked,
+        #                                          self.min_contour,
+        #                                          self.max_contour)
+        #                 contour_vid, cnt, pos_detection, pos_archive = future.result()
+        #
+        #             vid_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+        #             vid_cvt = QImage(vid_rgb, vid_rgb.shape[1], vid_rgb.shape[0], vid_rgb.strides[0],
+        #                                QImage.Format_RGB888)
+        #             vid_scaled = vid_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+        #             self.updateThreshDisplay.emit(vid_scaled)
+        #
+        #             # preview thresholded video
+        #             thvid_rgb = cv2.cvtColor(th_masked, cv2.COLOR_BGR2RGB)
+        #             thvid_cvt = QImage(thvid_rgb, thvid_rgb.shape[1], thvid_rgb.shape[0], thvid_rgb.strides[0],
+        #                                QImage.Format_RGB888)
+        #             thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
+        #             self.updateThreshPreview.emit(thvid_scaled)
+        #
+        #
+        #             # vid_display = QPixmap.fromImage(vid_scaled)
+        #             # self.updateThreshDisplay.emit(vid_display)
 
 
 class Detection():
 
     def __init__(self):
         super().__init__()
-
-
 
     ## video thresholding
     def thresh_video(self,vid, block_size, offset):

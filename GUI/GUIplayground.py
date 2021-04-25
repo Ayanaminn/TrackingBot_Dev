@@ -9,6 +9,8 @@ import cv2, imutils
 import time
 from collections import namedtuple
 from datetime import datetime, timedelta
+import threading
+import concurrent.futures
 import mainGUI
 import mainGUI_VPlayer
 
@@ -181,12 +183,23 @@ class VideoPlayer(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             if ret:
                 th_masked = self.detection.thresh_video(frame, block_size = 11, offset = 11)
 
-                contour_vid, cnt, pos_detection, pos_archive= self.detection.detect_contours(frame,
-                                                                                     th_masked,
-                                                                                     min_th = 100,
-                                                                                     max_th = 1500)
+                # contour_vid, cnt, pos_detection, pos_archive= self.detection.detect_contours(frame,
+                #                                                                      th_masked,
+                #                                                                      min_th = 100,
+                #                                                                      max_th = 1500)
+
+
+
+                # self.det_thread = threading.Thread(target=self.detection.detect_test,args=(5,))
+                # self.det_thread.start()
                 # thread_return, num = self.detection.detect_test()
                 # print(thread_return,num)
+
+                with concurrent.futures.ThreadPoolExecutor() as executor:
+                    future = executor.submit(self.detection.detect_contours, frame,th_masked,min_th = 100,max_th = 1500)
+                    contour_vid, cnt, pos_detection, pos_archive = future.result()
+                    # print(f'thread return {return_bool} {return_value}')
+
                 frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
 
                 frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
@@ -327,8 +340,6 @@ class VideoPlayer(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.status = MainWindow.STATUS_INIT
         # MainWindow.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
-
-
 class Communicate(QObject):
     signal = pyqtSignal(str)
     det_signal=pyqtSignal(str)
@@ -434,61 +445,66 @@ class Detection():
         pos_archive = pos_detection.copy()
         del pos_detection[:]
 
-        if self.i < len(contours):
-            self.i += 1
-            print(self.i)
-            cnt_th = cv2.contourArea(contours[self.i])
-            print(f'contour threh for {self.i} is {cnt_th}')
-            if cnt_th < min_th or cnt_th > max_th:
-                del contours[self.i]
-                print('delete')
-            else:
-                cv2.drawContours(vid_draw, contours, self.i, (0, 0, 255), 2, cv2.LINE_8)
-                print(f'draw contour for {self.i}')
-        else:
-            pass
+        i = 0
+
+        while i < len(contours):
+        #     self.i += 1
+        #     print(self.i)
+        #     cnt_th = cv2.contourArea(contours[self.i])
+        #     print(f'contour threh for {self.i} is {cnt_th}')
+        #     if cnt_th < min_th or cnt_th > max_th:
+        #         del contours[self.i]
+        #         print('delete')
+        #     else:
+        #         cv2.drawContours(vid_draw, contours, self.i, (0, 0, 255), 2, cv2.LINE_8)
+        #         print(f'draw contour for {self.i}')
+        # else:
+        #     pass
 
 
         # else:
 
         #     print('i not less than len(contours)')
-        #     try:
-        #         ## calculate contour area for current contour
-        #         cnt_th = cv2.contourArea(contours[i])
-        #         # print(f'cnt area for i is {cnt_th}')
-        #         ## delete contour if not meet the threshold
-        #         if cnt_th < min_th or cnt_th > max_th:
-        #             del contours[i]
-        #         ## draw contour if meet the threshold
-        #         else:
-        #             print('cv2 draw contours')
-        #             cv2.drawContours(vid_draw, contours, i, (0, 0, 255), 2, cv2.LINE_8)
-        #             ## calculate the centroid of current contour
-        #             M = cv2.moments(contours[i])
-        #             if M['m00'] != 0:
-        #                 cx = M['m10'] / M['m00']
-        #                 cy = M['m01'] / M['m00']
-        #             else:
-        #                 cx = 0
-        #                 cy = 0
-        #             ## update current position to new centroid
-        #             centroids = np.array([[cx], [cy]])
-        #             # pos_detection become a list of (2,1) array
-        #             pos_detection.append(centroids)
-        #             ## continue to next contour
-        #             i += 1
-        #             print(f'i = {i}')
-        #     ## when a number is divided by a zero
-        #     except ZeroDivisionError:
-        #         pass
+            try:
+                ## calculate contour area for current contour
+                cnt_th = cv2.contourArea(contours[i])
+                # print(f'cnt area for i is {cnt_th}')
+                ## delete contour if not meet the threshold
+                if cnt_th < min_th or cnt_th > max_th:
+                    del contours[i]
+                ## draw contour if meet the threshold
+                else:
+                    print('cv2 draw contours')
+                    cv2.drawContours(vid_draw, contours, i, (0, 0, 255), 2, cv2.LINE_8)
+                    ## calculate the centroid of current contour
+                    M = cv2.moments(contours[i])
+                    if M['m00'] != 0:
+                        cx = M['m10'] / M['m00']
+                        cy = M['m01'] / M['m00']
+                    else:
+                        cx = 0
+                        cy = 0
+                    ## update current position to new centroid
+                    centroids = np.array([[cx], [cy]])
+                    # pos_detection become a list of (2,1) array
+                    pos_detection.append(centroids)
+                    ## continue to next contour
+                    i += 1
+                    print(f'i = {i}')
+            ## when a number is divided by a zero
+            except ZeroDivisionError:
+                pass
         return vid_draw, contours , pos_detection, pos_archive
 
-    def detect_test(self):
+    def detect_test(self, delta):
         print('detect test from detection class')
-        if self.num <100000000:
-            self.num += 1
-            if self.num >100000000:
-                print('overflow')
+        while self.is_thread:
+        # if self.num <100000000:
+            self.num += delta
+            print(self.num)
+            if self.num >100000:
+                break
+        #         print('overflow')
         return self.is_thread,self.num
 
 class DetectionThread(QThread):
