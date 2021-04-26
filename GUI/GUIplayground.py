@@ -1,7 +1,7 @@
 from PyQt5 import QtCore,QtGui,QtWidgets
 from PyQt5.QtWidgets import QFileDialog,QMessageBox,QStyle,QApplication,QWidget
 from PyQt5.QtGui import QImage,QPixmap
-from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread,QObject,QMutex,QMutexLocker
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread,QObject,QMutex,QMutexLocker,QThreadPool,QRunnable
 import numpy as np
 from PyQt5.QtCore import QTimer
 
@@ -9,6 +9,8 @@ import cv2, imutils
 import time
 from collections import namedtuple
 from datetime import datetime, timedelta
+import threading
+import concurrent.futures
 import mainGUI
 import mainGUI_VPlayer
 
@@ -31,34 +33,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # # self.video_type = video_type  # 0: offline  1: realTime
         # self.video_file = video_file
         self.status = self.STATUS_INIT  # 0: init 1:playing 2: pause
-        self.videoPlayer = VideoPlayer()
+        # self.videoPlayer = VideoPlayer()
 
-        self.localMode.clicked.connect(self.enableLocalMode)
-        #
-        # self.playButton.clicked.connect(self.videoPlayer.videoPlayControl)
-        # self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-        #
-        # self.stopButton.clicked.connect(self.videoPlayer.stopVideo)
-        # self.stopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
-
-
-        # videoPlayer = VideoPlayer()
-        # timer
-        # self.videoThread = VideoThread()
-        # self.videoThread.timeSignal.signal[str].connect(self.videoPlayer.displayVideo)
-
-    def enableLocalMode(self):
-       #  app = QtWidgets.QApplication(sys.argv)
-
-        # connect subclass with parent class
-        window = VideoPlayer()
-        window.show()
-
-class VideoPlayer(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
-
-    def __init__(self):
-        super().__init__()
-        self.setupUi(self)
+        # self.localMode.clicked.connect(self.enableLocalMode)
 
         self.detection = Detection()
 
@@ -78,6 +55,24 @@ class VideoPlayer(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.playCapture = cv2.VideoCapture()
 
         self.resetVideo()
+
+        #
+        # self.playButton.clicked.connect(self.videoPlayer.videoPlayControl)
+        # self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        #
+        # self.stopButton.clicked.connect(self.videoPlayer.stopVideo)
+        # self.stopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
+
+
+        # videoPlayer = VideoPlayer()
+        # timer
+        # self.videoThread = VideoThread()
+        # self.videoThread.timeSignal.signal[str].connect(self.videoPlayer.displayVideo)
+
+        self.loadImgButton.clicked.connect(self.sleepThread)
+        self.threadpool = QThreadPool()
+        print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
+        # self.worker = Worker()
 
     def selectVideoFile(self):
 
@@ -103,6 +98,8 @@ class VideoPlayer(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
                 # after select file, auto read and display its property
                 print(self.video_file)
+
+
                 self.readVideoFile(self.video_file[0])
 
        except:
@@ -181,19 +178,34 @@ class VideoPlayer(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             if ret:
                 th_masked = self.detection.thresh_video(frame, block_size = 11, offset = 11)
 
-                contour_vid, cnt, pos_detection, pos_archive= self.detection.detect_contours(frame,
-                                                                                     th_masked,
-                                                                                     min_th = 100,
-                                                                                     max_th = 1500)
+                #
+                # contour_vid, cnt, pos_detection, pos_archive= self.detection.detect_contours(frame,
+                #                                                                      th_masked,
+                #                                                                      min_th = 100,
+                #                                                                      max_th = 1500)
+
+
+
+                # self.det_thread = threading.Thread(target=self.detection.detect_test,args=(5,))
+                # self.det_thread.start()
                 # thread_return, num = self.detection.detect_test()
                 # print(thread_return,num)
-                frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+
+                # with concurrent.futures.ThreadPoolExecutor() as executor:
+                #     future = executor.submit(self.detection.detect_contours, frame,th_masked,min_th = 100,max_th = 1500)
+                #     contour_vid, cnt, pos_detection, pos_archive = future.result()
+                    # print(f'thread return {return_bool} {return_value}')
+
+                frame_rgb = cv2.cvtColor(th_masked, cv2.COLOR_BGR2RGB)
 
                 frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
                                     QImage.Format_RGB888)
                 frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
                 frame_display = QPixmap.fromImage(frame_scaled)
                 self.VBoxLabel.setPixmap(frame_display)
+                # key = cv2.waitKey(int(1 / 25))
+
+                # self.threadpool.start(self.worker)
             elif not ret:
                 print("play finished")
                 self.resetVideo()
@@ -220,7 +232,6 @@ class VideoPlayer(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                                            'Please submit this issue on GitHub to help us improve.')
             self.error_msg.exec()
             self.resetVideo()
-
 
     def videoPlayControl(self):
 
@@ -327,11 +338,63 @@ class VideoPlayer(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.status = MainWindow.STATUS_INIT
         # MainWindow.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
+    def sleepThread(self):
+        worker = Worker(self.video_file)
+        worker.signals.result.connect(self.updateLabel)
+        self.threadpool.start(worker)
 
+    def updateLabel(self,image):
+        frame_display = QPixmap.fromImage(image)
+        self.VBoxLabel.setPixmap(frame_display)
+
+class Worker(QRunnable):
+    '''
+    Worker thread
+    '''
+    def __init__(self,file):
+        super(Worker,self).__init__()
+        self.num = 0
+        self.delta = 5
+        self.detection = Detection()
+        self.file = file
+        self.signals = Communicate()
+        # self.playCapture = cv2.VideoCapture()
+    @pyqtSlot()
+    def run(self):
+        '''
+        Your code goes in this function
+        '''
+        print("Thread while loop start")
+        print(self.file)
+        # while True:
+        #     time.sleep(2)
+        #     # if self.num <100000000:
+        #     self.num += self.delta
+        #     print(self.num)
+        #     if self.num > 100000:
+        #         break
+        video = cv2.VideoCapture(self.file[0])
+        while True:
+            ret, frame = video.read()
+            if ret:
+                thre_vid = self.detection.thresh_video(frame,11,11)
+                contour_vid,cnt,_,_=self.detection.detect_contours(frame,thre_vid,100,500)
+                # frame_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
+                frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+
+                frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                    QImage.Format_RGB888)
+                frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+
+                # frame_display = QPixmap.fromImage(frame_scaled)
+                self.signals.result.emit(frame_scaled)
+                # self.threBoxLabel.setPixmap(frame_display)
+                print('ret')
+        print("Thread while loop complete")
 
 class Communicate(QObject):
     signal = pyqtSignal(str)
-    det_signal=pyqtSignal(str)
+    result = pyqtSignal(QImage)
 
 class VideoThread(QThread):
 
@@ -349,8 +412,10 @@ class VideoThread(QThread):
             if self.stopped:
                 return
             self.timeSignal.signal.emit('1')
-            self.timeSignal.det_signal.emit('1')
+            # self.timeSignal.det_signal.emit('1')
             time.sleep(1/self.fps)
+            # time.sleep(1)
+
 
     def stop(self):
         # print('thread stopped')
@@ -434,61 +499,66 @@ class Detection():
         pos_archive = pos_detection.copy()
         del pos_detection[:]
 
-        if self.i < len(contours):
-            self.i += 1
-            print(self.i)
-            cnt_th = cv2.contourArea(contours[self.i])
-            print(f'contour threh for {self.i} is {cnt_th}')
-            if cnt_th < min_th or cnt_th > max_th:
-                del contours[self.i]
-                print('delete')
-            else:
-                cv2.drawContours(vid_draw, contours, self.i, (0, 0, 255), 2, cv2.LINE_8)
-                print(f'draw contour for {self.i}')
-        else:
-            pass
+        i = 0
+
+        while i < len(contours):
+        #     self.i += 1
+        #     print(self.i)
+        #     cnt_th = cv2.contourArea(contours[self.i])
+        #     print(f'contour threh for {self.i} is {cnt_th}')
+        #     if cnt_th < min_th or cnt_th > max_th:
+        #         del contours[self.i]
+        #         print('delete')
+        #     else:
+        #         cv2.drawContours(vid_draw, contours, self.i, (0, 0, 255), 2, cv2.LINE_8)
+        #         print(f'draw contour for {self.i}')
+        # else:
+        #     pass
 
 
         # else:
 
         #     print('i not less than len(contours)')
-        #     try:
-        #         ## calculate contour area for current contour
-        #         cnt_th = cv2.contourArea(contours[i])
-        #         # print(f'cnt area for i is {cnt_th}')
-        #         ## delete contour if not meet the threshold
-        #         if cnt_th < min_th or cnt_th > max_th:
-        #             del contours[i]
-        #         ## draw contour if meet the threshold
-        #         else:
-        #             print('cv2 draw contours')
-        #             cv2.drawContours(vid_draw, contours, i, (0, 0, 255), 2, cv2.LINE_8)
-        #             ## calculate the centroid of current contour
-        #             M = cv2.moments(contours[i])
-        #             if M['m00'] != 0:
-        #                 cx = M['m10'] / M['m00']
-        #                 cy = M['m01'] / M['m00']
-        #             else:
-        #                 cx = 0
-        #                 cy = 0
-        #             ## update current position to new centroid
-        #             centroids = np.array([[cx], [cy]])
-        #             # pos_detection become a list of (2,1) array
-        #             pos_detection.append(centroids)
-        #             ## continue to next contour
-        #             i += 1
-        #             print(f'i = {i}')
-        #     ## when a number is divided by a zero
-        #     except ZeroDivisionError:
-        #         pass
+            try:
+                ## calculate contour area for current contour
+                cnt_th = cv2.contourArea(contours[i])
+                # print(f'cnt area for i is {cnt_th}')
+                ## delete contour if not meet the threshold
+                if cnt_th < min_th or cnt_th > max_th:
+                    del contours[i]
+                ## draw contour if meet the threshold
+                else:
+                    print('cv2 draw contours')
+                    cv2.drawContours(vid_draw, contours, i, (0, 0, 255), 2, cv2.LINE_8)
+                    ## calculate the centroid of current contour
+                    M = cv2.moments(contours[i])
+                    if M['m00'] != 0:
+                        cx = M['m10'] / M['m00']
+                        cy = M['m01'] / M['m00']
+                    else:
+                        cx = 0
+                        cy = 0
+                    ## update current position to new centroid
+                    centroids = np.array([[cx], [cy]])
+                    # pos_detection become a list of (2,1) array
+                    pos_detection.append(centroids)
+                    ## continue to next contour
+                    i += 1
+                    print(f'i = {i}')
+            ## when a number is divided by a zero
+            except ZeroDivisionError:
+                pass
         return vid_draw, contours , pos_detection, pos_archive
 
-    def detect_test(self):
+    def detect_test(self, delta):
         print('detect test from detection class')
-        if self.num <100000000:
-            self.num += 1
-            if self.num >100000000:
-                print('overflow')
+        while self.is_thread:
+        # if self.num <100000000:
+            self.num += delta
+            print(self.num)
+            if self.num >100000:
+                break
+        #         print('overflow')
         return self.is_thread,self.num
 
 class DetectionThread(QThread):
@@ -507,7 +577,7 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
 
     # connect subclass with parent class
-    window = VideoPlayer()
+    window = MainWindow()
     window.show()
 
     sys.exit(app.exec_())
