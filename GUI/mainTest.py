@@ -43,6 +43,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.threshThread.timeSignal.thresh_signal.connect(self.displayThresholdVideo)
         self.threshThread.timeSignal.thresh_preview.connect(self.displayThresholdPreview)
         self.threshThread.timeSignal.updateSliderPos.connect(self.updateThreSlider)
+        self.threshThread.timeSignal.thresh_reset.connect(self.resetVideo)
         # self.detection = Detection()
 
         self.resetVideo()
@@ -438,8 +439,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.videoThread.stop()
         self.threshThread.stop()
         self.playCapture.release()
+        self.threshThread.playCapture.release()
         self.status = MainWindow.STATUS_INIT
-        self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        self.setPlayIcon()
 
     def setVidProgressBar(self,vid_prop):
 
@@ -875,6 +877,7 @@ class Communicate(QObject):
     signal = pyqtSignal(str)
     thresh_signal = pyqtSignal(QImage)
     thresh_preview = pyqtSignal(QImage)
+    thresh_reset = pyqtSignal(str)
     updateSliderPos = QtCore.pyqtSignal(float)
 
 
@@ -935,33 +938,39 @@ class ThreshVidThread(QThread):
                 return
             else:
                 ret, frame = self.playCapture.read()
-                # if ret:
-                play_elapse = self.playCapture.get(cv2.CAP_PROP_POS_FRAMES) / self.playCapture.get(cv2.CAP_PROP_FPS)
-                self.timeSignal.updateSliderPos.emit(play_elapse)
+                if ret:
+                    play_elapse = self.playCapture.get(cv2.CAP_PROP_POS_FRAMES) / self.playCapture.get(cv2.CAP_PROP_FPS)
+                    self.timeSignal.updateSliderPos.emit(play_elapse)
 
-                thre_vid = self.detection.thresh_video(frame,
-                                                       self.block_size,
-                                                       self.offset)
-                contour_vid, cnt, _, _ = self.detection.detect_contours(frame,
-                                                                        thre_vid,
-                                                                        self.min_contour,
-                                                                        self.max_contour)
-                # frame_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
-                frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+                    thre_vid = self.detection.thresh_video(frame,
+                                                           self.block_size,
+                                                           self.offset)
+                    contour_vid, cnt, _, _ = self.detection.detect_contours(frame,
+                                                                            thre_vid,
+                                                                            self.min_contour,
+                                                                            self.max_contour)
+                    # frame_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
+                    frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
 
-                frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
-                                   QImage.Format_RGB888)
-                frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+                    frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                       QImage.Format_RGB888)
+                    frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
 
-                self.timeSignal.thresh_signal.emit(frame_scaled)
-                # time.sleep(1/25)
+                    self.timeSignal.thresh_signal.emit(frame_scaled)
+                    # time.sleep(1/25)
 
-                # preview thresholded video
-                thvid_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
-                thvid_cvt = QImage(thvid_rgb, thvid_rgb.shape[1], thvid_rgb.shape[0], thvid_rgb.strides[0],
-                                   QImage.Format_RGB888)
-                thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
-                self.timeSignal.thresh_preview.emit(thvid_scaled)
+                    # preview thresholded video
+                    thvid_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
+                    thvid_cvt = QImage(thvid_rgb, thvid_rgb.shape[1], thvid_rgb.shape[0], thvid_rgb.strides[0],
+                                       QImage.Format_RGB888)
+                    thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
+                    self.timeSignal.thresh_preview.emit(thvid_scaled)
+
+                elif not ret:
+                    # video finished
+                    self.timeSignal.thresh_reset.emit('1')
+
+                    return
 
     def stop(self):
         with QMutexLocker(self.mutex):
