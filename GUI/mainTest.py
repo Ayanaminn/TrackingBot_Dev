@@ -6,8 +6,8 @@ from qtwidgets import Toggle, AnimatedToggle
 
 import os
 import cv2
-import numpy as np
 import time
+import numpy as np
 from collections import namedtuple
 from datetime import datetime, timedelta
 from scipy.spatial import distance
@@ -15,7 +15,7 @@ import threading
 import concurrent.futures
 import mainGUI
 import mainGUI_calibration as Calibration
-import mainGUI_detection as Det
+# import mainGUI_detection as Detection
 
 class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
     STATUS_INIT = 0
@@ -26,9 +26,26 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         super().__init__()
         self.setupUi(self)
 
-        self.detection = Detection()
-        self.thresh_vid = Det.ThresholdVideo()
+        # self.thresh_vid = Detection.ThresholdVideo()
         # self.convert_scale = Calibration.Calibrate()
+
+        # # video init
+        self.video_file = video_file
+        self.status = self.STATUS_INIT  # 0: init 1:playing 2: pause
+        self.playCapture = cv2.VideoCapture()
+
+        # timer for video player on load tab
+        self.videoThread = VideoThread()
+        self.videoThread.timeSignal.signal[str].connect(self.displayVideo)
+
+        # timer for threshold video player on load tab
+        self.threshThread = ThreshVidThread()
+        self.threshThread.timeSignal.thresh_signal.connect(self.displayThresholdVideo)
+        self.threshThread.timeSignal.thresh_preview.connect(self.displayThresholdPreview)
+        self.threshThread.timeSignal.updateSliderPos.connect(self.updateThreSlider)
+        # self.detection = Detection()
+
+        self.resetVideo()
 
         self.tabWidget.setTabEnabled(1, False)
         self.tabWidget.setTabEnabled(2, False)
@@ -45,13 +62,15 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.caliBoxCanvasLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.caliBoxCanvasLabel.setFrameShape(QtWidgets.QFrame.Box)
         self.caliBoxCanvasLabel.setCursor(Qt.CrossCursor)
-        ####################################################
-        # signals for the tab 0
+
+        ##############################################################
+        # signals and widgets for the tab 0
         # need one button for back to main menu
         self.localModeButton.clicked.connect(self.enableLocalMode)
         self.liveModeButton.clicked.connect(self.enableLiveMode)
-        #####################################################
-        # signals for the tab 1
+
+        #############################################################
+        # signals and widgets for the tab 1
         self.loadVidButton.clicked.connect(self.selectVideoFile)
         self.loadNewVidButton.clicked.connect(self.selectNewFile)
 
@@ -63,95 +82,85 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.caliTabLinkButton.clicked.connect(self.enableCalibration)
 
-        # # video init
-        self.video_file = video_file
-        self.status = self.STATUS_INIT  # 0: init 1:playing 2: pause
-        # timer
-        self.videoThread = VideoThread()
-        self.videoThread.timeSignal.signal[str].connect(self.displayVideo)
 
-        # slider
+        # slider for video player on load tab
         self.vidProgressBar.sliderPressed.connect(self.pauseFromSlider)
         self.vidProgressBar.valueChanged.connect(self.updatePosition)
         self.vidProgressBar.sliderReleased.connect(self.resumeFromSlider)
 
-        # init
-        self.playCapture = cv2.VideoCapture()
-        self.resetVideo()
-
-        ##########################################
+        ###################################################################
         # signal on tab 2
-        self.drawScaleButton.clicked.connect(self.localCalibration)
+        self.drawScaleButton.clicked.connect(self.drawScale)
         self.resetScaleButton.clicked.connect(self.clearScale)
         self.applyScaleButton.clicked.connect(self.convertScale)
         self.threTabLinkButton.clicked.connect(self.enableThreshold)
         ###############################################
         # signal on tab 3
-        self.is_thresholding = False
-        # self.threPlayButton.clicked.connect(self.thresh_vid.playControl)
-        self.threPlayButton.clicked.connect(self.videoPlayControl)
+        self.mask_file = ''
+        self.apply_mask = False
+
+        self.block_size = ''
+        self.offset = ''
+        self.min_contour = ''
+        self.max_contour = ''
+
+        self.threPlayButton.clicked.connect(self.threshVidControl)
         self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-
-        # self.threStopButton.clicked.connect(self.thresh_vid.stop)
-        self.threStopButton.clicked.connect(self.stopVideo)
+        self.threStopButton.clicked.connect(self.stopThreshVid)
         self.threStopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
-        # receive signal when play button clicked to open current video file
-        # self.thresh_vid.setVideo.connect(self.setThresholdVideo)
-        # self.thresh_vid.playClicked.connect(self.setPauseIcon)
-        # self.thresh_vid.pauseClicked.connect(self.setPlayIcon)
-        # self.thresh_vid.resumeClicked.connect(self.setPauseIcon)
-        # self.thresh_vid.stopClicked.connect(self.setPlayIcon)
 
-        # receive signal emited from thread of detection module
-        # self.thresh_vid.updateThreshDisplay.connect(self.displayThresholdVideo)
-        # self.thresh_vid.updateThreshPreview.connect(self.displayThresholdPreview)
-        # self.thresh_vid.updateThreshCanvas.connect(self.displayThresholdCanvas)
-
-        self.blockSizeSlider.sliderPressed.connect(self.thresh_vid.pause)
+        self.blockSizeSlider.sliderPressed.connect(self.pauseThreshVid)
         self.blockSizeSlider.valueChanged.connect(self.setBlockSizeSlider)
-        self.blockSizeSlider.sliderReleased.connect(self.thresh_vid.resume)
+        self.blockSizeSlider.sliderReleased.connect(self.resumeThreshVid)
         self.blockSizeSpin.valueChanged.connect(self.setBlockSizeSpin)
-
-        self.offsetSlider.sliderPressed.connect(self.thresh_vid.pause)
+        #
+        self.offsetSlider.sliderPressed.connect(self.pauseThreshVid)
         self.offsetSlider.valueChanged.connect(self.setOffsetSlider)
-        self.offsetSlider.sliderReleased.connect(self.thresh_vid.resume)
+        self.offsetSlider.sliderReleased.connect(self.resumeThreshVid)
         self.offsetSpin.valueChanged.connect(self.setOffsetSpin)
-
-        self.cntMinSlider.sliderPressed.connect(self.thresh_vid.pause)
+        #
+        self.cntMinSlider.sliderPressed.connect(self.pauseThreshVid)
         self.cntMinSlider.valueChanged.connect(self.setMinCntSlider)
-        self.cntMinSlider.sliderReleased.connect(self.thresh_vid.resume)
+        self.cntMinSlider.sliderReleased.connect(self.resumeThreshVid)
         self.cntMinSpin.valueChanged.connect(self.setMinCntSpin)
-
-        self.cntMaxSlider.sliderPressed.connect(self.thresh_vid.pause)
+        #
+        self.cntMaxSlider.sliderPressed.connect(self.pauseThreshVid)
         self.cntMaxSlider.valueChanged.connect(self.setMaxCntSlider)
-        self.cntMaxSlider.sliderReleased.connect(self.thresh_vid.resume)
+        self.cntMaxSlider.sliderReleased.connect(self.resumeThreshVid)
         self.cntMaxSpin.valueChanged.connect(self.setMaxCntSpin)
+
+        # slider for video player on load tab
+        self.threProgressBar.sliderPressed.connect(self.pauseThreshVid)
+        self.threProgressBar.valueChanged.connect(self.updateThrePosition)
+        self.threProgressBar.sliderReleased.connect(self.resumeThreshSlider)
 
         self.previewBoxLabel.lower()
         self.previewToggle = Toggle(self.threTab)
         self.previewToggle.setGeometry(QRect(1150, 360, 60, 35))
-        self.previewToggle.lower()
         self.previewToggle.stateChanged.connect(self.enableThrePreview)
+        #
+        # self.applyMaskcheckBox.stateChanged.connect(self.enalbleApplyMask)
 
-        self.applyMaskcheckBox.stateChanged.connect(self.enalbleApplyMask)
 
-
-
+    # not yet activated
     def selectMainMenu(self):
         self.tabWidget.setCurrentIndex(0)
 
     def enableLocalMode(self):
+        '''
+        activate select video file tab
+        '''
+        self.tabWidget.setTabEnabled(0, False)
         self.tabWidget.setTabEnabled(1, True)
         self.tabWidget.setCurrentIndex(1)
 
     def enableLiveMode(self):
+        '''
+        activate load camera source tab
+        '''
+        self.tabWidget.setTabEnabled(0, False)
         self.tabWidget.setTabEnabled(5, True)
         self.tabWidget.setCurrentIndex(5)
-
-    def enableCalibration(self):
-        self.resetVideo()
-        self.tabWidget.setTabEnabled(2, True)
-        self.tabWidget.setCurrentIndex(2)
 
     def selectVideoFile(self):
 
@@ -162,13 +171,12 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             # if no file selected
             if self.video_file[0] == '':
                 return
-
             else:
                 # enable video control
                 self.playButton.setEnabled(True)
                 self.stopButton.setEnabled(True)
                 self.loadNewVidButton.setEnabled(True)
-                # self.vidProgressBar.setEnabled(True)
+
                 # display image on top of other widgets
                 # can use either way
                 # self.caliBoxCanvasLabel.raise_()
@@ -179,7 +187,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                 print(self.video_file)
                 self.readVideoFile(self.video_file[0])
 
-                self.thresh_vid.updateVideoFile(self.video_file)
+                self.threshThread.file = self.video_file
 
         except:
             self.error_msg = QMessageBox()
@@ -192,27 +200,28 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.error_msg.exec()
 
     def readVideoFile(self, file_path):
-        # read file property and display the first frame
+        '''
+        read property of selected video file and display the first frame
+        '''
+        self.caliTabLinkButton.setEnabled(True)
+        self.loadNewVidButton.setEnabled(True)
         try:
             video_cap = cv2.VideoCapture(file_path)
             video_prop = self.readVideoProp(video_cap)
-            print(video_prop)
-            # pass video prop to threshold tab
-            self.thresh_vid.updateVideoProp(video_prop)
-
             video_name = os.path.split(file_path)
+            print(video_prop)
 
             self.videoThread.set_fps(video_prop.fps)
+            self.threshThread.set_fps(video_prop.fps)
 
             self.setVidProgressBar(video_prop)
-            self.caliTabLinkButton.setEnabled(True)
-            self.loadNewVidButton.setEnabled(True)
 
             # set a function here link to labels that display the parameters
             self.vidNameText.setText(f'{str(video_name[1])}')
             self.vidDurText.setText(f'{str(video_prop.duration).split(".")[0]}')
             self.vidFpsText.setText(str(round(video_prop.fps,2)))
             self.vidResText.setText(f'{str(int(video_prop.width))} X {str(int(video_prop.height))}')
+
             # display 1st frame of video in window as preview
             set_preview_frame = 1
             video_cap.set(cv2.CAP_PROP_POS_FRAMES, set_preview_frame)
@@ -224,15 +233,16 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             frame_display = QPixmap.fromImage(frame_scaled)
             self.VBoxLabel.setPixmap(frame_display)
 
-            self.setCalibrationFrame(frame_display)
-            self.setThresholdFrame(frame_display)
+            self.setCalibrationCanvas(frame_display)
+            self.setThresholdCanvas(frame_display)
             video_cap.release()
 
         except:
             self.error_msg = QMessageBox()
             self.error_msg.setWindowTitle('Error')
             self.error_msg.setText('Failed to read video file.')
-            self.error_msg.setInformativeText('cv2.VideoCapture() does not execute correctly.\n'
+            self.error_msg.setInformativeText('readVideoFile() failed\n'
+                                              'cv2.VideoCapture() does not execute correctly.\n'
                                               'QImage is not converted correctly')
             self.error_msg.setIcon(QMessageBox.Warning)
             self.error_msg.setDetailedText('You caught a bug! \n'
@@ -265,65 +275,99 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         return get_video_prop
 
     def selectNewFile(self):
+        '''
+        release current file and select new file
+        '''
         self.resetVideo()
         self.selectVideoFile()
 
+    def videoPlayControl(self):
+
+        if self.video_file[0] == '' or self.video_file[0] is None:
+            print('No video is selected')
+            return
+
+        if self.status is MainWindow.STATUS_INIT:
+            try:
+                self.playVideo()
+            except:
+                self.error_msg = QMessageBox()
+                self.error_msg.setWindowTitle('Error')
+                self.error_msg.setText('An error happened when trying to play video file.')
+                self.error_msg.setInformativeText('playVideo() does not execute correctly.')
+                self.error_msg.setIcon(QMessageBox.Warning)
+                self.error_msg.setDetailedText('You caught a bug! \n'
+                                               'Please submit this issue on GitHub to help us improve. ')
+                self.error_msg.exec()
+
+        elif self.status is MainWindow.STATUS_PLAYING:
+            try:
+                self.pauseVideo()
+            except:
+                self.error_msg = QMessageBox()
+                self.error_msg.setWindowTitle('Error')
+                self.error_msg.setText('An error happened when trying to pause video file.')
+                self.error_msg.setInformativeText('pauseVideo() does not execute correctly.')
+                self.error_msg.setIcon(QMessageBox.Warning)
+                self.error_msg.setDetailedText('You caught a bug! \n'
+                                               'Please submit this issue on GitHub to help us improve. ')
+                self.error_msg.exec()
+
+            # if self.video_type is VideoBox.VIDEO_TYPE_REAL_TIME:
+            #     self.playCapture.release()
+
+        elif self.status is MainWindow.STATUS_PAUSE:
+            try:
+                self.resumeVideo()
+            except:
+                self.error_msg = QMessageBox()
+                self.error_msg.setWindowTitle('Error')
+                self.error_msg.setText('An error happened when trying to resume playing.')
+                self.error_msg.setInformativeText('resumeVideo() does not execute correctly.')
+                self.error_msg.setIcon(QMessageBox.Warning)
+                self.error_msg.setDetailedText('You caught a bug! \n'
+                                               'Please submit this issue on GitHub to help us improve. ')
+                self.error_msg.exec()
+            # if self.video_type is VideoBox.VIDEO_TYPE_REAL_TIME:
+            #     self.playCapture.open(self.video_url)
+            # self.videoThread.start()
+
+        '''
+        study below structure
+        '''
+        # self.status = (MainWindow.STATUS_PLAYING,
+        #                MainWindow.STATUS_PAUSE,
+        #                MainWindow.STATUS_PLAYING)[self.status]
+
     def displayVideo(self):
-        # print('emited signal connected')
+        '''
+        managed by the video thread
+        '''
+
         self.vidProgressBar.setEnabled(True)
 
-        if self.playCapture.isOpened():  # when click the play button that connected with playVideo function
+        # click play button will execute playVideo() and open the file
+        if self.playCapture.isOpened():
 
             ret, frame = self.playCapture.read()
             if ret:
 
-                if not self.is_thresholding:
-                    print(self.playCapture.get(cv2.CAP_PROP_POS_FRAMES))
-                    play_elapse = self.playCapture.get(cv2.CAP_PROP_POS_FRAMES)
-                    # update slider position and label
-                    self.vidProgressBar.setSliderPosition(play_elapse)
-                    self.vidPosLabel.setText(f"{str(timedelta(seconds=play_elapse)).split('.')[0]}")
+                # convert total seconds to timedelta format, not total frames to timedelta
+                play_elapse = self.playCapture.get(cv2.CAP_PROP_POS_FRAMES)/self.playCapture.get(cv2.CAP_PROP_FPS)
+                # update slider position and label
+                self.vidProgressBar.setSliderPosition(play_elapse)
+                self.vidPosLabel.setText(f"{str(timedelta(seconds=play_elapse)).split('.')[0]}")
 
-                    # if frame.ndim == 3:
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    # elif frame.ndim == 2:
-                    # frame_rgb = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
+                # if frame.ndim == 3:
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                # elif frame.ndim == 2:
+                # frame_rgb = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
 
-                    frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
-                                       QImage.Format_RGB888)
-                    frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
-                    frame_display = QPixmap.fromImage(frame_scaled)
-                    self.VBoxLabel.setPixmap(frame_display)
-
-                elif self.is_thresholding:
-
-                    th_masked = self.detection.thresh_video(frame,
-                                                            13,
-                                                            13)
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        future = executor.submit(self.detection.detect_contours,
-                                                 frame,
-                                                 th_masked,
-                                                 50,
-                                                 150)
-                        contour_vid, cnt, pos_detection, pos_archive = future.result()
-
-                    frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
-
-                    frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
-                                       QImage.Format_RGB888)
-                    frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
-                    frame_display = QPixmap.fromImage(frame_scaled)
-                    self.threBoxLabel.setPixmap(frame_display)
-
-                    # preview thresholded video
-                    thvid_rgb = cv2.cvtColor(th_masked, cv2.COLOR_BGR2RGB)
-                    thvid_cvt = QImage(thvid_rgb, thvid_rgb.shape[1], thvid_rgb.shape[0], thvid_rgb.strides[0],
-                                       QImage.Format_RGB888)
-                    thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
-                    # self.updateThreshPreview.emit(thvid_scaled)
-                    preview_display = QPixmap.fromImage(thvid_scaled)
-                    self.previewBoxLabel.setPixmap(preview_display)
+                frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                   QImage.Format_RGB888)
+                frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+                frame_display = QPixmap.fromImage(frame_scaled)
+                self.VBoxLabel.setPixmap(frame_display)
 
             elif not ret:
                 # video finished
@@ -351,68 +395,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.error_msg.exec()
             self.resetVideo()
 
-    def videoPlayControl(self):
-
-        if self.video_file[0] == '' or self.video_file[0] is None:
-            print('No video is selected')
-            return
-
-        if self.status is MainWindow.STATUS_INIT:
-            try:
-                self.playVideo()
-            except:
-                self.error_msg = QMessageBox()
-                self.error_msg.setWindowTitle('Error')
-                self.error_msg.setText('An error happened when trying to play video file.')
-                self.error_msg.setIcon(QMessageBox.Warning)
-                self.error_msg.setDetailedText('You caught a bug! \n'
-                                               'Please submit this issue on GitHub to help us improve. ')
-                self.error_msg.exec()
-
-        elif self.status is MainWindow.STATUS_PLAYING:
-            try:
-                self.pauseVideo()
-            except:
-                self.error_msg = QMessageBox()
-                self.error_msg.setWindowTitle('Error')
-                self.error_msg.setText('An error happened when trying to pause video file.')
-                self.error_msg.setIcon(QMessageBox.Warning)
-                self.error_msg.setDetailedText('You caught a bug! \n'
-                                               'Please submit this issue on GitHub to help us improve. ')
-                self.error_msg.exec()
-
-            # if self.video_type is VideoBox.VIDEO_TYPE_REAL_TIME:
-            #     self.playCapture.release()
-
-        elif self.status is MainWindow.STATUS_PAUSE:
-            try:
-                self.resumeVideo()
-            except:
-                self.error_msg = QMessageBox()
-                self.error_msg.setWindowTitle('Error')
-                self.error_msg.setText('An error happened when trying to resume playing.')
-                self.error_msg.setIcon(QMessageBox.Warning)
-                self.error_msg.setDetailedText('You caught a bug! \n'
-                                               'Please submit this issue on GitHub to help us improve. ')
-                self.error_msg.exec()
-            # if self.video_type is VideoBox.VIDEO_TYPE_REAL_TIME:
-            #     self.playCapture.open(self.video_url)
-            # self.videoThread.start()
-
-        '''
-        study below structure
-        '''
-        # self.status = (MainWindow.STATUS_PLAYING,
-        #                MainWindow.STATUS_PAUSE,
-        #                MainWindow.STATUS_PLAYING)[self.status]
-
     def playVideo(self):
 
         self.playCapture.open(self.video_file[0])
-
-        # current_frame = int(self.vidProgressBar.value())
-        # self.playCapture.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
-
         self.videoThread.start()
         self.status = MainWindow.STATUS_PLAYING
         self.setPauseIcon()
@@ -433,25 +418,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.status = MainWindow.STATUS_PLAYING
         self.setPauseIcon()
 
-    def pauseFromSlider(self):
-
-        self.videoThread.stop()
-        # self.playCapture.release()
-        print(self.playCapture.get(cv2.CAP_PROP_POS_FRAMES))
-        self.status = MainWindow.STATUS_PAUSE
-        self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-
-    def resumeFromSlider(self):
-
-        # self.playCapture.open(self.video_file[0])
-
-        current_frame = int(self.vidProgressBar.value())
-        self.playCapture.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
-
-        self.videoThread.start()
-        self.status = MainWindow.STATUS_PLAYING
-        self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
-
     def stopVideo(self):
         is_stopped = self.videoThread.is_stopped()
         self.playButton.setEnabled(True)
@@ -470,6 +436,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
     def resetVideo(self):
         self.videoThread.stop()
+        self.threshThread.stop()
         self.playCapture.release()
         self.status = MainWindow.STATUS_INIT
         self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
@@ -478,8 +445,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.vidPosLabel.setText('0:00:00')
         self.vidLenLabel.setText(f'{str(vid_prop.duration).split(".")[0]}')
-        self.vidProgressBar.setRange(1, vid_prop.length)
-        self.vidProgressBar.setValue(1)
+        # use numeric, not timedelta format for range
+        self.vidProgressBar.setRange(0, int(vid_prop.length/vid_prop.fps))
+        self.vidProgressBar.setValue(0)
 
         self.vidProgressBar.setSingleStep(int(vid_prop.fps)*5) # 5 sec
         self.vidProgressBar.setPageStep(int(vid_prop.fps)*60) # 60 sec
@@ -488,16 +456,62 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.threPosLabel.setText('0:00:00')
         self.threLenLabel.setText(f'{str(vid_prop.duration).split(".")[0]}')
-        self.threProgressBar.setRange(1, vid_prop.length)
-        self.threProgressBar.setValue(1)
+        # use numeric, not timedelta format for range
+        self.threProgressBar.setRange(0, int(vid_prop.length/vid_prop.fps))
+        self.threProgressBar.setValue(0)
 
         self.threProgressBar.setSingleStep(int(vid_prop.fps)*5) # 5 sec
         self.threProgressBar.setPageStep(int(vid_prop.fps)*60) # 60 sec
 
     def updatePosition(self):
+        '''
+        when drag slider to new position, update it
+        '''
 
         play_elapse = self.vidProgressBar.value()
         self.vidPosLabel.setText(f"{str(timedelta(seconds=play_elapse)).split('.')[0]}")
+
+    def pauseFromSlider(self):
+
+        self.videoThread.stop()
+        self.status = MainWindow.STATUS_PAUSE
+        self.setPlayIcon()
+
+    def resumeFromSlider(self):
+
+        # convert current seconds back to frame number
+        current_frame = self.playCapture.get(cv2.CAP_PROP_FPS)* int(self.vidProgressBar.value())
+        self.playCapture.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
+
+        self.videoThread.start()
+        self.status = MainWindow.STATUS_PLAYING
+        self.setPauseIcon()
+
+    #####################################Functions for calibaration##########################
+
+    def enableCalibration(self):
+        '''
+        reset status from video player in load video tab and disable tab
+        activate calibration tab
+        '''
+        self.tabWidget.setTabEnabled(1, False)
+        self.resetVideo()
+        self.tabWidget.setTabEnabled(2, True)
+        self.tabWidget.setCurrentIndex(2)
+
+    def setCalibrationCanvas(self,frame):
+        self.caliBoxLabel.setPixmap(frame)
+
+    def drawScale(self):
+        '''
+        enable canvas label for mouse and paint event
+        '''
+        self.caliBoxLabel.setEnabled(True)
+        self.caliBoxCanvasLabel.setEnabled(True)
+        self.metricNumInput.setEnabled(True)
+        self.resetScaleButton.setEnabled(True)
+        self.applyScaleButton.setEnabled(True)
+        self.caliBoxCanvasLabel.raise_()
 
     def clearScale(self):
         self.caliBoxCanvasLabel.earse()
@@ -506,18 +520,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.caliBoxCanvasLabel.setEnabled(True)
         self.metricNumInput.setEnabled(True)
         self.threTabLinkButton.setEnabled(False)
-
-    def setCalibrationFrame(self,frame):
-        self.caliBoxLabel.setPixmap(frame)
-
-    def localCalibration(self):
-
-        self.caliBoxLabel.setEnabled(True)
-        self.caliBoxCanvasLabel.setEnabled(True)
-        self.metricNumInput.setEnabled(True)
-        self.resetScaleButton.setEnabled(True)
-        self.applyScaleButton.setEnabled(True)
-        self.caliBoxCanvasLabel.raise_()
 
     def convertScale(self):
         # scale, metric = self.run()
@@ -541,29 +543,143 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                 self.error_msg = QMessageBox()
                 self.error_msg.setWindowTitle('Error')
                 self.error_msg.setText('Input value out of range.')
-                self.error_msg.setInformativeText('Input can only numbers between 1 to 1000.')
+                self.error_msg.setInformativeText('Input can only be numbers between 1 to 1000.')
                 self.error_msg.setIcon(QMessageBox.Warning)
                 self.error_msg.exec()
         except Exception:
             self.error_msg = QMessageBox()
             self.error_msg.setWindowTitle('Error')
-            self.error_msg.setText('Must draw scale and input value, input and can only be an integer.')
+            self.error_msg.setText('Must draw a scale and define its value, input value and can only be an integer.')
             self.error_msg.setIcon(QMessageBox.Warning)
             self.error_msg.exec()
 
-    def setThresholdFrame(self,frame):
+    #####################################Functions for threshold##########################
+
+    def setThresholdCanvas(self, frame):
+
         self.threBoxLabel.setPixmap(frame)
 
     def enableThreshold(self):
         # when enable cali tab, vid been reset, self.playCapture released
         # self.playCapture is closed now
-        print('thretab enabled')
+        self.tabWidget.setTabEnabled(2, False)
         self.tabWidget.setTabEnabled(3, True)
         self.tabWidget.setCurrentIndex(3)
-        self.is_thresholding = True
         self.resetVideo()
-        print(self.video_file[0])
-        print(self.playCapture.isOpened())
+        print(f'enable threshold{self.video_file[0]}')
+        print(f'enable threshold{self.playCapture.isOpened()}')
+
+    def threshVidControl(self):
+
+        if self.video_file[0] == '' or self.video_file[0] is None:
+            print('No video is selected')
+            return
+
+        if self.status is MainWindow.STATUS_INIT:
+            try:
+                self.playThreshVid()
+            except:
+                self.error_msg = QMessageBox()
+                self.error_msg.setWindowTitle('Error')
+                self.error_msg.setText('An error happened when trying to play video file.')
+                self.error_msg.setInformativeText('playThreshVid() does not execute correctly.')
+                self.error_msg.setIcon(QMessageBox.Warning)
+                self.error_msg.setDetailedText('You caught a bug! \n'
+                                               'Please submit this issue on GitHub to help us improve. ')
+                self.error_msg.exec()
+
+        elif self.status is MainWindow.STATUS_PLAYING:
+            try:
+                self.pauseThreshVid()
+            except:
+                self.error_msg = QMessageBox()
+                self.error_msg.setWindowTitle('Error')
+                self.error_msg.setText('An error happened when trying to pause video file.')
+                self.error_msg.setInformativeText('pauseThreshVid() does not execute correctly.')
+                self.error_msg.setIcon(QMessageBox.Warning)
+                self.error_msg.setDetailedText('You caught a bug! \n'
+                                               'Please submit this issue on GitHub to help us improve. ')
+                self.error_msg.exec()
+
+            # if self.video_type is VideoBox.VIDEO_TYPE_REAL_TIME:
+            #     self.playCapture.release()
+
+        elif self.status is MainWindow.STATUS_PAUSE:
+            try:
+                self.resumeThreshVid()
+            except:
+                self.error_msg = QMessageBox()
+                self.error_msg.setWindowTitle('Error')
+                self.error_msg.setText('An error happened when trying to resume playing.')
+                self.error_msg.setInformativeText('resumeThreshVid() does not execute correctly.')
+                self.error_msg.setIcon(QMessageBox.Warning)
+                self.error_msg.setDetailedText('You caught a bug! \n'
+                                               'Please submit this issue on GitHub to help us improve. ')
+                self.error_msg.exec()
+
+            # if self.video_type is VideoBox.VIDEO_TYPE_REAL_TIME:
+            #     self.playCapture.open(self.video_url)
+            # self.videoThread.start()
+
+    def playThreshVid(self):
+        self.threshThread.playCapture.open(self.video_file[0])
+        self.threshThread.start()
+        self.status = MainWindow.STATUS_PLAYING
+        self.setPauseIcon()
+
+    def pauseThreshVid(self):
+
+        self.threshThread.stop()
+        # for camera
+        # if self.video_type is MainWindow.VIDEO_TYPE_REAL_TIME:
+        #     self.playCapture.release()
+        # print(self.playCapture.get(cv2.CAP_PROP_POS_FRAMES))
+        self.status = MainWindow.STATUS_PAUSE
+        self.setPlayIcon()
+
+    def resumeThreshVid(self):
+
+        self.threshThread.start()
+        self.status = MainWindow.STATUS_PLAYING
+        self.setPauseIcon()
+
+    def resumeThreshSlider(self):
+
+        # convert current seconds back to frame number
+        current_frame = self.threshThread.playCapture.get(cv2.CAP_PROP_FPS)* int(self.threProgressBar.value())
+        self.threshThread.playCapture.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
+
+        self.threshThread.start()
+        self.status = MainWindow.STATUS_PLAYING
+        self.setPauseIcon()
+
+    def stopThreshVid(self):
+        is_stopped = self.threshThread.is_stopped()
+        self.threPlayButton.setEnabled(True)
+        # reset when video is paused
+        if is_stopped:
+            self.threshThread.playCapture.release()
+            self.readVideoFile(self.video_file[0])
+            self.status = MainWindow.STATUS_INIT
+        # reset when video still playing
+        elif not is_stopped:
+            self.threshThread.stop()
+            self.threshThread.playCapture.release()
+            self.readVideoFile(self.video_file[0])
+            self.status = MainWindow.STATUS_INIT
+            self.setPlayIcon()
+
+    def updateThreSlider(self, elapse):
+        self.threProgressBar.setSliderPosition(elapse)
+        self.threPosLabel.setText(f"{str(timedelta(seconds=elapse)).split('.')[0]}")
+
+    def updateThrePosition(self):
+        '''
+        when drag slider to new position, update it
+        '''
+
+        play_elapse = self.threProgressBar.value()
+        self.threPosLabel.setText(f"{str(timedelta(seconds=play_elapse)).split('.')[0]}")
 
     def setBlockSizeSlider(self):
         block_size = self.blockSizeSlider.value()
@@ -572,9 +688,10 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             block_size += 1
         if block_size < 3:
             block_size = 3
+        # update spin control to same value
         self.blockSizeSpin.setValue(block_size)
-        # self.thresh_vid.block_size = block_size
-        self.thresh_vid.updateBlockSize(block_size)
+        # pass value to thread
+        self.threshThread.block_size = block_size
 
     def setBlockSizeSpin(self):
         block_size = self.blockSizeSpin.value()
@@ -582,120 +699,53 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             block_size += 1
         if block_size < 3:
             block_size = 3
+        # update slider control to same value
         self.blockSizeSlider.setValue(block_size)
-        # self.thresh_vid.block_size = block_size
-        self.thresh_vid.updateBlockSize(block_size)
+        # pass value to thread
+        self.threshThread.block_size = block_size
 
     def setOffsetSlider(self):
         offset = self.offsetSlider.value()
         self.offsetSpin.setValue(offset)
-        self.thresh_vid.updateOffset(offset)
+        self.threshThread.offset = offset
 
     def setOffsetSpin(self):
         offset = self.offsetSpin.value()
         self.offsetSlider.setValue(offset)
-        self.thresh_vid.updateOffset(offset)
+        self.threshThread.offset = offset
 
     def setMinCntSlider(self):
         min_cnt = self.cntMinSlider.value()
         self.cntMinSpin.setValue(min_cnt)
-        self.thresh_vid.updateMinCnt(min_cnt)
+        self.threshThread.min_contour = min_cnt
 
     def setMinCntSpin(self):
         min_cnt = self.cntMinSpin.value()
         self.cntMinSlider.setValue(min_cnt)
-        self.thresh_vid.updateMinCnt(min_cnt)
+        self.threshThread.min_contour = min_cnt
 
     def setMaxCntSlider(self):
         max_cnt = self.cntMaxSlider.value()
         self.cntMaxSpin.setValue(max_cnt)
-        self.thresh_vid.updateMaxCnt(max_cnt)
+        self.threshThread.max_contour = max_cnt
 
     def setMaxCntSpin(self):
         max_cnt = self.cntMaxSpin.value()
         self.cntMaxSlider.setValue(max_cnt)
-        self.thresh_vid.updateMaxCnt(max_cnt)
-    # def run(self):
-    #     """
-    #     call input calibration scale function and draw scale function in separate thread
-    #     """
-    #
-    #     with concurrent.futures.ThreadPoolExecutor() as executor:
-    #
-    #         cali_num_imput = executor.submit(self.metricNumInput.text())
-    #         line_scale = executor.submit(self.caliBoxCanvasLabel.logdata(self))
-    #         metric = cali_num_imput.result()
-    #         scale = line_scale.result()
-    #         print(f'metric is {metric}')
-    #         print(f'scale is {scale}')
-    #
-    #     return scale, metric
-
+        self.threshThread.max_contour = max_cnt
 
     def setPauseIcon(self):
-
         self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
         self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPause))
 
     def setPlayIcon(self):
-
         self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
-    def setThresholdVideo(self):
-        self.playCapture.open(self.video_file[0])
+    def displayThresholdVideo(self,frame):
 
-    def displayThresholdCanvas(self, canvas_frame):
-
-        frame_display = QPixmap.fromImage(canvas_frame)
+        frame_display = QPixmap.fromImage(frame)
         self.threBoxLabel.setPixmap(frame_display)
-
-    # def displayThresholdVideo(self):
-    #
-    #     print(self.playCapture.isOpened())
-    #     if self.playCapture.isOpened():  # when click the play button that connected with playVideo function
-    #
-    #         ret, frame = self.playCapture.read()
-    #         if ret:
-    #             play_elapse = self.playCapture.get(cv2.CAP_PROP_POS_FRAMES)
-    #             # # update slider position and label
-    #             # self.threProgressBar.setSliderPosition(play_elapse)
-    #             # self.threPosLabel.setText(f"{str(timedelta(seconds=play_elapse)).split('.')[0]}")
-    #
-    #             th_masked = self.detection.thresh_video(frame,
-    #                                                     self.thresh_vid.block_size,
-    #                                                     self.thresh_vid.offset)
-    #
-    #             with concurrent.futures.ThreadPoolExecutor() as executor:
-    #                 future = executor.submit(self.detection.detect_contours,
-    #                                          frame,
-    #                                          th_masked,
-    #                                          self.thresh_vid.min_contour,
-    #                                          self.thresh_vid.max_contour)
-    #                 contour_vid, cnt, pos_detection, pos_archive = future.result()
-    #
-    #             frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
-    #
-    #             frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
-    #                                QImage.Format_RGB888)
-    #             frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
-    #             frame_display = QPixmap.fromImage(frame_scaled)
-    #             self.threBoxLabel.setPixmap(frame_display)
-    #
-    #             # preview thresholded video
-    #             thvid_rgb = cv2.cvtColor(th_masked, cv2.COLOR_BGR2RGB)
-    #             thvid_cvt = QImage(thvid_rgb, thvid_rgb.shape[1], thvid_rgb.shape[0], thvid_rgb.strides[0],
-    #                                QImage.Format_RGB888)
-    #             thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
-    #             # self.updateThreshPreview.emit(thvid_scaled)
-    #             preview_display = QPixmap.fromImage(thvid_scaled)
-    #             self.previewBoxLabel.setPixmap(preview_display)
-    #         # elif not ret:
-    #         #     # video finished
-    #         #     self.thresh_vid.reset()
-    #         #     self.setPlayIcon()
-    #         #     print('thre vid reset')
-    #         #     return
 
     def enableThrePreview(self):
         # enable real time preview window of threshold result
@@ -704,60 +754,27 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         else:
             self.previewBoxLabel.lower()
 
+    def displayThresholdPreview(self,preview_frame):
 
+        preview_display = QPixmap.fromImage(preview_frame)
+        self.previewBoxLabel.setPixmap(preview_display)
 
     def enalbleApplyMask(self):
-        if self.applyMaskcheckBox.isChecked():
-            self.thresh_vid.apply_mask = True
-            self.thresh_vid.loadMask()
-            # need to reset video
-            # or force user select before threshold
-        else:
-            self.thresh_vid.apply_mask = False
+        pass
+        # if self.applyMaskcheckBox.isChecked():
+        #     self.thresh_vid.apply_mask = True
+        #     self.thresh_vid.loadMask()
+        #     # need to reset video
+        #     # or force user select before threshold
+        # else:
+        #     self.thresh_vid.apply_mask = False
 
-
-
-class Communicate(QObject):
-    signal = pyqtSignal(str)
-
-
-class VideoThread(QThread):
-
-    def __init__(self, default_fps=25):
-        QThread.__init__(self)
-        self.stopped = False
-        self.fps = default_fps
-        self.timeSignal = Communicate()
-        self.mutex = QMutex()
-
-    def run(self):
-        with QMutexLocker(self.mutex):
-            self.stopped = False
-
-        while True:
-            if self.stopped:
-                return
-            self.timeSignal.signal.emit('1')
-            time.sleep(1 / self.fps)
-
-    def stop(self):
-        with QMutexLocker(self.mutex):
-            self.stopped = True
-
-    def is_stopped(self):
-        with QMutexLocker(self.mutex):
-            return self.stopped
-
-    def set_fps(self, video_fps):
-        self.fps = video_fps
-        print(f'set fps to {self.fps}')
 
 
 class Detection():
 
     def __init__(self):
         super().__init__()
-
 
     ## video thresholding
     def thresh_video(self,vid, block_size, offset):
@@ -807,12 +824,10 @@ class Detection():
             (  [[x0],[y0]]  ,  [[x1],[y1]]  , [[x2],[y2]] .....)
         """
 
-
         contours, _ = cv2.findContours(vid_th.copy(), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         vid_draw = vid.copy()
 
-        # print('contour lens is '+ str(len(contours)))
         ## initialize contour number
 
         ## roll current position to past
@@ -828,13 +843,12 @@ class Detection():
             try:
                 ## calculate contour area for current contour
                 cnt_th = cv2.contourArea(contours[i])
-                # print(f'cnt area for i is {cnt_th}')
+
                 ## delete contour if not meet the threshold
                 if cnt_th < min_th or cnt_th > max_th:
                     del contours[i]
                 ## draw contour if meet the threshold
                 else:
-                    print('cv2 draw contours')
                     cv2.drawContours(vid_draw, contours, i, (0, 0, 255), 2, cv2.LINE_8)
                     ## calculate the centroid of current contour
                     M = cv2.moments(contours[i])
@@ -850,17 +864,116 @@ class Detection():
                     pos_detection.append(centroids)
                     ## continue to next contour
                     i += 1
-                    print(f'i = {i}')
             ## when a number is divided by a zero
             except ZeroDivisionError:
                 pass
         return vid_draw, contours , pos_detection, pos_archive
 
-    def nothing(x):
-        """
-        call back function for track bar
-        """
-        pass
+
+class Communicate(QObject):
+
+    signal = pyqtSignal(str)
+    thresh_signal = pyqtSignal(QImage)
+    thresh_preview = pyqtSignal(QImage)
+    updateSliderPos = QtCore.pyqtSignal(float)
+
+
+class VideoThread(QThread):
+
+    def __init__(self, default_fps=25):
+        QThread.__init__(self)
+        self.stopped = False
+        self.fps = default_fps
+        self.timeSignal = Communicate()
+        self.mutex = QMutex()
+
+    def run(self):
+        with QMutexLocker(self.mutex):
+            self.stopped = False
+
+        while True:
+            if self.stopped:
+                return
+            self.timeSignal.signal.emit('1')
+            time.sleep(1 / self.fps)
+
+    def stop(self):
+        with QMutexLocker(self.mutex):
+            self.stopped = True
+
+    def is_stopped(self):
+        with QMutexLocker(self.mutex):
+            return self.stopped
+
+    def set_fps(self, video_fps):
+        self.fps = video_fps
+        print(f'set fps to {self.fps}')
+
+
+class ThreshVidThread(QThread):
+
+    def __init__(self, default_fps=25):
+        QThread.__init__(self)
+        self.file = ''
+        self.stopped = False
+        self.fps = default_fps
+        self.timeSignal = Communicate()
+        self.mutex = QMutex()
+        self.detection = Detection()
+        self.playCapture = cv2.VideoCapture()
+        self.block_size = 11
+        self.offset = 11
+        self.min_contour = 1
+        self.max_contour = 100
+
+    def run(self):
+        # video = self.playCapture.open(self.file[0])
+        with QMutexLocker(self.mutex):
+            self.stopped = False
+        while True:
+            if self.stopped:
+                return
+            else:
+                ret, frame = self.playCapture.read()
+                # if ret:
+                play_elapse = self.playCapture.get(cv2.CAP_PROP_POS_FRAMES) / self.playCapture.get(cv2.CAP_PROP_FPS)
+                self.timeSignal.updateSliderPos.emit(play_elapse)
+
+                thre_vid = self.detection.thresh_video(frame,
+                                                       self.block_size,
+                                                       self.offset)
+                contour_vid, cnt, _, _ = self.detection.detect_contours(frame,
+                                                                        thre_vid,
+                                                                        self.min_contour,
+                                                                        self.max_contour)
+                # frame_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
+                frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+
+                frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                   QImage.Format_RGB888)
+                frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+
+                self.timeSignal.thresh_signal.emit(frame_scaled)
+                # time.sleep(1/25)
+
+                # preview thresholded video
+                thvid_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
+                thvid_cvt = QImage(thvid_rgb, thvid_rgb.shape[1], thvid_rgb.shape[0], thvid_rgb.strides[0],
+                                   QImage.Format_RGB888)
+                thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
+                self.timeSignal.thresh_preview.emit(thvid_scaled)
+
+    def stop(self):
+        with QMutexLocker(self.mutex):
+            self.stopped = True
+
+    def is_stopped(self):
+        with QMutexLocker(self.mutex):
+            return self.stopped
+
+    def set_fps(self, video_fps):
+        self.fps = video_fps
+
 
 if __name__ == "__main__":
     import sys

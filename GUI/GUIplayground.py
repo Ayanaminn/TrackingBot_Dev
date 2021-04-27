@@ -1,7 +1,7 @@
 from PyQt5 import QtCore,QtGui,QtWidgets
 from PyQt5.QtWidgets import QFileDialog,QMessageBox,QStyle,QApplication,QWidget
 from PyQt5.QtGui import QImage,QPixmap
-from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread,QObject,QMutex,QMutexLocker
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread,QObject,QMutex,QMutexLocker,QThreadPool,QRunnable
 import numpy as np
 from PyQt5.QtCore import QTimer
 
@@ -33,34 +33,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # # self.video_type = video_type  # 0: offline  1: realTime
         # self.video_file = video_file
         self.status = self.STATUS_INIT  # 0: init 1:playing 2: pause
-        self.videoPlayer = VideoPlayer()
+        # self.videoPlayer = VideoPlayer()
 
-        self.localMode.clicked.connect(self.enableLocalMode)
-        #
-        # self.playButton.clicked.connect(self.videoPlayer.videoPlayControl)
-        # self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
-        #
-        # self.stopButton.clicked.connect(self.videoPlayer.stopVideo)
-        # self.stopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
-
-
-        # videoPlayer = VideoPlayer()
-        # timer
-        # self.videoThread = VideoThread()
-        # self.videoThread.timeSignal.signal[str].connect(self.videoPlayer.displayVideo)
-
-    def enableLocalMode(self):
-       #  app = QtWidgets.QApplication(sys.argv)
-
-        # connect subclass with parent class
-        window = VideoPlayer()
-        window.show()
-
-class VideoPlayer(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
-
-    def __init__(self):
-        super().__init__()
-        self.setupUi(self)
+        # self.localMode.clicked.connect(self.enableLocalMode)
 
         self.detection = Detection()
 
@@ -80,6 +55,24 @@ class VideoPlayer(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.playCapture = cv2.VideoCapture()
 
         self.resetVideo()
+
+        #
+        # self.playButton.clicked.connect(self.videoPlayer.videoPlayControl)
+        # self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        #
+        # self.stopButton.clicked.connect(self.videoPlayer.stopVideo)
+        # self.stopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
+
+
+        # videoPlayer = VideoPlayer()
+        # timer
+        # self.videoThread = VideoThread()
+        # self.videoThread.timeSignal.signal[str].connect(self.videoPlayer.displayVideo)
+
+        self.loadImgButton.clicked.connect(self.sleepThread)
+        self.threadpool = QThreadPool()
+        print("Multithreading with maximum %d threads" % self.threadpool.maxThreadCount())
+        # self.worker = Worker()
 
     def selectVideoFile(self):
 
@@ -105,6 +98,8 @@ class VideoPlayer(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
                 # after select file, auto read and display its property
                 print(self.video_file)
+
+
                 self.readVideoFile(self.video_file[0])
 
        except:
@@ -183,6 +178,7 @@ class VideoPlayer(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             if ret:
                 th_masked = self.detection.thresh_video(frame, block_size = 11, offset = 11)
 
+                #
                 # contour_vid, cnt, pos_detection, pos_archive= self.detection.detect_contours(frame,
                 #                                                                      th_masked,
                 #                                                                      min_th = 100,
@@ -195,18 +191,21 @@ class VideoPlayer(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                 # thread_return, num = self.detection.detect_test()
                 # print(thread_return,num)
 
-                with concurrent.futures.ThreadPoolExecutor() as executor:
-                    future = executor.submit(self.detection.detect_contours, frame,th_masked,min_th = 100,max_th = 1500)
-                    contour_vid, cnt, pos_detection, pos_archive = future.result()
+                # with concurrent.futures.ThreadPoolExecutor() as executor:
+                #     future = executor.submit(self.detection.detect_contours, frame,th_masked,min_th = 100,max_th = 1500)
+                #     contour_vid, cnt, pos_detection, pos_archive = future.result()
                     # print(f'thread return {return_bool} {return_value}')
 
-                frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+                frame_rgb = cv2.cvtColor(th_masked, cv2.COLOR_BGR2RGB)
 
                 frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
                                     QImage.Format_RGB888)
                 frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
                 frame_display = QPixmap.fromImage(frame_scaled)
                 self.VBoxLabel.setPixmap(frame_display)
+                # key = cv2.waitKey(int(1 / 25))
+
+                # self.threadpool.start(self.worker)
             elif not ret:
                 print("play finished")
                 self.resetVideo()
@@ -233,7 +232,6 @@ class VideoPlayer(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                                            'Please submit this issue on GitHub to help us improve.')
             self.error_msg.exec()
             self.resetVideo()
-
 
     def videoPlayControl(self):
 
@@ -340,9 +338,63 @@ class VideoPlayer(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.status = MainWindow.STATUS_INIT
         # MainWindow.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
+    def sleepThread(self):
+        worker = Worker(self.video_file)
+        worker.signals.result.connect(self.updateLabel)
+        self.threadpool.start(worker)
+
+    def updateLabel(self,image):
+        frame_display = QPixmap.fromImage(image)
+        self.VBoxLabel.setPixmap(frame_display)
+
+class Worker(QRunnable):
+    '''
+    Worker thread
+    '''
+    def __init__(self,file):
+        super(Worker,self).__init__()
+        self.num = 0
+        self.delta = 5
+        self.detection = Detection()
+        self.file = file
+        self.signals = Communicate()
+        # self.playCapture = cv2.VideoCapture()
+    @pyqtSlot()
+    def run(self):
+        '''
+        Your code goes in this function
+        '''
+        print("Thread while loop start")
+        print(self.file)
+        # while True:
+        #     time.sleep(2)
+        #     # if self.num <100000000:
+        #     self.num += self.delta
+        #     print(self.num)
+        #     if self.num > 100000:
+        #         break
+        video = cv2.VideoCapture(self.file[0])
+        while True:
+            ret, frame = video.read()
+            if ret:
+                thre_vid = self.detection.thresh_video(frame,11,11)
+                contour_vid,cnt,_,_=self.detection.detect_contours(frame,thre_vid,100,500)
+                # frame_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
+                frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+
+                frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                    QImage.Format_RGB888)
+                frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+
+                # frame_display = QPixmap.fromImage(frame_scaled)
+                self.signals.result.emit(frame_scaled)
+                # self.threBoxLabel.setPixmap(frame_display)
+                print('ret')
+        print("Thread while loop complete")
+
 class Communicate(QObject):
     signal = pyqtSignal(str)
-    det_signal=pyqtSignal(str)
+    result = pyqtSignal(QImage)
 
 class VideoThread(QThread):
 
@@ -360,8 +412,10 @@ class VideoThread(QThread):
             if self.stopped:
                 return
             self.timeSignal.signal.emit('1')
-            self.timeSignal.det_signal.emit('1')
+            # self.timeSignal.det_signal.emit('1')
             time.sleep(1/self.fps)
+            # time.sleep(1)
+
 
     def stop(self):
         # print('thread stopped')
@@ -523,7 +577,7 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
 
     # connect subclass with parent class
-    window = VideoPlayer()
+    window = MainWindow()
     window.show()
 
     sys.exit(app.exec_())
