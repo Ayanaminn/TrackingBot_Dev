@@ -834,6 +834,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.trackTabLinkButton.setEnabled(False)
 
+###############################################Functions for tracking#################################
 
 class Detection():
 
@@ -894,11 +895,11 @@ class Detection():
 
         ## initialize contour number
 
-        ## roll current position to past
-        ## clear current position to accept updated value
-        pos_detection = []
-        pos_archive = pos_detection.copy()
-        del pos_detection[:]
+        # ## roll current position to past
+        # ## clear current position to accept updated value
+        # pos_detection = []
+        # pos_archive = pos_detection.copy()
+        # del pos_detection[:]
 
         i = 0
 
@@ -914,24 +915,24 @@ class Detection():
                 ## draw contour if meet the threshold
                 else:
                     cv2.drawContours(vid_draw, contours, i, (0, 0, 255), 2, cv2.LINE_8)
-                    ## calculate the centroid of current contour
-                    M = cv2.moments(contours[i])
-                    if M['m00'] != 0:
-                        cx = M['m10'] / M['m00']
-                        cy = M['m01'] / M['m00']
-                    else:
-                        cx = 0
-                        cy = 0
-                    ## update current position to new centroid
-                    centroids = np.array([[cx], [cy]])
-                    # pos_detection become a list of (2,1) array
-                    pos_detection.append(centroids)
+                    # ## calculate the centroid of current contour
+                    # M = cv2.moments(contours[i])
+                    # if M['m00'] != 0:
+                    #     cx = M['m10'] / M['m00']
+                    #     cy = M['m01'] / M['m00']
+                    # else:
+                    #     cx = 0
+                    #     cy = 0
+                    # ## update current position to new centroid
+                    # centroids = np.array([[cx], [cy]])
+                    # # pos_detection become a list of (2,1) array
+                    # pos_detection.append(centroids)
                     ## continue to next contour
                     i += 1
             ## when a number is divided by a zero
             except ZeroDivisionError:
                 pass
-        return vid_draw, contours , pos_detection, pos_archive
+        return vid_draw, contours # , pos_detection, pos_archive
 
 
 class Communicate(QObject):
@@ -993,10 +994,12 @@ class ThreshVidThread(QThread):
         self.invert_contrast = False
 
     def run(self):
+
         # video = self.playCapture.open(self.file[0])
         with QMutexLocker(self.mutex):
             self.stopped = False
         while True:
+            tic = time.perf_counter()
             if self.stopped:
                 return
             else:
@@ -1012,7 +1015,7 @@ class ThreshVidThread(QThread):
                                                                self.block_size,
                                                                self.offset)
 
-                        contour_vid, cnt, _, _ = self.detection.detect_contours(frame,
+                        contour_vid, cnt= self.detection.detect_contours(frame,
                                                                                 thre_vid,
                                                                                 self.min_contour,
                                                                                 self.max_contour)
@@ -1038,7 +1041,7 @@ class ThreshVidThread(QThread):
                                                                self.block_size,
                                                                self.offset)
 
-                        contour_vid, cnt, _, _ = self.detection.detect_contours(frame,
+                        contour_vid, cnt= self.detection.detect_contours(frame,
                                                                                 thre_vid,
                                                                                 self.min_contour,
                                                                                 self.max_contour)
@@ -1059,6 +1062,8 @@ class ThreshVidThread(QThread):
                         thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
                         self.timeSignal.thresh_preview.emit(thvid_scaled)
 
+                    toc = time.perf_counter()
+                    print(f'Time Elapsed Per Loop {toc - tic:.3f}')
                 elif not ret:
                     # video finished
                     self.timeSignal.thresh_reset.emit('1')
