@@ -772,7 +772,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1030</x>
-        <y>420</y>
+        <y>450</y>
         <width>271</width>
         <height>111</height>
        </rect>
@@ -888,7 +888,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1020</x>
-        <y>400</y>
+        <y>430</y>
         <width>81</width>
         <height>21</height>
        </rect>
@@ -909,7 +909,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1020</x>
-        <y>220</y>
+        <y>250</y>
         <width>71</width>
         <height>31</height>
        </rect>
@@ -930,7 +930,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1020</x>
-        <y>280</y>
+        <y>310</y>
         <width>51</width>
         <height>21</height>
        </rect>
@@ -951,7 +951,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1030</x>
-        <y>250</y>
+        <y>280</y>
         <width>211</width>
         <height>22</height>
        </rect>
@@ -973,7 +973,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1250</x>
-        <y>250</y>
+        <y>280</y>
         <width>51</width>
         <height>22</height>
        </rect>
@@ -992,7 +992,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1030</x>
-        <y>310</y>
+        <y>340</y>
         <width>211</width>
         <height>22</height>
        </rect>
@@ -1014,7 +1014,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1250</x>
-        <y>300</y>
+        <y>330</y>
         <width>51</width>
         <height>22</height>
        </rect>
@@ -1093,24 +1093,6 @@ QTabBar::tab:selected {
       </property>
       <property name="text">
        <string>Apply mask</string>
-      </property>
-     </widget>
-     <widget class="QCheckBox" name="invertCtrcheckBox">
-      <property name="geometry">
-       <rect>
-        <x>1030</x>
-        <y>160</y>
-        <width>111</width>
-        <height>17</height>
-       </rect>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>10</pointsize>
-       </font>
-      </property>
-      <property name="text">
-       <string>Invert contrast</string>
       </property>
      </widget>
      <widget class="QLabel" name="threTabText7">
@@ -1270,7 +1252,7 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1030</x>
-        <y>360</y>
+        <y>390</y>
         <width>121</width>
         <height>31</height>
        </rect>
@@ -1298,6 +1280,96 @@ QTabBar::tab:selected {
       </property>
       <property name="text">
        <string>preview</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="threTabText9">
+      <property name="geometry">
+       <rect>
+        <x>1030</x>
+        <y>150</y>
+        <width>121</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string>Brighter background</string>
+      </property>
+      <property name="wordWrap">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLabel" name="threTabText10">
+      <property name="geometry">
+       <rect>
+        <x>1190</x>
+        <y>150</y>
+        <width>121</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string>Darker background</string>
+      </property>
+      <property name="wordWrap">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLabel" name="threTabText11">
+      <property name="geometry">
+       <rect>
+        <x>1030</x>
+        <y>170</y>
+        <width>121</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string>(Darker object)</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+      <property name="wordWrap">
+       <bool>true</bool>
+      </property>
+     </widget>
+     <widget class="QLabel" name="threTabText12">
+      <property name="geometry">
+       <rect>
+        <x>1190</x>
+        <y>170</y>
+        <width>121</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string>(Brighter object)</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+      <property name="wordWrap">
+       <bool>true</bool>
       </property>
      </widget>
     </widget>
