@@ -815,7 +815,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
     def resetThrePara(self):
         '''
-        Apply current threshold parameter settings and activate next step
+        Reset current threshold parameter settings
         '''
 
         self.applyThreButton.setEnabled(True)
