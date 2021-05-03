@@ -1,7 +1,7 @@
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QFileDialog, QMessageBox, QStyle, QApplication,QLabel,QWidget,QGraphicsLineItem
-from PyQt5.QtGui import QImage, QPixmap,QPainter, QPen
-from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QObject, QMutex, QMutexLocker,QRect, QLine
+from PyQt5.QtWidgets import QFileDialog, QMessageBox, QStyle, QApplication, QLabel, QWidget, QGraphicsLineItem
+from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QObject, QMutex, QMutexLocker, QRect, QLine
 from qtwidgets import Toggle, AnimatedToggle
 
 import os
@@ -15,6 +15,9 @@ import threading
 import concurrent.futures
 import mainGUI
 import mainGUI_calibration as Calibration
+from Tracking import TrackingMethod
+
+
 # import mainGUI_detection as Detection
 
 class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
@@ -45,6 +48,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.threshThread.timeSignal.updateSliderPos.connect(self.updateThreSlider)
         self.threshThread.timeSignal.thresh_reset.connect(self.resetVideo)
         # self.detection = Detection()
+
+        self.trackingThread = TrackingThread()
+        self.trackingThread.timeSignal.tracking_signal.connect(self.displayTrackingVideo)
 
         self.resetVideo()
 
@@ -83,7 +89,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.caliTabLinkButton.clicked.connect(self.enableCalibration)
 
-
         # slider for video player on load tab
         self.vidProgressBar.sliderPressed.connect(self.pauseFromSlider)
         self.vidProgressBar.valueChanged.connect(self.updatePosition)
@@ -100,15 +105,19 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.mask_file = ''
         self.apply_mask = False
 
+        self.object_num = 1
         self.block_size = ''
         self.offset = ''
         self.min_contour = ''
         self.max_contour = ''
+        self.invert_contrast = False
 
         self.threPlayButton.clicked.connect(self.threshVidControl)
         self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.threStopButton.clicked.connect(self.stopThreshVid)
         self.threStopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
+
+        self.objNumBox.valueChanged.connect(self.setObjectNum)
 
         self.blockSizeSlider.sliderPressed.connect(self.pauseThreshVid)
         self.blockSizeSlider.valueChanged.connect(self.setBlockSizeSlider)
@@ -149,6 +158,14 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         #
         # self.applyMaskcheckBox.stateChanged.connect(self.enalbleApplyMask)
 
+        ###############################################
+        # signal on tab 4
+        self.trackTabLinkButton.clicked.connect(self.enableTracking)
+
+        self.trackStartButton.clicked.connect(self.trackingVidControl)
+        self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        # self.trackStopButton.clicked.connect(self.stopTracking)
+        # self.trackStopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
 
     # not yet activated
     def selectMainMenu(self):
@@ -221,13 +238,14 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
             self.videoThread.set_fps(video_prop.fps)
             self.threshThread.set_fps(video_prop.fps)
+            self.trackingThread.set_fps(video_prop.fps)
 
             self.setVidProgressBar(video_prop)
 
             # set a function here link to labels that display the parameters
             self.vidNameText.setText(f'{str(video_name[1])}')
             self.vidDurText.setText(f'{str(video_prop.duration).split(".")[0]}')
-            self.vidFpsText.setText(str(round(video_prop.fps,2)))
+            self.vidFpsText.setText(str(round(video_prop.fps, 2)))
             self.vidResText.setText(f'{str(int(video_prop.width))} X {str(int(video_prop.height))}')
 
             # display 1st frame of video in window as preview
@@ -243,6 +261,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
             self.setCalibrationCanvas(frame_display)
             self.setThresholdCanvas(frame_display)
+            self.setTrackingCanvas(frame_display)
             video_cap.release()
 
         except:
@@ -361,7 +380,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             if ret:
 
                 # convert total seconds to timedelta format, not total frames to timedelta
-                play_elapse = self.playCapture.get(cv2.CAP_PROP_POS_FRAMES)/self.playCapture.get(cv2.CAP_PROP_FPS)
+                play_elapse = self.playCapture.get(cv2.CAP_PROP_POS_FRAMES) / self.playCapture.get(cv2.CAP_PROP_FPS)
                 # update slider position and label
                 self.vidProgressBar.setSliderPosition(play_elapse)
                 self.vidPosLabel.setText(f"{str(timedelta(seconds=play_elapse)).split('.')[0]}")
@@ -450,27 +469,27 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.status = MainWindow.STATUS_INIT
         self.setPlayIcon()
 
-    def setVidProgressBar(self,vid_prop):
+    def setVidProgressBar(self, vid_prop):
 
         self.vidPosLabel.setText('0:00:00')
         self.vidLenLabel.setText(f'{str(vid_prop.duration).split(".")[0]}')
         # use numeric, not timedelta format for range
-        self.vidProgressBar.setRange(0, int(vid_prop.length/vid_prop.fps))
+        self.vidProgressBar.setRange(0, int(vid_prop.length / vid_prop.fps))
         self.vidProgressBar.setValue(0)
 
-        self.vidProgressBar.setSingleStep(int(vid_prop.fps)*5) # 5 sec
-        self.vidProgressBar.setPageStep(int(vid_prop.fps)*60) # 60 sec
+        self.vidProgressBar.setSingleStep(int(vid_prop.fps) * 5)  # 5 sec
+        self.vidProgressBar.setPageStep(int(vid_prop.fps) * 60)  # 60 sec
 
         # self.vidProgressBar.valueChanged.connect(self.updatePosition)
 
         self.threPosLabel.setText('0:00:00')
         self.threLenLabel.setText(f'{str(vid_prop.duration).split(".")[0]}')
         # use numeric, not timedelta format for range
-        self.threProgressBar.setRange(0, int(vid_prop.length/vid_prop.fps))
+        self.threProgressBar.setRange(0, int(vid_prop.length / vid_prop.fps))
         self.threProgressBar.setValue(0)
 
-        self.threProgressBar.setSingleStep(int(vid_prop.fps)*5) # 5 sec
-        self.threProgressBar.setPageStep(int(vid_prop.fps)*60) # 60 sec
+        self.threProgressBar.setSingleStep(int(vid_prop.fps) * 5)  # 5 sec
+        self.threProgressBar.setPageStep(int(vid_prop.fps) * 60)  # 60 sec
 
     def updatePosition(self):
         '''
@@ -489,7 +508,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
     def resumeFromSlider(self):
 
         # convert current seconds back to frame number
-        current_frame = self.playCapture.get(cv2.CAP_PROP_FPS)* int(self.vidProgressBar.value())
+        current_frame = self.playCapture.get(cv2.CAP_PROP_FPS) * int(self.vidProgressBar.value())
         self.playCapture.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
 
         self.videoThread.start()
@@ -508,7 +527,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.tabWidget.setTabEnabled(2, True)
         self.tabWidget.setCurrentIndex(2)
 
-    def setCalibrationCanvas(self,frame):
+    def setCalibrationCanvas(self, frame):
         self.caliBoxLabel.setPixmap(frame)
 
     def drawScale(self):
@@ -655,7 +674,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
     def resumeThreshSlider(self):
 
         # convert current seconds back to frame number
-        current_frame = self.threshThread.playCapture.get(cv2.CAP_PROP_FPS)* int(self.threProgressBar.value())
+        current_frame = self.threshThread.playCapture.get(cv2.CAP_PROP_FPS) * int(self.threProgressBar.value())
         self.threshThread.playCapture.set(cv2.CAP_PROP_POS_FRAMES, current_frame)
 
         self.threshThread.start()
@@ -689,6 +708,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         play_elapse = self.threProgressBar.value()
         self.threPosLabel.setText(f"{str(timedelta(seconds=play_elapse)).split('.')[0]}")
+
+    def setObjectNum(self):
+        self.object_num = self.objNumBox.value()
 
     def setBlockSizeSlider(self):
         block_size = self.blockSizeSlider.value()
@@ -751,7 +773,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.playButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
-    def displayThresholdVideo(self,frame):
+    def displayThresholdVideo(self, frame):
 
         frame_display = QPixmap.fromImage(frame)
         self.threBoxLabel.setPixmap(frame_display)
@@ -763,7 +785,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         else:
             self.previewBoxLabel.lower()
 
-    def displayThresholdPreview(self,preview_frame):
+    def displayThresholdPreview(self, preview_frame):
 
         preview_display = QPixmap.fromImage(preview_frame)
         self.previewBoxLabel.setPixmap(preview_display)
@@ -790,12 +812,15 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         '''
         Apply current threshold parameter settings and activate next step
         '''
+        self.object_num = self.objNumBox.value()
         self.block_size = self.threshThread.block_size
         self.offset = self.threshThread.offset
         self.min_contour = self.threshThread.min_contour
         self.max_contour = self.threshThread.max_contour
+        self.invert_contrast = self.threshThread.invert_contrast
 
         self.applyThreButton.setEnabled(False)
+        self.objNumBox.setEnabled(False)
         self.blockSizeSlider.setEnabled(False)
         self.blockSizeSpin.setEnabled(False)
         self.offsetSlider.setEnabled(False)
@@ -811,7 +836,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.trackTabLinkButton.setEnabled(True)
 
-        print(self.block_size,self.offset,self.min_contour,self.max_contour)
+        print(self.object_num, self.block_size, self.offset, self.min_contour, self.max_contour)
 
     def resetThrePara(self):
         '''
@@ -819,6 +844,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         '''
 
         self.applyThreButton.setEnabled(True)
+        self.objNumBox.setEnabled(True)
         self.blockSizeSlider.setEnabled(True)
         self.blockSizeSpin.setEnabled(True)
         self.offsetSlider.setEnabled(True)
@@ -834,7 +860,88 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.trackTabLinkButton.setEnabled(False)
 
-###############################################Functions for tracking#################################
+    ###############################################Functions for tracking#################################
+
+    def enableTracking(self):
+        # when enable cali tab, vid been reset, self.playCapture released
+        # self.playCapture is closed now
+        self.tabWidget.setTabEnabled(3, False)
+        self.tabWidget.setTabEnabled(4, True)
+        self.tabWidget.setCurrentIndex(4)
+        self.trackStartButton.setEnabled(True)
+        self.trackingThread.block_size = self.block_size
+        self.trackingThread.offset = self.offset
+        self.trackingThread.min_contour = self.min_contour
+        self.trackingThread.max_contour = self.max_contour
+        self.trackingThread.invert_contrast = self.invert_contrast
+        self.resetVideo()
+        print(f'enable tracking{self.video_file[0]}')
+        print(f'enable tracking{self.playCapture.isOpened()}')
+
+    def setTrackingCanvas(self, frame):
+        self.trackingeBoxLabel.setPixmap(frame)
+
+    def trackingVidControl(self):
+        if self.video_file[0] == '' or self.video_file[0] is None:
+            print('No video is selected')
+            return
+        if self.status is MainWindow.STATUS_INIT:
+            try:
+                self.startTracking()
+            except:
+                self.error_msg = QMessageBox()
+                self.error_msg.setWindowTitle('Error')
+                self.error_msg.setText('An error happened when trying to track video file.')
+                self.error_msg.setInformativeText('trackingVid() does not execute correctly.')
+                self.error_msg.setIcon(QMessageBox.Warning)
+                self.error_msg.setDetailedText('You caught a bug! \n'
+                                               'Please submit this issue on GitHub to help us improve. ')
+                self.error_msg.exec()
+
+        elif self.status is MainWindow.STATUS_PLAYING:
+            self.warning_msg = QMessageBox()
+            self.warning_msg.setWindowTitle('Warning')
+            self.warning_msg.setIcon(QMessageBox.Warning)
+            self.warning_msg.setText('A tracking task is in progress, all data will be lost if stop now.\n'
+                                     'Do you want continue to abort current task?')
+            self.warning_msg.setStandardButtons(QMessageBox.Cancel | QMessageBox.Yes)
+            returnValue = self.warning_msg.exec()
+            if returnValue == QMessageBox.Yes:
+                try:
+                    self.stopTracking()
+                except:
+                    self.error_msg = QMessageBox()
+                    self.error_msg.setWindowTitle('Error')
+                    self.error_msg.setText('An error happened when trying to stop tracking.')
+                    self.error_msg.setInformativeText('stopTracking() does not execute correctly.')
+                    self.error_msg.setIcon(QMessageBox.Warning)
+                    self.error_msg.setDetailedText('You caught a bug! \n'
+                                                   'Please submit this issue on GitHub to help us improve. ')
+                    self.error_msg.exec()
+
+    def startTracking(self):
+        self.trackingThread.playCapture.open(self.video_file[0])
+        self.trackingThread.start()
+        self.status = MainWindow.STATUS_PLAYING
+
+        self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
+
+    def stopTracking(self):
+        '''
+        reset tracking progress when stop clicked during task
+        :return:
+        '''
+        self.trackingThread.stop()
+        self.trackingThread.playCapture.release()
+        self.readVideoFile(self.video_file[0])
+        self.status = MainWindow.STATUS_INIT
+
+        self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+
+    def displayTrackingVideo(self, frame):
+        frame_display = QPixmap.fromImage(frame)
+        self.trackingeBoxLabel.setPixmap(frame_display)
+
 
 class Detection():
 
@@ -842,7 +949,7 @@ class Detection():
         super().__init__()
 
     ## video thresholding
-    def thresh_video(self,vid, block_size, offset):
+    def thresh_video(self, vid, block_size, offset):
         """
         This function retrieves a video frame and preprocesses it for object tracking.
         The code 1) blurs image to reduce noise
@@ -856,7 +963,7 @@ class Detection():
         offset: int(optional), default = offset_ini
         """
         vid = cv2.GaussianBlur(vid, (5, 5), 1)
-        #vid = cv2.blur(vid, (5, 5))
+        # vid = cv2.blur(vid, (5, 5))
         vid_gray = cv2.cvtColor(vid, cv2.COLOR_BGR2GRAY)
         vid_th = cv2.adaptiveThreshold(vid_gray,
                                        255,
@@ -895,11 +1002,11 @@ class Detection():
 
         ## initialize contour number
 
-        # ## roll current position to past
-        # ## clear current position to accept updated value
-        # pos_detection = []
-        # pos_archive = pos_detection.copy()
-        # del pos_detection[:]
+        ## roll current position to past
+        ## clear current position to accept updated value
+        pos_detection = []
+        pos_archive = pos_detection.copy()
+        del pos_detection[:]
 
         i = 0
 
@@ -915,33 +1022,33 @@ class Detection():
                 ## draw contour if meet the threshold
                 else:
                     cv2.drawContours(vid_draw, contours, i, (0, 0, 255), 2, cv2.LINE_8)
-                    # ## calculate the centroid of current contour
-                    # M = cv2.moments(contours[i])
-                    # if M['m00'] != 0:
-                    #     cx = M['m10'] / M['m00']
-                    #     cy = M['m01'] / M['m00']
-                    # else:
-                    #     cx = 0
-                    #     cy = 0
-                    # ## update current position to new centroid
-                    # centroids = np.array([[cx], [cy]])
-                    # # pos_detection become a list of (2,1) array
-                    # pos_detection.append(centroids)
-                    ## continue to next contour
+                    ## calculate the centroid of current contour
+                    M = cv2.moments(contours[i])
+                    if M['m00'] != 0:
+                        cx = M['m10'] / M['m00']
+                        cy = M['m01'] / M['m00']
+                    else:
+                        cx = 0
+                        cy = 0
+                    ## update current position to new centroid
+                    centroids = np.array([[cx], [cy]])
+                    # pos_detection become a list of (2,1) array
+                    pos_detection.append(centroids)
+                    # continue to next contour
                     i += 1
             ## when a number is divided by a zero
             except ZeroDivisionError:
                 pass
-        return vid_draw, contours # , pos_detection, pos_archive
+        return vid_draw, pos_detection  # , contours # , pos_detection, pos_archive
 
 
 class Communicate(QObject):
-
     signal = pyqtSignal(str)
     thresh_signal = pyqtSignal(QImage)
     thresh_preview = pyqtSignal(QImage)
     thresh_reset = pyqtSignal(str)
     updateSliderPos = QtCore.pyqtSignal(float)
+    tracking_signal = pyqtSignal(QImage)
 
 
 class VideoThread(QThread):
@@ -1015,10 +1122,10 @@ class ThreshVidThread(QThread):
                                                                self.block_size,
                                                                self.offset)
 
-                        contour_vid, cnt= self.detection.detect_contours(frame,
-                                                                                thre_vid,
-                                                                                self.min_contour,
-                                                                                self.max_contour)
+                        contour_vid,_ = self.detection.detect_contours(frame,
+                                                                     thre_vid,
+                                                                     self.min_contour,
+                                                                     self.max_contour)
 
                         frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
 
@@ -1041,10 +1148,10 @@ class ThreshVidThread(QThread):
                                                                self.block_size,
                                                                self.offset)
 
-                        contour_vid, cnt= self.detection.detect_contours(frame,
-                                                                                thre_vid,
-                                                                                self.min_contour,
-                                                                                self.max_contour)
+                        contour_vid,_ = self.detection.detect_contours(frame,
+                                                                     thre_vid,
+                                                                     self.min_contour,
+                                                                     self.max_contour)
                         # frame_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
                         frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
 
@@ -1077,6 +1184,115 @@ class ThreshVidThread(QThread):
     def is_stopped(self):
         with QMutexLocker(self.mutex):
             return self.stopped
+
+    def set_fps(self, video_fps):
+        self.fps = video_fps
+
+
+class TrackingThread(QThread):
+
+    def __init__(self, default_fps=25):
+        QThread.__init__(self)
+        self.file = ''
+        self.stopped = False
+        self.fps = default_fps
+        self.timeSignal = Communicate()
+        self.mutex = QMutex()
+        self.detection = Detection()
+        self.TrackingMethod = TrackingMethod(30, 60, 100)
+        self.playCapture = cv2.VideoCapture()
+        self.block_size = 11
+        self.offset = 11
+        self.min_contour = 1
+        self.max_contour = 100
+        self.invert_contrast = False
+        self.obj_id = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+                  'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+
+    def run(self):
+
+        # video = self.playCapture.open(self.file[0])
+        with QMutexLocker(self.mutex):
+            self.stopped = False
+        while True:
+            tic = time.perf_counter()
+            if self.stopped:
+                return
+            else:
+                ret, frame = self.playCapture.read()
+                if ret:
+                    play_elapse = self.playCapture.get(cv2.CAP_PROP_POS_FRAMES) / self.playCapture.get(cv2.CAP_PROP_FPS)
+                    # self.timeSignal.updateSliderPos.emit(play_elapse)
+
+                    if self.invert_contrast:
+                        invert_vid = cv2.bitwise_not(frame)
+
+                        thre_vid = self.detection.thresh_video(invert_vid,
+                                                               self.block_size,
+                                                               self.offset)
+
+                        contour_vid, pos_detection = self.detection.detect_contours(frame,
+                                                                     thre_vid,
+                                                                     self.min_contour,
+                                                                     self.max_contour)
+
+                        self.TrackingMethod.identify(pos_detection)
+
+                        ## mark indentity of each objects
+                        self.TrackingMethod.visualize(contour_vid, self.obj_id, is_centroid=True,
+                                                 is_mark=True, is_trajectory=True)
+
+                        frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+
+                        frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                           QImage.Format_RGB888)
+                        frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+
+                        self.timeSignal.tracking_signal.emit(frame_scaled)
+                        # time.sleep(1/25)
+
+
+                    elif not self.invert_contrast:
+                        thre_vid = self.detection.thresh_video(frame,
+                                                               self.block_size,
+                                                               self.offset)
+
+                        contour_vid, pos_detection = self.detection.detect_contours(frame,
+                                                                     thre_vid,
+                                                                     self.min_contour,
+                                                                     self.max_contour)
+
+                        self.TrackingMethod.identify(pos_detection)
+
+                        ## mark indentity of each objects
+                        self.TrackingMethod.visualize(contour_vid, self.obj_id, is_centroid=True,
+                                                 is_mark=True, is_trajectory=True)
+
+                        # frame_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
+                        frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+
+                        frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                           QImage.Format_RGB888)
+                        frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+
+                        self.timeSignal.tracking_signal.emit(frame_scaled)
+                        # time.sleep(1/25)
+
+                    toc = time.perf_counter()
+                    print(f'Time Elapsed Per Loop {toc - tic:.3f}')
+                elif not ret:
+                    # video finished
+                    # self.timeSignal.thresh_reset.emit('1')
+
+                    return
+
+    def stop(self):
+        with QMutexLocker(self.mutex):
+            self.stopped = True
+
+    # def is_stopped(self):
+    #     with QMutexLocker(self.mutex):
+    #         return self.stopped
 
     def set_fps(self, video_fps):
         self.fps = video_fps
