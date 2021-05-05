@@ -605,12 +605,12 @@ class Ui_MainWindow(object):
         self.trackPosLabel.setFont(font)
         self.trackPosLabel.setObjectName("trackPosLabel")
         self.trackSliderLayout.addWidget(self.trackPosLabel)
-        self.vidProgressBar_3 = QtWidgets.QSlider(self.horizontalLayoutWidget_6)
-        self.vidProgressBar_3.setEnabled(False)
-        self.vidProgressBar_3.setMaximumSize(QtCore.QSize(900, 16777215))
-        self.vidProgressBar_3.setOrientation(QtCore.Qt.Horizontal)
-        self.vidProgressBar_3.setObjectName("vidProgressBar_3")
-        self.trackSliderLayout.addWidget(self.vidProgressBar_3)
+        self.trackProgressBar = QtWidgets.QSlider(self.horizontalLayoutWidget_6)
+        self.trackProgressBar.setEnabled(False)
+        self.trackProgressBar.setMaximumSize(QtCore.QSize(900, 16777215))
+        self.trackProgressBar.setOrientation(QtCore.Qt.Horizontal)
+        self.trackProgressBar.setObjectName("trackProgressBar")
+        self.trackSliderLayout.addWidget(self.trackProgressBar)
         self.trackLenLabel = QtWidgets.QLabel(self.horizontalLayoutWidget_6)
         font = QtGui.QFont()
         font.setPointSize(10)
@@ -661,7 +661,7 @@ class Ui_MainWindow(object):
         self.menubar.addAction(self.menuHelp.menuAction())
 
         self.retranslateUi(MainWindow)
-        self.tabWidget.setCurrentIndex(3)
+        self.tabWidget.setCurrentIndex(4)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):

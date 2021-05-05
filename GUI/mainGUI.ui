@@ -66,7 +66,7 @@ QTabBar::tab:selected {
      <enum>QTabWidget::Triangular</enum>
     </property>
     <property name="currentIndex">
-     <number>3</number>
+     <number>4</number>
     </property>
     <property name="iconSize">
      <size>
@@ -1475,7 +1475,7 @@ QTabBar::tab:selected {
         </widget>
        </item>
        <item>
-        <widget class="QSlider" name="vidProgressBar_3">
+        <widget class="QSlider" name="trackProgressBar">
          <property name="enabled">
           <bool>false</bool>
          </property>
