@@ -16,6 +16,7 @@ import concurrent.futures
 import mainGUI
 import mainGUI_calibration as Calibration
 from Tracking import TrackingMethod
+from Datalog import TrackingDataLog
 
 
 # import mainGUI_detection as Detection
@@ -51,7 +52,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.trackingThread = TrackingThread()
         self.trackingThread.timeSignal.tracking_signal.connect(self.displayTrackingVideo)
-
+        self.trackingThread.timeSignal.updateSliderPos.connect(self.updateTrackSlider)
+        self.trackingThread.timeSignal.tracked_object.connect(self.updateTrackResult)
         self.resetVideo()
 
         self.tabWidget.setTabEnabled(1, False)
@@ -164,6 +166,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.trackStartButton.clicked.connect(self.trackingVidControl)
         self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+
+        self.trackProgressBar.valueChanged.connect(self.updateTrackPosition)
         # self.trackStopButton.clicked.connect(self.stopTracking)
         # self.trackStopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
 
@@ -473,7 +477,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.vidPosLabel.setText('0:00:00')
         self.vidLenLabel.setText(f'{str(vid_prop.duration).split(".")[0]}')
-        # use numeric, not timedelta format for range
+        # total SECONDS ( total frames/fps) use numeric, not timedelta format for range
         self.vidProgressBar.setRange(0, int(vid_prop.length / vid_prop.fps))
         self.vidProgressBar.setValue(0)
 
@@ -484,12 +488,21 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.threPosLabel.setText('0:00:00')
         self.threLenLabel.setText(f'{str(vid_prop.duration).split(".")[0]}')
-        # use numeric, not timedelta format for range
+        # total SECONDS, use numeric, not timedelta format for range
         self.threProgressBar.setRange(0, int(vid_prop.length / vid_prop.fps))
         self.threProgressBar.setValue(0)
 
         self.threProgressBar.setSingleStep(int(vid_prop.fps) * 5)  # 5 sec
         self.threProgressBar.setPageStep(int(vid_prop.fps) * 60)  # 60 sec
+
+        self.trackPosLabel.setText('0:00:00')
+        self.trackLenLabel.setText(f'{str(vid_prop.duration).split(".")[0]}')
+        # # use numeric, not timedelta format for range
+        self.trackProgressBar.setRange(0, int(vid_prop.length / vid_prop.fps))
+        self.trackProgressBar.setValue(0)
+        #
+        self.trackProgressBar.setSingleStep(int(vid_prop.fps) * 5)  # 5 sec
+        self.trackProgressBar.setPageStep(int(vid_prop.fps) * 60)  # 60 sec
 
     def updatePosition(self):
         '''
@@ -935,13 +948,23 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.trackingThread.playCapture.release()
         self.readVideoFile(self.video_file[0])
         self.status = MainWindow.STATUS_INIT
-
+        print(self.trackingThread.tracking_data)
         self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
     def displayTrackingVideo(self, frame):
         frame_display = QPixmap.fromImage(frame)
         self.trackingeBoxLabel.setPixmap(frame_display)
 
+    def updateTrackSlider(self,elapse):
+        self.trackProgressBar.setSliderPosition(elapse)
+        self.trackPosLabel.setText(f"{str(timedelta(seconds=elapse)).split('.')[0]}")
+
+    def updateTrackPosition(self):
+        play_elapse = self.trackProgressBar.value()
+        self.trackPosLabel.setText(f"{str(timedelta(seconds=play_elapse)).split('.')[0]}")
+
+    def updateTrackResult(self,object):
+        print(object)
 
 class Detection():
 
@@ -1049,6 +1072,7 @@ class Communicate(QObject):
     thresh_reset = pyqtSignal(str)
     updateSliderPos = QtCore.pyqtSignal(float)
     tracking_signal = pyqtSignal(QImage)
+    tracked_object = pyqtSignal(list)
 
 
 class VideoThread(QThread):
@@ -1196,10 +1220,12 @@ class TrackingThread(QThread):
         self.file = ''
         self.stopped = False
         self.fps = default_fps
+        self.frame_count = -1  # first frame start from 0
         self.timeSignal = Communicate()
         self.mutex = QMutex()
         self.detection = Detection()
-        self.TrackingMethod = TrackingMethod(30, 60, 100)
+        self.trackingMethod = TrackingMethod(30, 60, 100)
+        self.trackingDataLog = TrackingDataLog()
         self.playCapture = cv2.VideoCapture()
         self.block_size = 11
         self.offset = 11
@@ -1208,6 +1234,7 @@ class TrackingThread(QThread):
         self.invert_contrast = False
         self.obj_id = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
                   'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+        self.tracking_data = None
 
     def run(self):
 
@@ -1221,8 +1248,17 @@ class TrackingThread(QThread):
             else:
                 ret, frame = self.playCapture.read()
                 if ret:
+                    get_clock = self.trackingDataLog.updateClock()
+                    # current position in milliseconds
+                    pos_elapse = self.playCapture.get(cv2.CAP_PROP_POS_MSEC)
+                    # current position calculated using current frame/fps, used for slider progress
                     play_elapse = self.playCapture.get(cv2.CAP_PROP_POS_FRAMES) / self.playCapture.get(cv2.CAP_PROP_FPS)
-                    # self.timeSignal.updateSliderPos.emit(play_elapse)
+                    self.timeSignal.updateSliderPos.emit(play_elapse)
+
+                    self.frame_count += 1
+
+                    # get time stamp mark
+                    is_timeStamp, video_elapse = self.trackingDataLog.localTimeStamp(pos_elapse,interval=None)
 
                     if self.invert_contrast:
                         invert_vid = cv2.bitwise_not(frame)
@@ -1236,11 +1272,18 @@ class TrackingThread(QThread):
                                                                      self.min_contour,
                                                                      self.max_contour)
 
-                        self.TrackingMethod.identify(pos_detection)
+                        self.trackingMethod.identify(pos_detection)
 
                         ## mark indentity of each objects
-                        self.TrackingMethod.visualize(contour_vid, self.obj_id, is_centroid=True,
-                                                 is_mark=True, is_trajectory=True)
+                        self.trackingMethod.visualize(contour_vid, self.obj_id, is_centroid=True,
+                                                      is_mark=True, is_trajectory=True)
+
+                        # # # store tracking data when local tracking
+                        if is_timeStamp:
+                            self.tracking_data = self.trackingDataLog.localDataFrame(video_elapse,
+                                                                           self.frame_count,
+                                                                           self.trackingMethod.registration,
+                                                                           self.obj_id)
 
                         frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
 
@@ -1262,11 +1305,20 @@ class TrackingThread(QThread):
                                                                      self.min_contour,
                                                                      self.max_contour)
 
-                        self.TrackingMethod.identify(pos_detection)
+                        self.trackingMethod.identify(pos_detection)
 
                         ## mark indentity of each objects
-                        self.TrackingMethod.visualize(contour_vid, self.obj_id, is_centroid=True,
-                                                 is_mark=True, is_trajectory=True)
+                        self.trackingMethod.visualize(contour_vid, self.obj_id, is_centroid=True,
+                                                      is_mark=True, is_trajectory=True)
+
+                        # # # # store tracking data when local tracking
+                        # if is_timeStamp:
+                        #     self.tracking_data = self.trackingDataLog.localDataFrame(video_elapse,
+                        #                                                    self.frame_count,
+                        #                                                    self.trackingMethod.registration,
+                        #                                                    self.obj_id)
+                        if is_timeStamp:
+                            self.timeSignal.tracked_object.emit(self.trackingMethod.registration)
 
                         # frame_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
                         frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
