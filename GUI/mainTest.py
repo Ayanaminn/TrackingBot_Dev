@@ -8,6 +8,7 @@ import os
 import cv2
 import time
 import numpy as np
+import pandas as pd
 from collections import namedtuple
 from datetime import datetime, timedelta
 from scipy.spatial import distance
@@ -55,6 +56,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.trackingThread.timeSignal.updateSliderPos.connect(self.updateTrackSlider)
         self.trackingThread.timeSignal.tracked_object.connect(self.updateTrackResult)
         self.resetVideo()
+
+        self.tracked_object = None
+        self.dataLogThread = DataLogThread()
 
         self.tabWidget.setTabEnabled(1, False)
         self.tabWidget.setTabEnabled(2, False)
@@ -951,6 +955,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         print(self.trackingThread.tracking_data)
         self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
+        self.dataLogThread.stop()
+        # dataframe = self.dataLogThread.result()
+
     def displayTrackingVideo(self, frame):
         frame_display = QPixmap.fromImage(frame)
         self.trackingeBoxLabel.setPixmap(frame_display)
@@ -964,7 +971,13 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.trackPosLabel.setText(f"{str(timedelta(seconds=play_elapse)).split('.')[0]}")
 
     def updateTrackResult(self,object):
-        print(object)
+        # print(object)
+        self.dataLogThread.datalog(object)
+        # self.tracked_object = object
+        # print(f'thread data is {self.tracked_object}')
+        self.dataLogThread.start()
+
+
 
 class Detection():
 
@@ -1348,6 +1361,33 @@ class TrackingThread(QThread):
 
     def set_fps(self, video_fps):
         self.fps = video_fps
+
+
+class DataLogThread(QThread):
+
+    def __init__(self):
+        QThread.__init__(self)
+        # self.trackingDataLog = TrackingDataLog()
+        self.df = []
+        self.tracked_object = None
+
+    def run(self):
+        if self.tracked_object is None:
+            return
+        else:
+            # print(range(len(self.tracked_object)))
+            for i in range(len(self.tracked_object)):
+                self.df.append([self.tracked_object[i].pos_prediction[0][0],
+                                self.tracked_object[i].pos_prediction[1][0]])
+            dataframe = pd.DataFrame(np.array(self.df),
+                                     columns=['pos_x', 'pos_y'])
+            print(f'log thread update {self.tracked_object}')
+            print(dataframe)
+
+    def datalog(self,tracked_object):
+        self.tracked_object = tracked_object
+
+    # def stop(self):
 
 
 if __name__ == "__main__":
