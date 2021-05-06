@@ -57,7 +57,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.trackingThread.timeSignal.tracked_object.connect(self.updateTrackResult)
         self.resetVideo()
 
-        self.tracked_object = None
+        self.tracked_result = []
         self.dataLogThread = DataLogThread()
 
         self.tabWidget.setTabEnabled(1, False)
@@ -927,14 +927,14 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                 try:
                     self.stopTracking()
                 except:
-                    self.error_msg = QMessageBox()
-                    self.error_msg.setWindowTitle('Error')
-                    self.error_msg.setText('An error happened when trying to stop tracking.')
-                    self.error_msg.setInformativeText('stopTracking() does not execute correctly.')
-                    self.error_msg.setIcon(QMessageBox.Warning)
-                    self.error_msg.setDetailedText('You caught a bug! \n'
+                    self.warning_msg = QMessageBox()
+                    self.warning_msg.setWindowTitle('Error')
+                    self.warning_msg.setText('An error happened when trying to stop tracking.')
+                    self.warning_msg.setInformativeText('stopTracking() does not execute correctly.')
+                    self.warning_msg.setIcon(QMessageBox.Warning)
+                    self.warning_msg.setDetailedText('You caught a bug! \n'
                                                    'Please submit this issue on GitHub to help us improve. ')
-                    self.error_msg.exec()
+                    self.warning_msg.exec()
 
     def startTracking(self):
         self.trackingThread.playCapture.open(self.video_file[0])
@@ -952,11 +952,18 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.trackingThread.playCapture.release()
         self.readVideoFile(self.video_file[0])
         self.status = MainWindow.STATUS_INIT
-        print(self.trackingThread.tracking_data)
         self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
+        # self.tracked_result = self.dataLogThread.df_archive.copy()
         self.dataLogThread.stop()
-        # dataframe = self.dataLogThread.result()
+        print(f'df archive end length {len(self.dataLogThread.df_archive)}')
+        print(self.dataLogThread.df_archive)
+
+        dataframe = pd.DataFrame(np.array(self.dataLogThread.df_archive),
+                                 columns=['pos_x', 'pos_y'])
+        #
+        print(dataframe)
+        dataframe.to_csv('C:/Users/BioMEMS/Documents/data_export_test.csv',encoding='utf-8')
 
     def displayTrackingVideo(self, frame):
         frame_display = QPixmap.fromImage(frame)
@@ -972,6 +979,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
     def updateTrackResult(self,object):
         # print(object)
+
+        # reset df list
+
         self.dataLogThread.datalog(object)
         # self.tracked_object = object
         # print(f'thread data is {self.tracked_object}')
@@ -1248,7 +1258,6 @@ class TrackingThread(QThread):
         self.obj_id = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
                   'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
         self.video_elapse = 0
-        self.tracking_data = None
         self.df = []
 
     def run(self):
@@ -1382,50 +1391,56 @@ class DataLogThread(QThread):
 
     def __init__(self):
         QThread.__init__(self)
+        self.stopped = False
+        self.mutex = QMutex()
         # self.trackingDataLog = TrackingDataLog()
         self.df = []
         self.df_archive = []
-        self.dataframe = []
-        self.dataframe_archive = []
+        # self.dataframe = []
+        # self.dataframe_archive = pd.DataFrame()
         self.tracked_object = None
 
     def run(self):
         tic = time.perf_counter()
-        if self.tracked_object is None:
+        with QMutexLocker(self.mutex):
+            self.stopped = False
+        if self.stopped:
             return
         else:
             # print(range(len(self.tracked_object)))
             for i in range(len(self.tracked_object)):
                 self.df.append([self.tracked_object[i].pos_prediction[0][0],
                                 self.tracked_object[i].pos_prediction[1][0]])
-            self.dataframe = pd.DataFrame(np.array(self.df),
-                                     columns=['pos_x', 'pos_y'])
+            # self.dataframe = pd.DataFrame(np.array(self.df),
+            #                          columns=['pos_x', 'pos_y'])
 
-            if len(self.dataframe) == 1000:
+            if len(self.df) >= 500:
                 print('len limit')
-                # self.dataframe_saved = pd.concat(self.dataframe)
-                self.df_archive = self.df.copy()
-                # self.dataframe_archive = self.dataframe.copy()
+                # self.df_archive = pd.concat(self.df.copy())
+                self.df_archive.extend(self.df.copy())
                 del self.df[:]
                 # del self.dataframe[:]
                 # self.dataframe.clear()
                 # return
-                self.dataframe_archive.append(self.df_archive)
+                # self.dataframe_archive.append(self.df_archive)
             # print(f'log thread update {self.tracked_object}')
-            print(len(self.dataframe))
-            print(f'df{self.df}')
-            print(f'data fram archive{self.dataframe_archive}')
-            print(f'df archive{self.df_archive}')
+            # print(len(self.df))
+            # print(f'df{self.df}')
+            # print(f'df archive{self.df_archive}')
             # print(self.dataframe_archive)
             # print(self.dataframe_saved)
             # print(len(self.dataframe_saved))
         toc = time.perf_counter()
-        print(f'Time Elapsed Per datalog Loop {toc - tic:.3f}')
+        print(f'df archive length {len(self.df_archive)}')
+        # print(f'Time Elapsed Per datalog Loop {toc - tic:.3f}')
 
     def datalog(self,tracked_object):
         self.tracked_object = tracked_object
 
-    # def stop(self):
+    def stop(self):
+        with QMutexLocker(self.mutex):
+            self.stopped = True
+
 
 
 if __name__ == "__main__":
