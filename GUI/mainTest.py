@@ -1247,7 +1247,9 @@ class TrackingThread(QThread):
         self.invert_contrast = False
         self.obj_id = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
                   'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+        self.video_elapse = 0
         self.tracking_data = None
+        self.df = []
 
     def run(self):
 
@@ -1272,6 +1274,8 @@ class TrackingThread(QThread):
 
                     # get time stamp mark
                     is_timeStamp, video_elapse = self.trackingDataLog.localTimeStamp(pos_elapse,interval=None)
+
+                    self.video_elapse = video_elapse
 
                     if self.invert_contrast:
                         invert_vid = cv2.bitwise_not(frame)
@@ -1324,12 +1328,23 @@ class TrackingThread(QThread):
                         self.trackingMethod.visualize(contour_vid, self.obj_id, is_centroid=True,
                                                       is_mark=True, is_trajectory=True)
 
-                        # # # # store tracking data when local tracking
+                        # # # store tracking data when local tracking
                         # if is_timeStamp:
-                        #     self.tracking_data = self.trackingDataLog.localDataFrame(video_elapse,
-                        #                                                    self.frame_count,
-                        #                                                    self.trackingMethod.registration,
-                        #                                                    self.obj_id)
+                            # self.tracking_data = self.trackingDataLog.localDataFrame(video_elapse,
+                            #                                                self.frame_count,
+                            #                                                self.trackingMethod.registration,
+                            #                                                self.obj_id)
+                            # for i in range(len(self.trackingMethod.registration)):
+                            #     self.df.append([video_elapse,self.trackingMethod.registration[i].pos_prediction[0][0],
+                            #                     self.trackingMethod.registration[i].pos_prediction[1][0]])
+                            # dataframe = pd.DataFrame(np.array(self.df),
+                            #                          columns=['video lapse(s)','pos_x', 'pos_y'])
+
+                            # for i in range(len(self.trackingMethod.registration)):
+                            #     self.df.append([video_elapse])
+                            # dataframe = pd.DataFrame(np.array(self.df),
+                            #                          columns=['video lapse(s)'])
+                            # print(dataframe)
                         if is_timeStamp:
                             self.timeSignal.tracked_object.emit(self.trackingMethod.registration)
 
@@ -1369,9 +1384,13 @@ class DataLogThread(QThread):
         QThread.__init__(self)
         # self.trackingDataLog = TrackingDataLog()
         self.df = []
+        self.df_archive = []
+        self.dataframe = []
+        self.dataframe_archive = []
         self.tracked_object = None
 
     def run(self):
+        tic = time.perf_counter()
         if self.tracked_object is None:
             return
         else:
@@ -1379,10 +1398,29 @@ class DataLogThread(QThread):
             for i in range(len(self.tracked_object)):
                 self.df.append([self.tracked_object[i].pos_prediction[0][0],
                                 self.tracked_object[i].pos_prediction[1][0]])
-            dataframe = pd.DataFrame(np.array(self.df),
+            self.dataframe = pd.DataFrame(np.array(self.df),
                                      columns=['pos_x', 'pos_y'])
-            print(f'log thread update {self.tracked_object}')
-            print(dataframe)
+
+            if len(self.dataframe) == 1000:
+                print('len limit')
+                # self.dataframe_saved = pd.concat(self.dataframe)
+                self.df_archive = self.df.copy()
+                # self.dataframe_archive = self.dataframe.copy()
+                del self.df[:]
+                # del self.dataframe[:]
+                # self.dataframe.clear()
+                # return
+                self.dataframe_archive.append(self.df_archive)
+            # print(f'log thread update {self.tracked_object}')
+            print(len(self.dataframe))
+            print(f'df{self.df}')
+            print(f'data fram archive{self.dataframe_archive}')
+            print(f'df archive{self.df_archive}')
+            # print(self.dataframe_archive)
+            # print(self.dataframe_saved)
+            # print(len(self.dataframe_saved))
+        toc = time.perf_counter()
+        print(f'Time Elapsed Per datalog Loop {toc - tic:.3f}')
 
     def datalog(self,tracked_object):
         self.tracked_object = tracked_object
