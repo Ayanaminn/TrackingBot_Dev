@@ -55,10 +55,13 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.trackingThread.timeSignal.tracking_signal.connect(self.displayTrackingVideo)
         self.trackingThread.timeSignal.updateSliderPos.connect(self.updateTrackSlider)
         self.trackingThread.timeSignal.tracked_object.connect(self.updateTrackResult)
-        self.resetVideo()
+        self.trackingThread.timeSignal.track_reset.connect(self.resetVideo)
+        self.trackingThread.timeSignal.track_reset_alarm.connect(self.completeTracking)
 
         self.tracked_result = []
         self.dataLogThread = DataLogThread()
+
+        self.resetVideo()
 
         self.tabWidget.setTabEnabled(1, False)
         self.tabWidget.setTabEnabled(2, False)
@@ -472,10 +475,14 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
     def resetVideo(self):
         self.videoThread.stop()
         self.threshThread.stop()
+        self.trackingThread.stop()
+        self.dataLogThread.stop()
         self.playCapture.release()
         self.threshThread.playCapture.release()
+        self.trackingThread.playCapture.release()
         self.status = MainWindow.STATUS_INIT
         self.setPlayIcon()
+        self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
     def setVidProgressBar(self, vid_prop):
 
@@ -902,6 +909,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         if self.video_file[0] == '' or self.video_file[0] is None:
             print('No video is selected')
             return
+
         if self.status is MainWindow.STATUS_INIT:
             try:
                 self.startTracking()
@@ -923,6 +931,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                                      'Do you want continue to abort current task?')
             self.warning_msg.setStandardButtons(QMessageBox.Cancel | QMessageBox.Yes)
             returnValue = self.warning_msg.exec()
+
             if returnValue == QMessageBox.Yes:
                 try:
                     self.stopTracking()
@@ -950,12 +959,14 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         '''
         self.trackingThread.stop()
         self.trackingThread.playCapture.release()
+        self.dataLogThread.stop()
         self.readVideoFile(self.video_file[0])
         self.status = MainWindow.STATUS_INIT
         self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
+
         # self.tracked_result = self.dataLogThread.df_archive.copy()
-        self.dataLogThread.stop()
+
         print(f'df archive end length {len(self.dataLogThread.df_archive)}')
         print(self.dataLogThread.df_archive)
 
@@ -963,7 +974,14 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                                  columns=['pos_x', 'pos_y'])
         #
         print(dataframe)
-        dataframe.to_csv('C:/Users/BioMEMS/Documents/data_export_test.csv',encoding='utf-8')
+
+        dataframe.to_csv('C:/Users/phenomicslab/Documents/data_export_test.csv',encoding='utf-8')
+
+        self.info_msg = QMessageBox()
+        self.info_msg.setWindowTitle('')
+        self.info_msg.setIcon(QMessageBox.Information)
+        self.info_msg.setText('Tracking task cancelled.')
+        self.info_msg.exec()
 
     def displayTrackingVideo(self, frame):
         frame_display = QPixmap.fromImage(frame)
@@ -977,16 +995,24 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         play_elapse = self.trackProgressBar.value()
         self.trackPosLabel.setText(f"{str(timedelta(seconds=play_elapse)).split('.')[0]}")
 
-    def updateTrackResult(self,object):
-        # print(object)
+    def updateTrackResult(self, tracked_object):
+        '''
+        pass the list of registered object information to datalog thread
+        '''
 
         # reset df list
 
-        self.dataLogThread.datalog(object)
+        self.dataLogThread.track_data(tracked_object)
         # self.tracked_object = object
         # print(f'thread data is {self.tracked_object}')
         self.dataLogThread.start()
 
+    def completeTracking(self):
+        self.info_msg = QMessageBox()
+        self.info_msg.setWindowTitle('Congratulations')
+        self.info_msg.setIcon(QMessageBox.Information)
+        self.info_msg.setText('Tracking finished.')
+        self.info_msg.exec()
 
 
 class Detection():
@@ -1096,7 +1122,8 @@ class Communicate(QObject):
     updateSliderPos = QtCore.pyqtSignal(float)
     tracking_signal = pyqtSignal(QImage)
     tracked_object = pyqtSignal(list)
-
+    track_reset = pyqtSignal(str)
+    track_reset_alarm = pyqtSignal(str)
 
 class VideoThread(QThread):
 
@@ -1258,7 +1285,6 @@ class TrackingThread(QThread):
         self.obj_id = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
                   'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
         self.video_elapse = 0
-        self.df = []
 
     def run(self):
 
@@ -1304,12 +1330,9 @@ class TrackingThread(QThread):
                         self.trackingMethod.visualize(contour_vid, self.obj_id, is_centroid=True,
                                                       is_mark=True, is_trajectory=True)
 
-                        # # # store tracking data when local tracking
+                        # # # pass tracking data to datalog thread when local tracking
                         if is_timeStamp:
-                            self.tracking_data = self.trackingDataLog.localDataFrame(video_elapse,
-                                                                           self.frame_count,
-                                                                           self.trackingMethod.registration,
-                                                                           self.obj_id)
+                            self.timeSignal.tracked_object.emit(self.trackingMethod.registration)
 
                         frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
 
@@ -1337,23 +1360,7 @@ class TrackingThread(QThread):
                         self.trackingMethod.visualize(contour_vid, self.obj_id, is_centroid=True,
                                                       is_mark=True, is_trajectory=True)
 
-                        # # # store tracking data when local tracking
-                        # if is_timeStamp:
-                            # self.tracking_data = self.trackingDataLog.localDataFrame(video_elapse,
-                            #                                                self.frame_count,
-                            #                                                self.trackingMethod.registration,
-                            #                                                self.obj_id)
-                            # for i in range(len(self.trackingMethod.registration)):
-                            #     self.df.append([video_elapse,self.trackingMethod.registration[i].pos_prediction[0][0],
-                            #                     self.trackingMethod.registration[i].pos_prediction[1][0]])
-                            # dataframe = pd.DataFrame(np.array(self.df),
-                            #                          columns=['video lapse(s)','pos_x', 'pos_y'])
-
-                            # for i in range(len(self.trackingMethod.registration)):
-                            #     self.df.append([video_elapse])
-                            # dataframe = pd.DataFrame(np.array(self.df),
-                            #                          columns=['video lapse(s)'])
-                            # print(dataframe)
+                        # #  pass tracking data to datalog thread when local tracking
                         if is_timeStamp:
                             self.timeSignal.tracked_object.emit(self.trackingMethod.registration)
 
@@ -1371,17 +1378,14 @@ class TrackingThread(QThread):
                     print(f'Time Elapsed Per Loop {toc - tic:.3f}')
                 elif not ret:
                     # video finished
-                    # self.timeSignal.thresh_reset.emit('1')
+                    self.timeSignal.track_reset_alarm.emit('1')
+                    self.timeSignal.track_reset.emit('1')
 
                     return
 
     def stop(self):
         with QMutexLocker(self.mutex):
             self.stopped = True
-
-    # def is_stopped(self):
-    #     with QMutexLocker(self.mutex):
-    #         return self.stopped
 
     def set_fps(self, video_fps):
         self.fps = video_fps
@@ -1399,6 +1403,8 @@ class DataLogThread(QThread):
         # self.dataframe = []
         # self.dataframe_archive = pd.DataFrame()
         self.tracked_object = None
+        ## need init object id list
+        # self.obj_id = []
 
     def run(self):
         tic = time.perf_counter()
@@ -1434,7 +1440,11 @@ class DataLogThread(QThread):
         print(f'df archive length {len(self.df_archive)}')
         # print(f'Time Elapsed Per datalog Loop {toc - tic:.3f}')
 
-    def datalog(self,tracked_object):
+    def track_data(self,tracked_object):
+        '''
+        receive the list of registered object information passed
+        from tracking thread
+        '''
         self.tracked_object = tracked_object
 
     def stop(self):
