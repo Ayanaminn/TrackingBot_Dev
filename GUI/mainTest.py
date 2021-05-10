@@ -1009,7 +1009,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
     def completeTracking(self):
         self.info_msg = QMessageBox()
-        self.info_msg.setWindowTitle('Congratulations')
+        self.info_msg.setWindowTitle('TrackingBot')
         self.info_msg.setIcon(QMessageBox.Information)
         self.info_msg.setText('Tracking finished.')
         self.info_msg.exec()
@@ -1124,6 +1124,7 @@ class Communicate(QObject):
     tracked_object = pyqtSignal(list)
     track_reset = pyqtSignal(str)
     track_reset_alarm = pyqtSignal(str)
+
 
 class VideoThread(QThread):
 
