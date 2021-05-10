@@ -55,6 +55,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.trackingThread.timeSignal.tracking_signal.connect(self.displayTrackingVideo)
         self.trackingThread.timeSignal.updateSliderPos.connect(self.updateTrackSlider)
         self.trackingThread.timeSignal.tracked_object.connect(self.updateTrackResult)
+        self.trackingThread.timeSignal.tracked_index.connect(self.updateTrackIndex)
+        self.trackingThread.timeSignal.tracked_elapse.connect(self.updateTrackElapse)
+
         self.trackingThread.timeSignal.track_reset.connect(self.resetVideo)
         self.trackingThread.timeSignal.track_reset_alarm.connect(self.completeTracking)
 
@@ -971,14 +974,28 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         print(self.dataLogThread.df_archive)
 
         dataframe = pd.DataFrame(np.array(self.dataLogThread.df_archive),
-                                 columns=['pos_x', 'pos_y'])
+                                 columns=['Result','Video elapse','pos_x', 'pos_y'])
         #
         print(dataframe)
 
-        dataframe.to_csv('C:/Users/phenomicslab/Documents/data_export_test.csv',encoding='utf-8')
+        dataframe.to_csv('C:/Users/BioMEMS/Documents/data_export_test.csv',encoding='utf-8')
+        writer = pd.ExcelWriter('C:/Users/BioMEMS/Documents/data_export_test.xlsx', engine='xlsxwriter')
+        dataframe.to_excel(writer, sheet_name='Sheet1',index=False)
+        worksheet = writer.sheets['Sheet1']
+        workbook = writer.book
+        # time_format = workbook.add_format()
+        # float_format = workbook.add_format()
+        format1 = workbook.add_format({'num_format': '0.00'})
+        #
+        # time_format.set_num_format('mm:ss:00')
+        # float_format.set_num_format(2)
+        worksheet.set_column('C:C', None, format1)
+        worksheet.set_column('D:D', None, format1)
+
+        writer.save()
 
         self.info_msg = QMessageBox()
-        self.info_msg.setWindowTitle('')
+        self.info_msg.setWindowTitle('TrackingBot')
         self.info_msg.setIcon(QMessageBox.Information)
         self.info_msg.setText('Tracking task cancelled.')
         self.info_msg.exec()
@@ -1006,6 +1023,19 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # self.tracked_object = object
         # print(f'thread data is {self.tracked_object}')
         self.dataLogThread.start()
+
+    def updateTrackIndex(self, tracked_index):
+        '''
+        pass the index of timestamp to datalog thread
+        '''
+        self.dataLogThread.track_index(tracked_index)
+
+    def updateTrackElapse(self, tracked_elapse):
+        '''
+        pass video time elapsed when timestamp is true to datalog thread
+        '''
+        self.dataLogThread.track_elapse(tracked_elapse)
+
 
     def completeTracking(self):
         self.info_msg = QMessageBox()
@@ -1122,6 +1152,8 @@ class Communicate(QObject):
     updateSliderPos = QtCore.pyqtSignal(float)
     tracking_signal = pyqtSignal(QImage)
     tracked_object = pyqtSignal(list)
+    tracked_index = pyqtSignal(int)
+    tracked_elapse = pyqtSignal(str)
     track_reset = pyqtSignal(str)
     track_reset_alarm = pyqtSignal(str)
 
@@ -1313,6 +1345,7 @@ class TrackingThread(QThread):
 
                     self.video_elapse = video_elapse
 
+
                     if self.invert_contrast:
                         invert_vid = cv2.bitwise_not(frame)
 
@@ -1334,6 +1367,7 @@ class TrackingThread(QThread):
                         # # # pass tracking data to datalog thread when local tracking
                         if is_timeStamp:
                             self.timeSignal.tracked_object.emit(self.trackingMethod.registration)
+                            self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
 
                         frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
 
@@ -1364,6 +1398,10 @@ class TrackingThread(QThread):
                         # #  pass tracking data to datalog thread when local tracking
                         if is_timeStamp:
                             self.timeSignal.tracked_object.emit(self.trackingMethod.registration)
+                            # index of time stamp
+                            self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
+                            self.timeSignal.tracked_elapse.emit(self.video_elapse)
+                            print(self.trackingDataLog.result_index)
 
                         # frame_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
                         frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
@@ -1404,6 +1442,9 @@ class DataLogThread(QThread):
         # self.dataframe = []
         # self.dataframe_archive = pd.DataFrame()
         self.tracked_object = None
+        self.tracked_index = None
+        self.tracked_elapse = None
+
         ## need init object id list
         # self.obj_id = []
 
@@ -1416,7 +1457,7 @@ class DataLogThread(QThread):
         else:
             # print(range(len(self.tracked_object)))
             for i in range(len(self.tracked_object)):
-                self.df.append([self.tracked_object[i].pos_prediction[0][0],
+                self.df.append([self.tracked_index,self.tracked_elapse,self.tracked_object[i].pos_prediction[0][0],
                                 self.tracked_object[i].pos_prediction[1][0]])
             # self.dataframe = pd.DataFrame(np.array(self.df),
             #                          columns=['pos_x', 'pos_y'])
@@ -1431,7 +1472,7 @@ class DataLogThread(QThread):
                 # return
                 # self.dataframe_archive.append(self.df_archive)
             # print(f'log thread update {self.tracked_object}')
-            # print(len(self.df))
+            print(len(self.df))
             # print(f'df{self.df}')
             # print(f'df archive{self.df_archive}')
             # print(self.dataframe_archive)
@@ -1447,6 +1488,21 @@ class DataLogThread(QThread):
         from tracking thread
         '''
         self.tracked_object = tracked_object
+
+    def track_index(self,tracked_index):
+        '''
+        receive the index of timestamp passed
+        from tracking thread
+        '''
+        self.tracked_index = tracked_index
+
+    def track_elapse(self,tracked_elapse):
+        '''
+        receive video time elapsed when time stamp is true passed
+        from tracking thread
+        '''
+        self.tracked_elapse = tracked_elapse
+
 
     def stop(self):
         with QMutexLocker(self.mutex):
