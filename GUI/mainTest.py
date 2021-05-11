@@ -5,6 +5,7 @@ from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QObject, QMutex, QMu
 from qtwidgets import Toggle, AnimatedToggle
 
 import os
+import subprocess
 import cv2
 import time
 import numpy as np
@@ -70,7 +71,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.tabWidget.setTabEnabled(1, False)
         self.tabWidget.setTabEnabled(2, False)
         self.tabWidget.setTabEnabled(3, True)
-        self.tabWidget.setTabEnabled(4, False)
+        self.tabWidget.setTabEnabled(4, True)
         self.tabWidget.setTabEnabled(5, False)
 
         # add a canvas for drawing
@@ -184,6 +185,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.trackProgressBar.valueChanged.connect(self.updateTrackPosition)
         # self.trackStopButton.clicked.connect(self.stopTracking)
         # self.trackStopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
+
+        self.exportDataButton.clicked.connect(self.exportData)
 
     # not yet activated
     def selectMainMenu(self):
@@ -964,20 +967,23 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         reset tracking progress when stop clicked during task
         :return:
         '''
-        self.trackingThread.stop()
-        self.trackingThread.playCapture.release()
-        self.dataLogThread.stop()
-        self.readVideoFile(self.video_file[0])
-        self.status = MainWindow.STATUS_INIT
-        self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        try:
+            self.trackingThread.stop()
+            self.trackingThread.playCapture.release()
+            self.dataLogThread.stop()
+            self.readVideoFile(self.video_file[0])
+            self.status = MainWindow.STATUS_INIT
+            self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+        except Exception as e:
+            print(e)
+        finally:
+            self.info_msg = QMessageBox()
+            self.info_msg.setWindowTitle('TrackingBot')
+            self.info_msg.setIcon(QMessageBox.Information)
+            self.info_msg.setText('Tracking task cancelled.')
+            self.info_msg.exec()
 
-        self.info_msg = QMessageBox()
-        self.info_msg.setWindowTitle('TrackingBot')
-        self.info_msg.setIcon(QMessageBox.Information)
-        self.info_msg.setText('Tracking task cancelled.')
-        self.info_msg.exec()
-
-        print(f'pixel_per_metric{self.pixel_per_metric}')
+            print(f'pixel_per_metric{self.pixel_per_metric}')
 
     def displayTrackingVideo(self, frame):
         frame_display = QPixmap.fromImage(frame)
@@ -1023,26 +1029,61 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.info_msg.exec()
 
         # enable export data button
+        self.exportDataButton.setEnabled(True)
 
     def exportData(self):
         # dialog = QtGui.QFileDialog()
-        # folder_path = dialog.getExistingDirectory(None, "Select Folder")
-        # return folder_path
+        self.folder_path = QFileDialog.getExistingDirectory(None, 'Select Folder', 'C:/Users/Public/Documents')
+        print(self.folder_path)
+        if self.folder_path == '':
+            return
+        else:
+            try:
+                self.convertData(self.folder_path)
+                # dataframe = pd.DataFrame(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]),
+                #                    columns=['a', 'b', 'c'])
+                #
+                # full_path = self.folder_path + '/data_export_test.xlsx'
+                # writer = pd.ExcelWriter(full_path, engine='xlsxwriter')
+                # dataframe.to_excel(writer, sheet_name='Sheet1',index=False)
+                #
+                # writer.save()
+                # return folder_path
 
-        pass
+                self.info_msg = QMessageBox()
+                self.info_msg.setWindowTitle('TrackingBot')
+                self.info_msg.setIcon(QMessageBox.Information)
+                self.info_msg.setText('Successfully saved data')
+                self.info_msg.addButton('OK', QMessageBox.RejectRole)
+                self.info_msg.addButton('Open folder', QMessageBox.AcceptRole)
+                self.info_msg.buttonClicked.connect(self.openDataFolder)
+                self.info_msg.exec()
+            except:
+                self.error_msg = QMessageBox()
+                self.error_msg.setWindowTitle('Error')
+                self.error_msg.setText('An error happened when trying to export tracking data.')
+                self.error_msg.setInformativeText('convertData() does not execute correctly.')
+                self.error_msg.setIcon(QMessageBox.Warning)
+                self.error_msg.setDetailedText('You caught a bug! \n'
+                                               'Please submit this issue on GitHub to help us improve. ')
+                self.error_msg.exec()
 
-    def convertData(self):
+    def convertData(self, save_path):
+        self.save_path = save_path
         # self.tracked_result = self.dataLogThread.df_archive.copy()
 
         print(f'df archive end length {len(self.dataLogThread.df_archive)}')
         print(self.dataLogThread.df_archive)
-
+        print(f'number of obj is {self.object_num}')
         # pay attention to dtype
         dataframe = pd.DataFrame(np.array(self.dataLogThread.df_archive),
                                  columns=['Result','Video elapse','Subject','pos_x', 'pos_y'])
+        print(dataframe)
 
         dx = dataframe['pos_x'] - dataframe['pos_x'].shift(self.object_num)
         dy = dataframe['pos_y'] - dataframe['pos_y'].shift(self.object_num)
+        # print(dx)
+        # print(dy)
         dataframe['Distance moved (mm)'] = (np.sqrt(dx ** 2 + dy ** 2)) / self.pixel_per_metric
 
         dataframe['Result'] = dataframe['Result'].astype(int)
@@ -1052,11 +1093,13 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         dataframe['pos_y'] = dataframe['pos_y'].astype(float)
         dataframe['Distance moved (mm)'] = dataframe['Distance moved (mm)'].astype(float)
         #
-        print(dataframe)
+
         print(dataframe.dtypes)
 
+        full_path = self.save_path + '/data_export_test.xlsx'
+        print(full_path)
         # dataframe.to_csv('C:/Users/phenomicslab/Documents/data_export_test.csv',encoding='utf-8')
-        writer = pd.ExcelWriter('C:/Users/phenomicslab/Documents/data_export_test.xlsx', engine='xlsxwriter')
+        writer = pd.ExcelWriter(full_path, engine='xlsxwriter')
         dataframe.to_excel(writer, sheet_name='Sheet1',index=False)
         # dataframe.to_excel(writer, sheet_name='Sheet1', index=False, options={'strings_to_numbers': True})
         worksheet = writer.sheets['Sheet1']
@@ -1071,6 +1114,18 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # worksheet.set_column('D:D', None, format1)
 
         writer.save()
+
+    def openDataFolder(self):
+        '''
+        open system directory that data file saved
+        for both Win and OS system
+
+        '''
+        try:
+            os.startfile(self.folder_path)
+        except:
+            subprocess.Popen(['xdg-open', self.folder_path])
+
 
 class Detection():
 
