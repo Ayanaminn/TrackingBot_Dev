@@ -49,8 +49,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.threshThread.timeSignal.thresh_preview.connect(self.displayThresholdPreview)
         self.threshThread.timeSignal.updateSliderPos.connect(self.updateThreSlider)
         self.threshThread.timeSignal.thresh_reset.connect(self.resetVideo)
-        # self.detection = Detection()
 
+        # timer for tracking video
         self.trackingThread = TrackingThread()
         self.trackingThread.timeSignal.tracking_signal.connect(self.displayTrackingVideo)
         self.trackingThread.timeSignal.updateSliderPos.connect(self.updateTrackSlider)
@@ -61,7 +61,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.trackingThread.timeSignal.track_reset.connect(self.resetVideo)
         self.trackingThread.timeSignal.track_reset_alarm.connect(self.completeTracking)
 
-        self.tracked_result = []
+
+
         self.dataLogThread = DataLogThread()
 
         self.resetVideo()
@@ -81,6 +82,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.caliBoxCanvasLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.caliBoxCanvasLabel.setFrameShape(QtWidgets.QFrame.Box)
         self.caliBoxCanvasLabel.setCursor(Qt.CrossCursor)
+
 
         ##############################################################
         # signals and widgets for the tab 0
@@ -108,6 +110,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         ###################################################################
         # signal on tab 2
+        # init pixel unit convert ratio
+        self.pixel_per_metric = 1
         self.drawScaleButton.clicked.connect(self.drawScale)
         self.resetScaleButton.clicked.connect(self.clearScale)
         self.applyScaleButton.clicked.connect(self.convertScale)
@@ -586,8 +590,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                 print(f'scale is {scale}')
 
                 pixel_length = distance.euclidean(scale[0], scale[1])
-                pixel_per_metric = round(pixel_length, 2) / metric
-                print(f'pixel_per_metric{pixel_per_metric}')
+                self.pixel_per_metric = round(pixel_length, 2) / metric
+                print(f'pixel_per_metric{ self.pixel_per_metric}')
 
                 self.drawScaleButton.setEnabled(False)
                 self.caliBoxCanvasLabel.setEnabled(False)
@@ -967,38 +971,13 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.status = MainWindow.STATUS_INIT
         self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
-
-        # self.tracked_result = self.dataLogThread.df_archive.copy()
-
-        print(f'df archive end length {len(self.dataLogThread.df_archive)}')
-        print(self.dataLogThread.df_archive)
-
-        dataframe = pd.DataFrame(np.array(self.dataLogThread.df_archive),
-                                 columns=['Result','Video elapse','pos_x', 'pos_y'])
-        #
-        print(dataframe)
-
-        dataframe.to_csv('C:/Users/BioMEMS/Documents/data_export_test.csv',encoding='utf-8')
-        writer = pd.ExcelWriter('C:/Users/BioMEMS/Documents/data_export_test.xlsx', engine='xlsxwriter')
-        dataframe.to_excel(writer, sheet_name='Sheet1',index=False)
-        worksheet = writer.sheets['Sheet1']
-        workbook = writer.book
-        # time_format = workbook.add_format()
-        # float_format = workbook.add_format()
-        format1 = workbook.add_format({'num_format': '0.00'})
-        #
-        # time_format.set_num_format('mm:ss:00')
-        # float_format.set_num_format(2)
-        worksheet.set_column('C:C', None, format1)
-        worksheet.set_column('D:D', None, format1)
-
-        writer.save()
-
         self.info_msg = QMessageBox()
         self.info_msg.setWindowTitle('TrackingBot')
         self.info_msg.setIcon(QMessageBox.Information)
         self.info_msg.setText('Tracking task cancelled.')
         self.info_msg.exec()
+
+        print(f'pixel_per_metric{self.pixel_per_metric}')
 
     def displayTrackingVideo(self, frame):
         frame_display = QPixmap.fromImage(frame)
@@ -1036,7 +1015,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         '''
         self.dataLogThread.track_elapse(tracked_elapse)
 
-
     def completeTracking(self):
         self.info_msg = QMessageBox()
         self.info_msg.setWindowTitle('TrackingBot')
@@ -1044,6 +1022,55 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.info_msg.setText('Tracking finished.')
         self.info_msg.exec()
 
+        # enable export data button
+
+    def exportData(self):
+        # dialog = QtGui.QFileDialog()
+        # folder_path = dialog.getExistingDirectory(None, "Select Folder")
+        # return folder_path
+
+        pass
+
+    def convertData(self):
+        # self.tracked_result = self.dataLogThread.df_archive.copy()
+
+        print(f'df archive end length {len(self.dataLogThread.df_archive)}')
+        print(self.dataLogThread.df_archive)
+
+        # pay attention to dtype
+        dataframe = pd.DataFrame(np.array(self.dataLogThread.df_archive),
+                                 columns=['Result','Video elapse','Subject','pos_x', 'pos_y'])
+
+        dx = dataframe['pos_x'] - dataframe['pos_x'].shift(self.object_num)
+        dy = dataframe['pos_y'] - dataframe['pos_y'].shift(self.object_num)
+        dataframe['Distance moved (mm)'] = (np.sqrt(dx ** 2 + dy ** 2)) / self.pixel_per_metric
+
+        dataframe['Result'] = dataframe['Result'].astype(int)
+        dataframe['Video elapse'] = dataframe['Video elapse'].astype(str)
+        dataframe['Subject'] = 'Subject ' + dataframe['Subject'].astype(str)
+        dataframe['pos_x'] = dataframe['pos_x'].astype(float)
+        dataframe['pos_y'] = dataframe['pos_y'].astype(float)
+        dataframe['Distance moved (mm)'] = dataframe['Distance moved (mm)'].astype(float)
+        #
+        print(dataframe)
+        print(dataframe.dtypes)
+
+        # dataframe.to_csv('C:/Users/phenomicslab/Documents/data_export_test.csv',encoding='utf-8')
+        writer = pd.ExcelWriter('C:/Users/phenomicslab/Documents/data_export_test.xlsx', engine='xlsxwriter')
+        dataframe.to_excel(writer, sheet_name='Sheet1',index=False)
+        # dataframe.to_excel(writer, sheet_name='Sheet1', index=False, options={'strings_to_numbers': True})
+        worksheet = writer.sheets['Sheet1']
+        workbook = writer.book
+        # time_format = workbook.add_format()
+        # float_format = workbook.add_format()
+        # format1 = workbook.add_format({'num_format': '0.00'})
+        #
+        # time_format.set_num_format('mm:ss:00')
+        # float_format.set_num_format(2)
+        worksheet.set_column('B:B', 14)
+        # worksheet.set_column('D:D', None, format1)
+
+        writer.save()
 
 class Detection():
 
@@ -1315,8 +1342,12 @@ class TrackingThread(QThread):
         self.min_contour = 1
         self.max_contour = 100
         self.invert_contrast = False
-        self.obj_id = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
-                  'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+        # self.obj_id = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+        #           'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+        # create a list of numbers to mark subject indentity
+        self.id_list = list(range(1,100))
+        # the elements in this list needs to be in string format
+        self.obj_id = [format(x, '01d') for x in self.id_list]
         self.video_elapse = 0
 
     def run(self):
@@ -1326,6 +1357,7 @@ class TrackingThread(QThread):
             self.stopped = False
         while True:
             tic = time.perf_counter()
+
             if self.stopped:
                 return
             else:
@@ -1441,6 +1473,10 @@ class DataLogThread(QThread):
         self.df_archive = []
         # self.dataframe = []
         # self.dataframe_archive = pd.DataFrame()
+        # create a list of numbers to mark subject indentity
+        self.id_list = list(range(1,100))
+        # the elements in this list needs to be in string format
+        self.obj_id = [format(x, '01d') for x in self.id_list]
         self.tracked_object = None
         self.tracked_index = None
         self.tracked_elapse = None
@@ -1457,7 +1493,10 @@ class DataLogThread(QThread):
         else:
             # print(range(len(self.tracked_object)))
             for i in range(len(self.tracked_object)):
-                self.df.append([self.tracked_index,self.tracked_elapse,self.tracked_object[i].pos_prediction[0][0],
+                self.df.append([self.tracked_index,
+                                self.tracked_elapse,
+                                self.obj_id[i],
+                                self.tracked_object[i].pos_prediction[0][0],
                                 self.tracked_object[i].pos_prediction[1][0]])
             # self.dataframe = pd.DataFrame(np.array(self.df),
             #                          columns=['pos_x', 'pos_y'])
@@ -1479,7 +1518,7 @@ class DataLogThread(QThread):
             # print(self.dataframe_saved)
             # print(len(self.dataframe_saved))
         toc = time.perf_counter()
-        print(f'df archive length {len(self.df_archive)}')
+        # print(f'df archive length {len(self.df_archive)}')
         # print(f'Time Elapsed Per datalog Loop {toc - tic:.3f}')
 
     def track_data(self,tracked_object):
