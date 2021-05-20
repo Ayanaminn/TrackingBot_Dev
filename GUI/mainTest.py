@@ -37,6 +37,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         # # video init
         self.video_file = video_file
+        self.video_fps = None
         self.status = self.STATUS_INIT  # 0: init 1:playing 2: pause
         self.playCapture = cv2.VideoCapture()
 
@@ -257,6 +258,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             video_name = os.path.split(file_path)
             print(video_prop)
 
+            self.video_fps = int(video_prop.fps)
             self.videoThread.set_fps(video_prop.fps)
             self.threshThread.set_fps(video_prop.fps)
             self.trackingThread.set_fps(video_prop.fps)
@@ -1075,45 +1077,53 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         print(f'df archive end length {len(self.dataLogThread.df_archive)}')
         print(self.dataLogThread.df_archive)
         print(f'number of obj is {self.object_num}')
-        # pay attention to dtype
+
+        # pay attention to dtype!!!
+        # otherwise can not perform calculation betwteen different datatype
+        # such as str and float
         dataframe = pd.DataFrame(np.array(self.dataLogThread.df_archive),
-                                 columns=['Result','Video elapse','Subject','pos_x', 'pos_y'])
-        print(dataframe)
+                                 columns=['Result(Frame)','Video elapse','Subject','pos_x', 'pos_y'])
 
-        dx = dataframe['pos_x'] - dataframe['pos_x'].shift(self.object_num)
-        dy = dataframe['pos_y'] - dataframe['pos_y'].shift(self.object_num)
-        # print(dx)
-        # print(dy)
-        dataframe['Distance moved (mm)'] = (np.sqrt(dx ** 2 + dy ** 2)) / self.pixel_per_metric
-
-        dataframe['Result'] = dataframe['Result'].astype(int)
+        dataframe['Result(Frame)'] = dataframe['Result(Frame)'].astype(int)
         dataframe['Video elapse'] = dataframe['Video elapse'].astype(str)
         dataframe['Subject'] = 'Subject ' + dataframe['Subject'].astype(str)
         dataframe['pos_x'] = dataframe['pos_x'].astype(float)
         dataframe['pos_y'] = dataframe['pos_y'].astype(float)
+
+        dataframe_per_sec = dataframe.copy().loc[dataframe['Result(Frame)'] % self.video_fps == 0]
+
+        dx = dataframe['pos_x'] - dataframe['pos_x'].shift(self.object_num)
+        dy = dataframe['pos_y'] - dataframe['pos_y'].shift(self.object_num)
+        dataframe['Distance moved (mm)'] = (np.sqrt(dx ** 2 + dy ** 2))  / self.pixel_per_metric
+        print(dataframe)
         dataframe['Distance moved (mm)'] = dataframe['Distance moved (mm)'].astype(float)
-        #
 
-        print(dataframe.dtypes)
-
+        dx_per_sec = dataframe_per_sec['pos_x'] - dataframe_per_sec['pos_x'].shift(self.object_num)
+        dy_per_sec = dataframe_per_sec['pos_y'] - dataframe_per_sec['pos_y'].shift(self.object_num)
+        dataframe_per_sec['Distance moved (mm)'] = (np.sqrt(dx_per_sec ** 2 + dy_per_sec ** 2))  / self.pixel_per_metric
+        dataframe_per_sec['Distance moved (mm)'] = dataframe_per_sec['Distance moved (mm)'].astype(float)
+        print(dataframe_per_sec)
         full_path = self.save_path + '/data_export_test.xlsx'
         print(full_path)
         # dataframe.to_csv('C:/Users/phenomicslab/Documents/data_export_test.csv',encoding='utf-8')
-        writer = pd.ExcelWriter(full_path, engine='xlsxwriter')
-        dataframe.to_excel(writer, sheet_name='Sheet1',index=False)
+        with pd.ExcelWriter(full_path, engine='xlsxwriter') as writer:
+
+            dataframe_per_sec.to_excel(writer, sheet_name='Result', index=False)
+            dataframe.to_excel(writer, sheet_name='Raw_data', index=False)
+        # writer = pd.ExcelWriter(full_path, engine='xlsxwriter')
+
         # dataframe.to_excel(writer, sheet_name='Sheet1', index=False, options={'strings_to_numbers': True})
-        worksheet = writer.sheets['Sheet1']
-        workbook = writer.book
-        # time_format = workbook.add_format()
-        # float_format = workbook.add_format()
-        # format1 = workbook.add_format({'num_format': '0.00'})
-        #
-        # time_format.set_num_format('mm:ss:00')
-        # float_format.set_num_format(2)
-        worksheet.set_column('B:B', 14)
+        # worksheet1 = writer.sheets['Sheet1']
+        # workbook = writer.book
+        # # time_format = workbook.add_format()
+        # # float_format = workbook.add_format()
+        # # format1 = workbook.add_format({'num_format': '0.00'})
+        # #
+        # # time_format.set_num_format('mm:ss:00')
+        # # float_format.set_num_format(2)
+        # worksheet1.set_column('B:B', 14)
         # worksheet.set_column('D:D', None, format1)
 
-        writer.save()
 
     def openDataFolder(self):
         '''
@@ -1455,6 +1465,7 @@ class TrackingThread(QThread):
                         if is_timeStamp:
                             self.timeSignal.tracked_object.emit(self.trackingMethod.registration)
                             self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
+                            self.timeSignal.tracked_elapse.emit(self.video_elapse)
 
                         frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
 
