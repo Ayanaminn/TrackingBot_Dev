@@ -1,10 +1,12 @@
-from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QFileDialog, QMessageBox, QStyle, QApplication, QLabel, QWidget, QGraphicsLineItem
-from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen
-from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QObject, QMutex, QMutexLocker, QRect, QLine
+from PyQt5 import QtCore,QtGui,  QtWidgets,uic
+from PyQt5.QtWidgets import QFileDialog, QMessageBox, QStyle, \
+    QVBoxLayout,QLabel, QWidget,QHBoxLayout,QPushButton
+from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen,QPixmapCache
+from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QObject, QMutex, QMutexLocker, QRect, QPoint
 from qtwidgets import Toggle, AnimatedToggle
 
 import os
+import resources
 import subprocess
 import cv2
 import time
@@ -12,18 +14,30 @@ import numpy as np
 import pandas as pd
 from collections import namedtuple
 from datetime import datetime, timedelta
+import matplotlib.pyplot as plt
+from matplotlib import ticker
+# from matplotlib.backends.qt_compat import QtCore, QtWidgets
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.figure import Figure
 from scipy.spatial import distance
 import threading
 import concurrent.futures
-import mainGUI
+import mainGUI_dark_orange
 import mainGUI_calibration as Calibration
 from Tracking import TrackingMethod
 from Datalog import TrackingDataLog
 
+# try:
+#     # Include in try/except block if you're also targeting Mac/Linux
+#     from PyQt5.QtWinExtras import QtWin
+#     myappid = 'neurotoxlab'
+#     QtWin.setCurrentProcessExplicitAppUserModelID(myappid)
+# except ImportError:
+#     pass
 
 # import mainGUI_detection as Detection
 
-class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
+class MainWindow(QtWidgets.QMainWindow, mainGUI_dark_orange.Ui_MainWindow):
     STATUS_INIT = 0
     STATUS_PLAYING = 1
     STATUS_PAUSE = 2
@@ -31,19 +45,31 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
     def __init__(self, video_file=''):
         super().__init__()
         self.setupUi(self)
-
+        # fileh = QtCore.QFile(':/ui/mainGUI.ui')
+        # fileh.open(QtCore.QFile.ReadOnly)
+        # uic.loadUi(fileh, self)
+        # fileh.close()
+        # # Need be full path, otherwise complier cannot found file
+        # self.setWindowIcon(QtGui.QIcon('C:/Users/BioMEMS/Desktop/Yutao/Real-time object tracking '
+        #                                'project/OpenCV/GUI/Lab-Logo-black.png'))
         # self.thresh_vid = Detection.ThresholdVideo()
         # self.convert_scale = Calibration.Calibrate()
 
         # # video init
         self.video_file = video_file
-        self.video_fps = None
+        self.video_prop = None
+        self.camera_prop = None
         self.status = self.STATUS_INIT  # 0: init 1:playing 2: pause
         self.playCapture = cv2.VideoCapture()
 
         # timer for video player on load tab
         self.videoThread = VideoThread()
         self.videoThread.timeSignal.signal[str].connect(self.displayVideo)
+
+        # timer for camera source
+        self.cameraThread = CameraThread()
+        self.cameraThread.setPixmap.connect(self.displayCamera)
+        self.cameraThread.timeSignal.cam_alarm.connect(self.reloadCamera)
 
         # timer for threshold video player on load tab
         self.threshThread = ThreshVidThread()
@@ -66,13 +92,14 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
 
         self.dataLogThread = DataLogThread()
+        self.dataframe = None
 
         self.resetVideo()
 
         self.tabWidget.setTabEnabled(1, False)
         self.tabWidget.setTabEnabled(2, False)
-        self.tabWidget.setTabEnabled(3, True)
-        self.tabWidget.setTabEnabled(4, True)
+        self.tabWidget.setTabEnabled(3, False)
+        self.tabWidget.setTabEnabled(4, False)
         self.tabWidget.setTabEnabled(5, False)
 
         # add a canvas for drawing
@@ -84,6 +111,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.caliBoxCanvasLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.caliBoxCanvasLabel.setFrameShape(QtWidgets.QFrame.Box)
         self.caliBoxCanvasLabel.setCursor(Qt.CrossCursor)
+        # force trasparent to override application style
+        self.caliBoxCanvasLabel.setStyleSheet("background-color: rgba(0,0,0,0%)")
 
 
         ##############################################################
@@ -91,6 +120,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # need one button for back to main menu
         self.localModeButton.clicked.connect(self.enableLocalMode)
         self.liveModeButton.clicked.connect(self.enableLiveMode)
+        self.backToMenuButton.clicked.connect(self.selectMainMenu)
 
         #############################################################
         # signals and widgets for the tab 1
@@ -104,6 +134,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.stopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
 
         self.caliTabLinkButton.clicked.connect(self.enableCalibration)
+        self.backToLoadButton.clicked.connect(self.selectVidTab)
 
         # slider for video player on load tab
         self.vidProgressBar.sliderPressed.connect(self.pauseFromSlider)
@@ -129,6 +160,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.min_contour = ''
         self.max_contour = ''
         self.invert_contrast = False
+
+        self.backToCaliButton.clicked.connect(self.selectCaliTab)
 
         self.threPlayButton.clicked.connect(self.threshVidControl)
         self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
@@ -179,6 +212,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         ###############################################
         # signal on tab 4
         self.trackTabLinkButton.clicked.connect(self.enableTracking)
+        self.backToThreButton.clicked.connect(self.selectThreTab)
 
         self.trackStartButton.clicked.connect(self.trackingVidControl)
         self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
@@ -188,10 +222,42 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # self.trackStopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
 
         self.exportDataButton.clicked.connect(self.exportData)
+        self.exportGraphButton.clicked.connect(self.exportGraph)
+        self.visualizeToggle = Toggle(self.trackinTab)
+        self.visualizeToggle.setEnabled(False)
+        self.visualizeToggle.setGeometry(QRect(1070, 585, 85, 35))
+        self.visualizeToggle.stateChanged.connect(self.generateGraph)
 
-    # not yet activated
+        self.figure = Figure()
+        self.figure.set_facecolor("black")
+        self.canvas = FigureCanvas(self.figure)
+
+        # self.graphCanvas = QVBoxLayout(self.trackinTab)
+        # self.graphCanvas.addWidget(self.canvas)
+        self.verticalLayout_3.addWidget(self.canvas)
+        #4 self.graphCanvas.addStretch(2)
+        # self.graphCanvas.setContentsMargins(0, 0,0, 0)
+        self.canvas.setFixedSize(1024, 576)
+        # self.canvas.setGeometry(QRect(0,0,1024,576))
+        # self.canvas.lower()
+        # self.graphCanvas.setGeometry(QRect(50,50,1,1))
+        self.graph = None
+
+    #############################################################
+    # signals and widgets for the tab 5
+        self.openCamButton.clicked.connect(self.readCamera)
+        self.closeCamButton.clicked.connect(self.closeCamera)
+        self.backToMenuButton_2.clicked.connect(self.selectMainMenu)
+
+
+
     def selectMainMenu(self):
+        self.tabWidget.setTabEnabled(0, True)
+        self.tabWidget.setTabEnabled(1, False)
+        self.tabWidget.setTabEnabled(5, False)
         self.tabWidget.setCurrentIndex(0)
+        self.resetVideo()
+        self.closeCamera()
 
     def enableLocalMode(self):
         '''
@@ -200,6 +266,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.tabWidget.setTabEnabled(0, False)
         self.tabWidget.setTabEnabled(1, True)
         self.tabWidget.setCurrentIndex(1)
+        self.backToMenuButton.setEnabled(True)
 
     def enableLiveMode(self):
         '''
@@ -208,6 +275,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.tabWidget.setTabEnabled(0, False)
         self.tabWidget.setTabEnabled(5, True)
         self.tabWidget.setCurrentIndex(5)
+        self.backToMenuButton_2.setEnabled(True)
 
     def selectVideoFile(self):
 
@@ -321,7 +389,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                                     file_path.get(cv2.CAP_PROP_FRAME_COUNT),
                                     file_path.get(cv2.CAP_PROP_POS_MSEC),
                                     video_duraion)
-
+        self.video_prop = get_video_prop
         return get_video_prop
 
     def selectNewFile(self):
@@ -551,6 +619,71 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.status = MainWindow.STATUS_PLAYING
         self.setPauseIcon()
 
+    #####################################Functions for load camera#############
+    def readCamera(self):
+        self.camBoxLabel.show()
+        try:
+
+            # camera_cap = self.playCapture.open(0,cv2.CAP_DSHOW)
+            camera_prop = self.readCamProp(cv2.VideoCapture(0, cv2.CAP_DSHOW))
+            print(camera_prop)
+            cv2.VideoCapture(0, cv2.CAP_DSHOW).release()
+            self.cameraThread.start()
+            self.openCamButton.hide()
+            self.closeCamButton.setEnabled(True)
+
+        except:
+            self.error_msg = QMessageBox()
+            self.error_msg.setWindowTitle('Error')
+            self.error_msg.setText('Failed to open camera.')
+            self.error_msg.setInformativeText('readCamera() failed\n'
+                                              'Please make sure camera is connected with computer.\n')
+            self.error_msg.setIcon(QMessageBox.Warning)
+            self.error_msg.setDetailedText('You caught a bug! \n'
+                                           'Please submit this issue on GitHub to help us improve. ')
+            self.error_msg.exec()
+
+
+    def readCamProp(self,cam):
+        video_prop = namedtuple('video_prop', ['width', 'height'])
+        get_camera_prop = video_prop(cam.get(cv2.CAP_PROP_FRAME_WIDTH),
+                                    cam.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+        return get_camera_prop
+
+
+    @pyqtSlot(QImage)
+    def displayCamera(self, image):
+        self.camBoxLabel.setPixmap(QPixmap.fromImage(image))
+
+    def reloadCamera(self):
+        self.cameraThread.stop()
+        self.error_msg = QMessageBox()
+        self.error_msg.setWindowTitle('Error')
+        self.error_msg.setText('Failed to open camera.')
+        self.error_msg.setInformativeText('cv2.VideoCapture() does not return frame\n'
+                                          'Please make sure camera is connected with computer.\n')
+        self.error_msg.setIcon(QMessageBox.Warning)
+        self.error_msg.setDetailedText('You caught a bug! \n'
+                                       'Please submit this issue on GitHub to help us improve. ')
+        self.error_msg.exec()
+        self.openCamButton.show()
+
+    def closeCamera(self):
+        self.cameraThread.stop()
+        QPixmapCache.clear()
+        self.camBoxLabel.hide()
+
+
+        self.openCamButton.show()
+        self.closeCamButton.setEnabled(False)
+
+    def resetCamera(self):
+        self.cameraThread.stop()
+        QPixmapCache.clear()
+        # bg = QPixmap(1024, 576)
+        # bg.fill(Qt.black)
+        # self.camBoxLabel.setPixmap(bg)
     #####################################Functions for calibaration##########################
 
     def enableCalibration(self):
@@ -562,6 +695,20 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.resetVideo()
         self.tabWidget.setTabEnabled(2, True)
         self.tabWidget.setCurrentIndex(2)
+        self.backToLoadButton.setEnabled(True)
+
+    def selectVidTab(self):
+        self.tabWidget.setTabEnabled(1, True)
+        self.resetVideo()
+        self.tabWidget.setTabEnabled(2, False)
+        self.tabWidget.setCurrentIndex(1)
+        self.clearScale()
+        self.caliBoxLabel.setEnabled(False)
+        self.caliBoxCanvasLabel.setEnabled(False)
+        self.metricNumInput.setEnabled(False)
+        self.resetScaleButton.setEnabled(False)
+        self.applyScaleButton.setEnabled(False)
+        self.caliBoxCanvasLabel.lower()
 
     def setCalibrationCanvas(self, frame):
         self.caliBoxLabel.setPixmap(frame)
@@ -629,7 +776,19 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.tabWidget.setTabEnabled(2, False)
         self.tabWidget.setTabEnabled(3, True)
         self.tabWidget.setCurrentIndex(3)
+        self.backToCaliButton.setEnabled(True)
         self.resetVideo()
+        print(f'enable threshold{self.video_file[0]}')
+        print(f'enable threshold{self.playCapture.isOpened()}')
+
+    def selectCaliTab(self):
+        # when enable cali tab, vid been reset, self.playCapture released
+        # self.playCapture is closed now
+        self.tabWidget.setTabEnabled(2, True)
+        self.tabWidget.setTabEnabled(3, False)
+        self.tabWidget.setCurrentIndex(2)
+        self.resetVideo()
+        self.resetThrePara()
         print(f'enable threshold{self.video_file[0]}')
         print(f'enable threshold{self.playCapture.isOpened()}')
 
@@ -904,6 +1063,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.tabWidget.setTabEnabled(3, False)
         self.tabWidget.setTabEnabled(4, True)
         self.tabWidget.setCurrentIndex(4)
+        self.backToThreButton.setEnabled(True)
         self.trackStartButton.setEnabled(True)
         self.trackingThread.block_size = self.block_size
         self.trackingThread.offset = self.offset
@@ -913,6 +1073,13 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.resetVideo()
         print(f'enable tracking{self.video_file[0]}')
         print(f'enable tracking{self.playCapture.isOpened()}')
+
+    def selectThreTab(self):
+        self.tabWidget.setTabEnabled(3, True)
+        self.tabWidget.setTabEnabled(4, False)
+        self.tabWidget.setCurrentIndex(3)
+        self.trackStartButton.setEnabled(False)
+        self.resetVideo()
 
     def setTrackingCanvas(self, frame):
         self.trackingeBoxLabel.setPixmap(frame)
@@ -925,6 +1092,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         if self.status is MainWindow.STATUS_INIT:
             try:
                 self.startTracking()
+                self.trackingThread.trackingMethod.registration=[]
+
             except:
                 self.error_msg = QMessageBox()
                 self.error_msg.setWindowTitle('Error')
@@ -963,6 +1132,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.status = MainWindow.STATUS_PLAYING
 
         self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
+        self.backToThreButton.setEnabled(False)
 
     def stopTracking(self):
         '''
@@ -973,6 +1143,10 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.trackingThread.stop()
             self.trackingThread.playCapture.release()
             self.dataLogThread.stop()
+
+            # self.dataLogThread.df_archive = []
+            # self.trackingThread.trackingMethod.registration = []
+
             self.readVideoFile(self.video_file[0])
             self.status = MainWindow.STATUS_INIT
             self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
@@ -1024,14 +1198,20 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.dataLogThread.track_elapse(tracked_elapse)
 
     def completeTracking(self):
+
         self.info_msg = QMessageBox()
         self.info_msg.setWindowTitle('TrackingBot')
         self.info_msg.setIcon(QMessageBox.Information)
         self.info_msg.setText('Tracking finished.')
         self.info_msg.exec()
 
+        self.trackStartButton.setEnabled(False)
+        self.backToThreButton.setEnabled(True)
+
         # enable export data button
         self.exportDataButton.setEnabled(True)
+        self.exportGraphButton.setEnabled(True)
+        self.visualizeToggle.setEnabled(True)
 
     def exportData(self):
         # dialog = QtGui.QFileDialog()
@@ -1070,6 +1250,46 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                                                'Please submit this issue on GitHub to help us improve. ')
                 self.error_msg.exec()
 
+    def exportGraph(self):
+        print(self.figure)
+        print(self.graph)
+        self.folder_path = QFileDialog.getExistingDirectory(None, 'Select Folder', 'C:/Users/Public/Documents')
+        print(self.folder_path)
+        if self.folder_path == '':
+            return
+        else:
+            try:
+
+                # self.convertData(self.folder_path)
+                # dataframe = pd.DataFrame(np.array([[1, 2, 3], [4, 5, 6], [7, 8, 9]]),
+                #                    columns=['a', 'b', 'c'])
+                #
+                full_path = self.folder_path + '/Heatmap.png'
+                # writer = pd.ExcelWriter(full_path, engine='xlsxwriter')
+                # dataframe.to_excel(writer, sheet_name='Sheet1',index=False)
+                self.figure.savefig(full_path,dpi = 150,bbox_inches=None)
+                # writer.save()
+                # return folder_path
+
+                self.info_msg = QMessageBox()
+                self.info_msg.setWindowTitle('TrackingBot')
+                self.info_msg.setIcon(QMessageBox.Information)
+                self.info_msg.setText('Successfully saved graph')
+                self.info_msg.addButton('OK', QMessageBox.RejectRole)
+                self.info_msg.addButton('Open folder', QMessageBox.AcceptRole)
+                self.info_msg.buttonClicked.connect(self.openDataFolder)
+                self.info_msg.exec()
+            except:
+                self.error_msg = QMessageBox()
+                self.error_msg.setWindowTitle('Error')
+                self.error_msg.setText('An error happened when trying to export graph.')
+                self.error_msg.setInformativeText('exportGraph() does not execute correctly.')
+                self.error_msg.setIcon(QMessageBox.Warning)
+                self.error_msg.setDetailedText('You caught a bug! \n'
+                                               'Please submit this issue on GitHub to help us improve. ')
+                self.error_msg.exec()
+
+
     def convertData(self, save_path):
         self.save_path = save_path
         # self.tracked_result = self.dataLogThread.df_archive.copy()
@@ -1081,22 +1301,22 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # pay attention to dtype!!!
         # otherwise can not perform calculation betwteen different datatype
         # such as str and float
-        dataframe = pd.DataFrame(np.array(self.dataLogThread.df_archive),
+        self.dataframe = pd.DataFrame(np.array(self.dataLogThread.df_archive),
                                  columns=['Result(Frame)','Video elapse','Subject','pos_x', 'pos_y'])
 
-        dataframe['Result(Frame)'] = dataframe['Result(Frame)'].astype(int)
-        dataframe['Video elapse'] = dataframe['Video elapse'].astype(str)
-        dataframe['Subject'] = 'Subject ' + dataframe['Subject'].astype(str)
-        dataframe['pos_x'] = dataframe['pos_x'].astype(float)
-        dataframe['pos_y'] = dataframe['pos_y'].astype(float)
+        self.dataframe['Result(Frame)'] = self.dataframe['Result(Frame)'].astype(int)
+        self.dataframe['Video elapse'] = self.dataframe['Video elapse'].astype(str)
+        self.dataframe['Subject'] = 'Subject ' + self.dataframe['Subject'].astype(str)
+        self.dataframe['pos_x'] = self.dataframe['pos_x'].astype(float)
+        self.dataframe['pos_y'] = self.dataframe['pos_y'].astype(float)
 
-        dataframe_per_sec = dataframe.copy().loc[dataframe['Result(Frame)'] % self.video_fps == 0]
+        dataframe_per_sec = self.dataframe.copy().loc[self.dataframe['Result(Frame)'] % self.video_prop.fps == 0]
 
-        dx = dataframe['pos_x'] - dataframe['pos_x'].shift(self.object_num)
-        dy = dataframe['pos_y'] - dataframe['pos_y'].shift(self.object_num)
-        dataframe['Distance moved (mm)'] = (np.sqrt(dx ** 2 + dy ** 2))  / self.pixel_per_metric
-        print(dataframe)
-        dataframe['Distance moved (mm)'] = dataframe['Distance moved (mm)'].astype(float)
+        dx = self.dataframe['pos_x'] - self.dataframe['pos_x'].shift(self.object_num)
+        dy = self.dataframe['pos_y'] - self.dataframe['pos_y'].shift(self.object_num)
+        self.dataframe['Distance moved (mm)'] = (np.sqrt(dx ** 2 + dy ** 2))  / self.pixel_per_metric
+        print(self.dataframe)
+        self.dataframe['Distance moved (mm)'] = self.dataframe['Distance moved (mm)'].astype(float)
 
         dx_per_sec = dataframe_per_sec['pos_x'] - dataframe_per_sec['pos_x'].shift(self.object_num)
         dy_per_sec = dataframe_per_sec['pos_y'] - dataframe_per_sec['pos_y'].shift(self.object_num)
@@ -1109,7 +1329,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         with pd.ExcelWriter(full_path, engine='xlsxwriter') as writer:
 
             dataframe_per_sec.to_excel(writer, sheet_name='Result', index=False)
-            dataframe.to_excel(writer, sheet_name='Raw_data', index=False)
+            self.dataframe.to_excel(writer, sheet_name='Raw_data', index=False)
         # writer = pd.ExcelWriter(full_path, engine='xlsxwriter')
 
         # dataframe.to_excel(writer, sheet_name='Sheet1', index=False, options={'strings_to_numbers': True})
@@ -1124,6 +1344,72 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # worksheet1.set_column('B:B', 14)
         # worksheet.set_column('D:D', None, format1)
 
+
+    def generateGraph(self):
+
+        if self.visualizeToggle.isChecked():
+            if self.graph is None:
+            # make it a true/flase flag
+            # self.figure = Figure()
+            # self.canvas = FigureCanvas(self.figure)
+                ax = self.figure.add_subplot(111)
+                if self.dataframe is None:
+
+                    self.dataframe = pd.DataFrame(np.array(self.dataLogThread.df_archive),
+                                             columns=['Result(Frame)','Video elapse','Subject','pos_x', 'pos_y'])
+
+                    self.dataframe['Result(Frame)'] = self.dataframe['Result(Frame)'].astype(int)
+                    self.dataframe['Video elapse'] = self.dataframe['Video elapse'].astype(str)
+                    self.dataframe['Subject'] = 'Subject ' + self.dataframe['Subject'].astype(str)
+                    self.dataframe['pos_x'] = self.dataframe['pos_x'].astype(float)
+                    self.dataframe['pos_y'] = self.dataframe['pos_y'].astype(float)
+
+                    self.heatmap = ax.hist2d(self.dataframe['pos_x'],self.dataframe['pos_y'],
+                               bins=[np.arange(0,self.video_prop.width,5),np.arange(0,self.video_prop.height,5)],
+                               cmap = 'hot')
+
+                    tick_locator = ticker.LinearLocator(2)
+                    cb = plt.colorbar(self.heatmap[3],ax=ax)
+
+                    cb.locator = tick_locator
+                    cb.update_ticks()
+                    plt.setp(plt.getp(cb.ax.axes, 'yticklabels'), color='red')
+                    cb.set_label(label='Frequency', weight='bold', color = 'red')
+                    ax.invert_yaxis()
+                    ax.axis('off')
+                    self.canvas.draw()
+                    self.graph = ax
+                    # plt.show()
+
+                else:
+                    self.heatmap = ax.hist2d(self.dataframe['pos_x'], self.dataframe['pos_y'],
+                                             bins=[np.arange(0, self.video_prop.width, 5),
+                                                   np.arange(0, self.video_prop.height, 5)],
+                                             cmap='hot')
+
+                    tick_locator = ticker.LinearLocator(2)
+                    cb = plt.colorbar(self.heatmap[3], ax=ax)
+
+                    cb.locator = tick_locator
+                    cb.update_ticks()
+                    plt.setp(plt.getp(cb.ax.axes, 'yticklabels'), color='red')
+                    cb.set_label(label='Frequency', weight='bold', color='red')
+                    ax.invert_yaxis()
+                    ax.axis('off')
+                    self.canvas.draw()
+                    self.graph = ax
+
+                self.verticalLayoutWidget.raise_()
+
+            else:
+                self.verticalLayoutWidget.raise_()
+            #     self.canvas = FigureCanvas(self.graph)
+            #     self.canvas.draw()
+            #
+            # self.verticalLayoutWidget.raise_()
+
+        else:
+            self.verticalLayoutWidget.lower()
 
     def openDataFolder(self):
         '''
@@ -1248,6 +1534,7 @@ class Communicate(QObject):
     tracked_elapse = pyqtSignal(str)
     track_reset = pyqtSignal(str)
     track_reset_alarm = pyqtSignal(str)
+    cam_alarm = pyqtSignal(str)
 
 
 class VideoThread(QThread):
@@ -1281,6 +1568,49 @@ class VideoThread(QThread):
         self.fps = video_fps
         print(f'set fps to {self.fps}')
 
+
+class CameraThread(QThread):
+
+    setPixmap = pyqtSignal(QImage)
+
+    def __init__(self):
+        QThread.__init__(self)
+        self.timeSignal = Communicate()
+        self.mutex = QMutex()
+        self.stopped = False
+
+    def run(self):
+        with QMutexLocker(self.mutex):
+            self.stopped = False
+        try:
+            cap = cv2.VideoCapture(0,cv2.CAP_DSHOW)
+            while True:
+                if self.stopped:
+                    cap.release()
+                    return
+                else:
+                    ret, frame = cap.read()
+                    if ret:
+                        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                        frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                           QImage.Format_RGB888)
+                        frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+                        self.setPixmap.emit(frame_scaled)
+                    else:
+
+                        self.timeSignal.cam_alarm.emit('1')
+                        return
+        except:
+            print('no camera')
+
+    def stop(self):
+        # self.setPixmap.emit(QImage())
+        with QMutexLocker(self.mutex):
+            self.stopped = True
+
+    def is_stopped(self):
+        with QMutexLocker(self.mutex):
+            return self.stopped
 
 class ThreshVidThread(QThread):
 
@@ -1523,6 +1853,11 @@ class TrackingThread(QThread):
     def stop(self):
         with QMutexLocker(self.mutex):
             self.stopped = True
+        # print(self.trackingMethod.registration)
+        # self.trackingMethod.registration.clear()
+        # print(self.trackingMethod.registration)
+            # print(self.trackingMethod.registration)
+            # self.trackingMethod.registration = []
 
     def set_fps(self, video_fps):
         self.fps = video_fps
@@ -1614,12 +1949,12 @@ class DataLogThread(QThread):
             self.stopped = True
 
 
-
 if __name__ == "__main__":
     import sys
 
     app = QtWidgets.QApplication(sys.argv)
 
+    app.setStyleSheet((open('stylesheet.qss').read()))
     # connect subclass with parent class
     window = MainWindow()
     window.show()
