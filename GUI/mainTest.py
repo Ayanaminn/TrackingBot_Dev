@@ -6,7 +6,7 @@ from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QObject, QMutex, QMu
 from qtwidgets import Toggle, AnimatedToggle
 
 import os
-import resources
+
 import subprocess
 import cv2
 import time
@@ -16,13 +16,12 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 from matplotlib import ticker
-# from matplotlib.backends.qt_compat import QtCore, QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from scipy.spatial import distance
-import threading
-import concurrent.futures
-import mainGUI_dark_orange
+import serial
+import serial.tools.list_ports
+import mainGUI
 import mainGUI_calibration as Calibration
 from Tracking import TrackingMethod
 from Datalog import TrackingDataLog
@@ -37,7 +36,7 @@ from Datalog import TrackingDataLog
 
 # import mainGUI_detection as Detection
 
-class MainWindow(QtWidgets.QMainWindow, mainGUI_dark_orange.Ui_MainWindow):
+class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
     STATUS_INIT = 0
     STATUS_PLAYING = 1
     STATUS_PAUSE = 2
@@ -50,8 +49,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI_dark_orange.Ui_MainWindow):
         # uic.loadUi(fileh, self)
         # fileh.close()
         # # Need be full path, otherwise complier cannot found file
-        # self.setWindowIcon(QtGui.QIcon('C:/Users/BioMEMS/Desktop/Yutao/Real-time object tracking '
-        #                                'project/OpenCV/GUI/Lab-Logo-black.png'))
+        self.setWindowIcon(QtGui.QIcon('icon.png'))
         # self.thresh_vid = Detection.ThresholdVideo()
         # self.convert_scale = Calibration.Calibrate()
 
@@ -249,6 +247,21 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI_dark_orange.Ui_MainWindow):
         self.closeCamButton.clicked.connect(self.closeCamera)
         self.backToMenuButton_2.clicked.connect(self.selectMainMenu)
 
+        self.camBoxCanvasLabel = Calibration.Drawing(self.loadCamTab)
+        self.camBoxCanvasLabel.setEnabled(False)
+        self.camBoxCanvasLabel.lower()
+        self.camBoxCanvasLabel.setGeometry(QRect(0, 0, 1024, 576))
+        self.camBoxCanvasLabel.setAlignment(QtCore.Qt.AlignCenter)
+        self.camBoxCanvasLabel.setFrameShape(QtWidgets.QFrame.Box)
+        self.camBoxCanvasLabel.setCursor(Qt.CrossCursor)
+        # force trasparent to override application style
+        self.camBoxCanvasLabel.setStyleSheet("background-color: rgba(0,0,0,0%)")
+        self.drawScaleButton_2.clicked.connect(self.drawControlROI)
+
+        # initial blank value
+        self.comboBox.addItem('')
+        self.comboBox.currentIndexChanged.connect(self.selectionchange)
+
 
 
     def selectMainMenu(self):
@@ -276,6 +289,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI_dark_orange.Ui_MainWindow):
         self.tabWidget.setTabEnabled(5, True)
         self.tabWidget.setCurrentIndex(5)
         self.backToMenuButton_2.setEnabled(True)
+        self.selectPort()
 
     def selectVideoFile(self):
 
@@ -684,6 +698,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI_dark_orange.Ui_MainWindow):
         # bg = QPixmap(1024, 576)
         # bg.fill(Qt.black)
         # self.camBoxLabel.setPixmap(bg)
+
+
     #####################################Functions for calibaration##########################
 
     def enableCalibration(self):
@@ -1422,6 +1438,32 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI_dark_orange.Ui_MainWindow):
         except:
             subprocess.Popen(['xdg-open', self.folder_path])
 
+###############################################Functions for hardware#################################
+
+    def selectPort(self):
+        ports = serial.tools.list_ports.comports()
+
+        available_ports = []
+
+        for p in ports:
+            available_ports.append(p.description)
+            print(str(p.description))
+
+        print(available_ports)
+        self.comboBox.addItems(available_ports)
+
+
+    def selectionchange(self):
+        print(f'select{self.comboBox.currentText()}')
+
+    def drawControlROI(self):
+        # self.caliBoxLabel.setEnabled(True)
+        self.camBoxCanvasLabel.setEnabled(True)
+        # self.metricNumInput.setEnabled(True)
+        # self.resetScaleButton.setEnabled(True)
+        # self.applyScaleButton.setEnabled(True)
+        self.camBoxLabel.lower()
+        self.camBoxCanvasLabel.raise_()
 
 class Detection():
 
@@ -1611,6 +1653,7 @@ class CameraThread(QThread):
     def is_stopped(self):
         with QMutexLocker(self.mutex):
             return self.stopped
+
 
 class ThreshVidThread(QThread):
 
