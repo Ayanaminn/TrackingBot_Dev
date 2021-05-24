@@ -1799,6 +1799,9 @@ QTabBar::tab:selected {
         <layout class="QVBoxLayout" name="verticalLayout_8">
          <item>
           <widget class="QSlider" name="camCntMaxSlider">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="minimum">
             <number>0</number>
            </property>
@@ -1818,6 +1821,9 @@ QTabBar::tab:selected {
          </item>
          <item>
           <widget class="QSlider" name="camCntMinSlider">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="minimum">
             <number>1</number>
            </property>
@@ -1860,6 +1866,9 @@ QTabBar::tab:selected {
          </item>
          <item>
           <widget class="QSpinBox" name="camCntMaxSpin">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
              <horstretch>0</horstretch>
@@ -1895,6 +1904,9 @@ QTabBar::tab:selected {
          </item>
          <item>
           <widget class="QSpinBox" name="camCntMinSpin">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
              <horstretch>0</horstretch>
@@ -2004,6 +2016,9 @@ QTabBar::tab:selected {
       </property>
      </widget>
      <widget class="QSlider" name="camBlockSizeSlider">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
       <property name="geometry">
        <rect>
         <x>1030</x>
@@ -2026,6 +2041,9 @@ QTabBar::tab:selected {
       </property>
      </widget>
      <widget class="QSpinBox" name="camBlockSizeSpin">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
       <property name="geometry">
        <rect>
         <x>1250</x>
@@ -2066,6 +2084,9 @@ QTabBar::tab:selected {
       </property>
      </widget>
      <widget class="QSlider" name="camOffsetSlider">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
       <property name="geometry">
        <rect>
         <x>1030</x>
@@ -2091,6 +2112,9 @@ QTabBar::tab:selected {
       </property>
      </widget>
      <widget class="QSpinBox" name="camOffsetSpin">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
       <property name="geometry">
        <rect>
         <x>1250</x>
@@ -2328,6 +2352,9 @@ QTabBar::tab:selected {
        </property>
        <item>
         <widget class="QPushButton" name="drawScaleButton_2">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
          <property name="sizePolicy">
           <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
            <horstretch>0</horstretch>
