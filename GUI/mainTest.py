@@ -92,6 +92,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.threshCamThread.timeSignal.cam_thresh_signal.connect(self.displayThresholdCam)
         self.threshCamThread.timeSignal.cam_thresh_preview.connect(self.displayThresholdCamPreview)
 
+        self.trackingCamThread = TrackingCamThread()
+        self.trackingCamThread.timeSignal.cam_tracked_object.connect(self.updateLiveTrackResult)
+
         self.dataLogThread = DataLogThread()
         self.dataframe = None
 
@@ -1571,26 +1574,24 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         Apply current threshold parameter settings and activate next step
         '''
         # self.object_num = self.objNumBox.value()
-        # self.block_size = self.threshThread.block_size
-        # self.offset = self.threshThread.offset
-        # self.min_contour = self.threshThread.min_contour
-        # self.max_contour = self.threshThread.max_contour
-        # self.invert_contrast = self.threshThread.invert_contrast
+        self.block_size = self.threshCamThread.block_size
+        self.offset = self.threshCamThread.offset
+        self.min_contour = self.threshCamThread.min_contour
+        self.max_contour = self.threshCamThread.max_contour
+        self.invert_contrast = self.threshCamThread.invert_contrast
         #
-        # self.applyThreButton.setEnabled(False)
-        # self.objNumBox.setEnabled(False)
-        # self.blockSizeSlider.setEnabled(False)
-        # self.blockSizeSpin.setEnabled(False)
-        # self.offsetSlider.setEnabled(False)
-        # self.offsetSpin.setEnabled(False)
-        # self.cntMinSlider.setEnabled(False)
-        # self.cntMinSpin.setEnabled(False)
-        # self.cntMaxSlider.setEnabled(False)
-        # self.cntMaxSpin.setEnabled(False)
-        # self.previewBoxLabel.lower()
-        # self.previewToggle.setEnabled(False)
-        # self.previewToggle.setChecked(False)
-        # self.invertContrastToggle.setEnabled(False)
+        self.applyCamThreButton.setEnabled(False)
+        self.camPreviewBoxLabel.lower()
+        self.previewToggle_2.setEnabled(False)
+        self.invertContrastToggle_2.setEnabled(False)
+        self.camBlockSizeSlider.setEnabled(False)
+        self.camBlockSizeSpin.setEnabled(False)
+        self.camOffsetSlider.setEnabled(False)
+        self.camOffsetSpin.setEnabled(False)
+        self.camCntMinSlider.setEnabled(False)
+        self.camCntMinSpin.setEnabled(False)
+        self.camCntMaxSlider.setEnabled(False)
+        self.camCntMaxSpin.setEnabled(False)
         #
         # self.trackTabLinkButton.setEnabled(True)
         #
@@ -1617,9 +1618,28 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # self.invertContrastToggle.setEnabled(True)
         #
         # self.trackTabLinkButton.setEnabled(False)
+        self.applyCamThreButton.setEnabled(True)
+        self.previewToggle_2.setEnabled(True)
+        self.invertContrastToggle_2.setEnabled(True)
+        self.camBlockSizeSlider.setEnabled(True)
+        self.camBlockSizeSpin.setEnabled(True)
+        self.camOffsetSlider.setEnabled(True)
+        self.camOffsetSpin.setEnabled(True)
+        self.camCntMinSlider.setEnabled(True)
+        self.camCntMinSpin.setEnabled(True)
+        self.camCntMaxSlider.setEnabled(True)
+        self.camCntMaxSpin.setEnabled(True)
 
+################################################################
 
+    def updateLiveTrackResult(self, tracked_object):
+        '''
+        pass the list of registered object information to datalog thread
+        '''
 
+        # reset df list
+
+        self.dataLogThread.track_data(tracked_object)
     ###############################################Functions for hardware#################################
 
     def selectPort(self):
@@ -1763,6 +1783,7 @@ class Communicate(QObject):
     updateSliderPos = QtCore.pyqtSignal(float)
     tracking_signal = pyqtSignal(QImage)
     tracked_object = pyqtSignal(list)
+    cam_tracked_object = pyqtSignal(list)
     tracked_index = pyqtSignal(int)
     tracked_elapse = pyqtSignal(str)
     track_reset = pyqtSignal(str)
@@ -2290,6 +2311,163 @@ class DataLogThread(QThread):
         with QMutexLocker(self.mutex):
             self.stopped = True
 
+
+class TrackingCamThread(QThread):
+
+    def __init__(self):
+        QThread.__init__(self)
+
+        self.stopped = False
+
+        self.frame_count = -1  # first frame start from 0
+        self.start_delta = time.perf_counter()
+        self.timeSignal = Communicate()
+        self.mutex = QMutex()
+        self.detection = Detection()
+        self.trackingMethod = TrackingMethod(30, 60, 100)
+        self.trackingDataLog = TrackingDataLog()
+
+        self.block_size = 11
+        self.offset = 11
+        self.min_contour = 1
+        self.max_contour = 100
+        self.invert_contrast = False
+        # self.obj_id = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+        #           'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+        # create a list of numbers to mark subject indentity
+        self.id_list = list(range(1, 100))
+        # the elements in this list needs to be in string format
+        self.obj_id = [format(x, '01d') for x in self.id_list]
+        self.video_elapse = 0
+
+    def run(self):
+
+        # video = self.playCapture.open(self.file[0])
+        with QMutexLocker(self.mutex):
+            self.stopped = False
+        try:
+            cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+            while True:
+                tic = time.perf_counter()
+
+                if self.stopped:
+                    cap.release()
+                    return
+                else:
+                    ret, frame = self.cap.read()
+                    if ret:
+                        # get_clock = self.trackingDataLog.updateClock()
+                        # # current position in milliseconds
+                        # pos_elapse = self.playCapture.get(cv2.CAP_PROP_POS_MSEC)
+                        # # current position calculated using current frame/fps, used for slider progress
+                        # play_elapse = self.playCapture.get(cv2.CAP_PROP_POS_FRAMES) / self.playCapture.get(cv2.CAP_PROP_FPS)
+                        # self.timeSignal.updateSliderPos.emit(play_elapse)
+                        end_delta = time.perf_counter()
+                        elapse_delta = timedelta(seconds=end_delta - self.start_delta).total_seconds()
+                        self.frame_count += 1
+                        #
+                        # # get time stamp mark
+                        # is_timeStamp, video_elapse = self.trackingDataLog.localTimeStamp(pos_elapse, interval=None)
+                        #
+                        # self.video_elapse = video_elapse
+                        # frame rate of living camera source
+                        fps = round(self.frame_count / elapse_delta)
+                        # get current date and time
+                        get_clock = self.trackingDataLog.updateClock()
+
+                        # get time stamp mark
+                        is_timeStamp, video_elapse = self.trackingDataLog.liveTimeStamp(fps,
+                                                                                   elapse_delta,
+                                                                                   self.frame_count,
+                                                                                   interval=None)
+
+                        if self.invert_contrast:
+                            invert_cam = cv2.bitwise_not(frame)
+
+                            thre_cam = self.detection.thresh_video(invert_cam,
+                                                                   self.block_size,
+                                                                   self.offset)
+
+                            contour_cam, pos_detection = self.detection.detect_contours(frame,
+                                                                                        thre_cam,
+                                                                                        self.min_contour,
+                                                                                        self.max_contour)
+
+                            self.trackingMethod.identify(pos_detection)
+
+                            ## mark indentity of each objects
+                            self.trackingMethod.visualize(contour_cam, self.obj_id, is_centroid=True,
+                                                          is_mark=True, is_trajectory=True)
+
+                            # # # # pass tracking data to datalog thread when local tracking
+                            if is_timeStamp:
+                                self.timeSignal.cam_tracked_object.emit(self.trackingMethod.registration)
+                            #     self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
+                            #     self.timeSignal.tracked_elapse.emit(self.video_elapse)
+
+                            frame_rgb = cv2.cvtColor(contour_cam, cv2.COLOR_BGR2RGB)
+
+                            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+
+                            # self.timeSignal.tracking_signal.emit(frame_scaled)
+                            # time.sleep(1/25)
+
+
+                        elif not self.invert_contrast:
+                            thre_cam = self.detection.thresh_video(frame,
+                                                                   self.block_size,
+                                                                   self.offset)
+
+                            contour_cam, pos_detection = self.detection.detect_contours(frame,
+                                                                                        thre_cam,
+                                                                                        self.min_contour,
+                                                                                        self.max_contour)
+
+                            self.trackingMethod.identify(pos_detection)
+
+                            ## mark indentity of each objects
+                            self.trackingMethod.visualize(contour_cam, self.obj_id, is_centroid=True,
+                                                          is_mark=True, is_trajectory=True)
+
+                            # # # # pass tracking data to datalog thread when local tracking
+                            if is_timeStamp:
+                                 self.timeSignal.cam_tracked_object.emit(self.trackingMethod.registration)
+                            #     self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
+                            #     self.timeSignal.tracked_elapse.emit(self.video_elapse)
+
+                            frame_rgb = cv2.cvtColor(contour_cam, cv2.COLOR_BGR2RGB)
+
+                            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+
+                            # self.timeSignal.tracking_signal.emit(frame_scaled)
+                            # time.sleep(1/25)
+
+                        toc = time.perf_counter()
+                        print(f'Time Elapsed Per Loop {toc - tic:.3f}')
+                    elif not ret:
+                        # video finished
+                        pass
+                        # self.timeSignal.track_reset_alarm.emit('1')
+                        # self.timeSignal.track_reset.emit('1')
+
+        except:
+            print('no cam')
+
+    def stop(self):
+        with QMutexLocker(self.mutex):
+            self.stopped = True
+        # print(self.trackingMethod.registration)
+        # self.trackingMethod.registration.clear()
+        # print(self.trackingMethod.registration)
+        # print(self.trackingMethod.registration)
+        # self.trackingMethod.registration = []
+
+    def set_fps(self, video_fps):
+        self.fps = video_fps
 
 if __name__ == "__main__":
     import sys
