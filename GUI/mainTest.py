@@ -67,7 +67,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         # timer for camera source
         self.cameraThread = CameraThread()
-        self.cameraThread.setPixmap.connect(self.displayCamera)
+        # self.cameraThread.setPixmap.connect(self.displayCamera)
+        self.cameraThread.timeSignal.cam_signal.connect(self.displayCamera)
         self.cameraThread.timeSignal.cam_alarm.connect(self.reloadCamera)
 
         # timer for threshold video player on load tab
@@ -91,6 +92,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.threshCamThread = ThreshCamThread()
         self.threshCamThread.timeSignal.cam_thresh_signal.connect(self.displayThresholdCam)
         self.threshCamThread.timeSignal.cam_thresh_preview.connect(self.displayThresholdCamPreview)
+        self.threshCamThread.timeSignal.cam_alarm.connect(self.reloadCamera)
 
         self.trackingCamThread = TrackingCamThread()
         self.trackingCamThread.timeSignal.cam_tracked_object.connect(self.updateLiveTrackResult)
@@ -261,8 +263,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.camBoxCanvasLabel.setCursor(Qt.CrossCursor)
         # force trasparent to override application style
         self.camBoxCanvasLabel.setStyleSheet("background-color: rgba(0,0,0,0%)")
-        self.drawScaleButton_2.clicked.connect(self.drawControlROI)
-        self.resetScaleButton_2.clicked.connect(self.clearControlROI)
 
         self.camPreviewBoxLabel.lower()
         self.previewToggle_2 = Toggle(self.loadCamTab)
@@ -278,21 +278,26 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.camBlockSizeSlider.valueChanged.connect(self.setCamBlockSizeSlider)
         self.camBlockSizeSpin.valueChanged.connect(self.setCamBlockSizeSpin)
         #
-
         self.camOffsetSlider.valueChanged.connect(self.setCamOffsetSlider)
         self.camOffsetSpin.valueChanged.connect(self.setCamOffsetSpin)
         #
-
         self.camCntMinSlider.valueChanged.connect(self.setCamMinCntSlider)
         self.camCntMinSpin.valueChanged.connect(self.setCamMinCntSpin)
         #
-
         self.camCntMaxSlider.valueChanged.connect(self.setCamMaxCntSlider)
         self.camCntMaxSpin.valueChanged.connect(self.setCamMaxCntSpin)
 
-        # initial blank value
+        self.applyCamThreButton.clicked.connect(self.applyThreCamPara)
+        self.resetCamThreButton.clicked.connect(self.resetThreCamPara)
+
+        #############################################################
+        # signals and widgets for the hardware control
         self.comboBox.addItem('')
         self.comboBox.currentIndexChanged.connect(self.selectionchange)
+        self.drawScaleButton_2.clicked.connect(self.drawControlROI)
+        self.resetScaleButton_2.clicked.connect(self.clearControlROI)
+
+
 
     def selectMainMenu(self):
         self.tabWidget.setTabEnabled(0, True)
@@ -664,10 +669,11 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.setPauseIcon()
 
     #####################################Functions for load camera#############
+
     def readCamera(self):
+
         self.camBoxLabel.show()
         try:
-
             # camera_cap = self.playCapture.open(0,cv2.CAP_DSHOW)
             camera_prop = self.readCamProp(cv2.VideoCapture(0, cv2.CAP_DSHOW))
             print(camera_prop)
@@ -689,7 +695,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.camCntMaxSlider.setEnabled(True)
             self.camCntMaxSpin.setEnabled(True)
 
-
         except:
             self.error_msg = QMessageBox()
             self.error_msg.setWindowTitle('Error')
@@ -708,17 +713,21 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         return get_camera_prop
 
-    @pyqtSlot(QImage)
-    def displayCamera(self, image):
-        self.camBoxLabel.setPixmap(QPixmap.fromImage(image))
+    def displayCamera(self, frame):
+
+        frame_display = QPixmap.fromImage(frame)
+        self.camBoxLabel.setPixmap(frame_display)
 
     def reloadCamera(self):
+
         self.cameraThread.stop()
+        self.threshCamThread.stop()
+        self.trackingCamThread.stop()
         self.error_msg = QMessageBox()
         self.error_msg.setWindowTitle('Error')
-        self.error_msg.setText('Failed to open camera.')
+        self.error_msg.setText('No camera frame returned.')
         self.error_msg.setInformativeText('cv2.VideoCapture() does not return frame\n'
-                                          'Please make sure camera is connected with computer.\n')
+                                          'Please make sure camera is working and try to reload camera.\n')
         self.error_msg.setIcon(QMessageBox.Warning)
         self.error_msg.setDetailedText('You caught a bug! \n'
                                        'Please submit this issue on GitHub to help us improve. ')
@@ -726,7 +735,11 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.openCamButton.show()
 
     def closeCamera(self):
+
         self.cameraThread.stop()
+        self.threshCamThread.stop()
+        self.trackingCamThread.stop()
+
         QPixmapCache.clear()
         self.camBoxLabel.hide()
 
@@ -734,10 +747,10 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.closeCamButton.setEnabled(False)
         self.drawScaleButton_2.setEnabled(False)
         self.resetScaleButton_2.setEnabled(False)
-        self.camPreviewBoxLabel.lower()
-        self.camBoxCanvasLabel.lower()
         self.camBoxCanvasLabel.setEnabled(False)
+        self.camPreviewBoxLabel.hide()
 
+        self.previewToggle_2.setChecked(False)
         self.previewToggle_2.setEnabled(False)
         self.invertContrastToggle_2.setEnabled(False)
         self.camBlockSizeSlider.setEnabled(False)
@@ -1505,13 +1518,16 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.camPreviewBoxLabel.setPixmap(preview_display)
 
     def invertCamContrast(self):
+
         if self.invertContrastToggle_2.isChecked():
             self.threshCamThread.invert_contrast = True
         else:
             self.threshCamThread.invert_contrast = False
 
     def enableCamThrePreview(self):
+
         if self.previewToggle_2.isChecked():
+            self.camPreviewBoxLabel.show()
             self.camPreviewBoxLabel.raise_()
         else:
             self.camPreviewBoxLabel.lower()
@@ -1592,11 +1608,10 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.camCntMinSpin.setEnabled(False)
         self.camCntMaxSlider.setEnabled(False)
         self.camCntMaxSpin.setEnabled(False)
-        #
-        # self.trackTabLinkButton.setEnabled(True)
-        #
-        # print(self.object_num, self.block_size, self.offset, self.min_contour, self.max_contour)
 
+        print(self.object_num, self.block_size, self.offset, self.min_contour, self.max_contour)
+
+        self.trackingCamThread.ROI = self.camBoxCanvasLabel.line_coordinates
     def resetThreCamPara(self):
         '''
         Reset current threshold parameter settings
@@ -1630,7 +1645,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.camCntMaxSlider.setEnabled(True)
         self.camCntMaxSpin.setEnabled(True)
 
-################################################################
+        self.trackingCamThread.ROI = None
+#   ###############################################################
 
     def updateLiveTrackResult(self, tracked_object):
         '''
@@ -1640,6 +1656,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # reset df list
 
         self.dataLogThread.track_data(tracked_object)
+
     ###############################################Functions for hardware#################################
 
     def selectPort(self):
@@ -1665,6 +1682,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # self.applyScaleButton.setEnabled(True)
         # self.camBoxLabel.lower()
         self.camBoxCanvasLabel.raise_()
+
+        # self.camBoxCanvasLabel.line_coordinates
 
     def clearControlROI(self):
         self.camBoxCanvasLabel.earse()
@@ -1775,6 +1794,7 @@ class Detection():
 
 class Communicate(QObject):
     signal = pyqtSignal(str)
+    cam_signal = pyqtSignal(QImage)
     thresh_signal = pyqtSignal(QImage)
     cam_thresh_signal = pyqtSignal(QImage)
     thresh_preview = pyqtSignal(QImage)
@@ -1824,7 +1844,6 @@ class VideoThread(QThread):
 
 
 class CameraThread(QThread):
-    setPixmap = pyqtSignal(QImage)
 
     def __init__(self):
         QThread.__init__(self)
@@ -1849,12 +1868,21 @@ class CameraThread(QThread):
                                            QImage.Format_RGB888)
                         frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
                         self.setPixmap.emit(frame_scaled)
+                        self.timeSignal.cam_signal.emit(frame_scaled)
                     else:
-
+                        # call reloadCamera() to try reload camera
                         self.timeSignal.cam_alarm.emit('1')
                         return
         except:
-            print('no camera')
+            self.error_msg = QMessageBox()
+            self.error_msg.setWindowTitle('Error')
+            self.error_msg.setText('Failed to open camera.')
+            self.error_msg.setInformativeText('ThreshCamThread.run() failed\n'
+                                              'Please make sure camera is connected with computer.\n')
+            self.error_msg.setIcon(QMessageBox.Warning)
+            self.error_msg.setDetailedText('You caught a bug! \n'
+                                           'Please submit this issue on GitHub to help us improve. ')
+            self.error_msg.exec()
 
     def stop(self):
         # self.setPixmap.emit(QImage())
@@ -2125,22 +2153,19 @@ class ThreshCamThread(QThread):
         self.timeSignal = Communicate()
         self.mutex = QMutex()
         self.detection = Detection()
-        # self.playCapture = cv2.VideoCapture()
-        self.block_size = 11
-        self.offset = 11
-        self.min_contour = 500
-        self.max_contour = 1000
+        self.block_size = 3
+        self.offset = 2
+        self.min_contour = 1
+        self.max_contour = 100
         self.invert_contrast = False
 
     def run(self):
 
-        # video = self.playCapture.open(self.file[0])
         with QMutexLocker(self.mutex):
             self.stopped = False
         try:
             cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
             while True:
-                tic = time.perf_counter()
                 if self.stopped:
                     cap.release()
                     return
@@ -2204,16 +2229,20 @@ class ThreshCamThread(QThread):
                             thcam_scaled = thcam_cvt.scaled(320, 180, Qt.KeepAspectRatio)
                             self.timeSignal.cam_thresh_preview.emit(thcam_scaled)
 
-                        toc = time.perf_counter()
-                        print(f'Time Elapsed Per Loop {toc - tic:.3f}')
                     elif not ret:
-                        print('No camera frame returned')
-                        # video finished
-                        # self.timeSignal.thresh_reset.emit('1')
-
+                        # call reloadCamera() to try reload camera
+                        self.timeSignal.cam_alarm.emit('1')
                         return
         except:
-            print('no camera')
+            self.error_msg = QMessageBox()
+            self.error_msg.setWindowTitle('Error')
+            self.error_msg.setText('Failed to open camera.')
+            self.error_msg.setInformativeText('ThreshCamThread.run() failed\n'
+                                              'Please make sure camera is connected with computer.\n')
+            self.error_msg.setIcon(QMessageBox.Warning)
+            self.error_msg.setDetailedText('You caught a bug! \n'
+                                           'Please submit this issue on GitHub to help us improve. ')
+            self.error_msg.exec()
 
     def stop(self):
         with QMutexLocker(self.mutex):
@@ -2318,31 +2347,31 @@ class TrackingCamThread(QThread):
         QThread.__init__(self)
 
         self.stopped = False
-
-        self.frame_count = -1  # first frame start from 0
-        self.start_delta = time.perf_counter()
         self.timeSignal = Communicate()
         self.mutex = QMutex()
         self.detection = Detection()
         self.trackingMethod = TrackingMethod(30, 60, 100)
         self.trackingDataLog = TrackingDataLog()
 
-        self.block_size = 11
-        self.offset = 11
+        self.block_size = 3
+        self.offset = 2
         self.min_contour = 1
         self.max_contour = 100
         self.invert_contrast = False
-        # self.obj_id = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
-        #           'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
+
         # create a list of numbers to mark subject indentity
         self.id_list = list(range(1, 100))
         # the elements in this list needs to be in string format
         self.obj_id = [format(x, '01d') for x in self.id_list]
+
         self.video_elapse = 0
+        self.frame_count = -1  # first frame start from 0
+        self.start_delta = time.perf_counter()
+
+        self.ROI = None
 
     def run(self):
 
-        # video = self.playCapture.open(self.file[0])
         with QMutexLocker(self.mutex):
             self.stopped = False
         try:
@@ -2356,28 +2385,22 @@ class TrackingCamThread(QThread):
                 else:
                     ret, frame = self.cap.read()
                     if ret:
-                        # get_clock = self.trackingDataLog.updateClock()
-                        # # current position in milliseconds
-                        # pos_elapse = self.playCapture.get(cv2.CAP_PROP_POS_MSEC)
-                        # # current position calculated using current frame/fps, used for slider progress
-                        # play_elapse = self.playCapture.get(cv2.CAP_PROP_POS_FRAMES) / self.playCapture.get(cv2.CAP_PROP_FPS)
-                        # self.timeSignal.updateSliderPos.emit(play_elapse)
-                        end_delta = time.perf_counter()
-                        elapse_delta = timedelta(seconds=end_delta - self.start_delta).total_seconds()
-                        self.frame_count += 1
-                        #
-                        # # get time stamp mark
-                        # is_timeStamp, video_elapse = self.trackingDataLog.localTimeStamp(pos_elapse, interval=None)
-                        #
-                        # self.video_elapse = video_elapse
-                        # frame rate of living camera source
-                        fps = round(self.frame_count / elapse_delta)
+                        print(self.ROI) # test ROI coordinate is passed
+
                         # get current date and time
                         get_clock = self.trackingDataLog.updateClock()
 
+                        # absolute time elapsed after start capturing
+                        self.end_delta = time.perf_counter()
+                        self.elapse_delta = timedelta(seconds=self.end_delta - self.start_delta).total_seconds()
+
+                        self.frame_count += 1
+                        # calculate frame rate of living camera source accordingly
+                        self.fps = round(self.frame_count / self.elapse_delta)
+
                         # get time stamp mark
-                        is_timeStamp, video_elapse = self.trackingDataLog.liveTimeStamp(fps,
-                                                                                   elapse_delta,
+                        is_timeStamp, camera_elapse = self.trackingDataLog.liveTimeStamp(self.fps,
+                                                                                   self.elapse_delta,
                                                                                    self.frame_count,
                                                                                    interval=None)
 
