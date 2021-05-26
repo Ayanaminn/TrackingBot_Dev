@@ -2018,7 +2018,7 @@ class ThreshVidThread(QThread):
                                                                    self.block_size,
                                                                    self.offset)
 
-                            contour_vid, _ = self.detection.detect_contours(frame,
+                            contour_vid, _ = self.detection.detect_contours(masked_frame,
                                                                             thre_vid,
                                                                             self.min_contour,
                                                                             self.max_contour)
@@ -2044,7 +2044,7 @@ class ThreshVidThread(QThread):
                                                                    self.block_size,
                                                                    self.offset)
 
-                            contour_vid, _ = self.detection.detect_contours(frame,
+                            contour_vid, _ = self.detection.detect_contours(masked_frame,
                                                                             thre_vid,
                                                                             self.min_contour,
                                                                             self.max_contour)
