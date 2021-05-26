@@ -104,7 +104,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.tabWidget.setTabEnabled(1, False)
         self.tabWidget.setTabEnabled(2, False)
-        self.tabWidget.setTabEnabled(3, False)
+        self.tabWidget.setTabEnabled(3, True)
         self.tabWidget.setTabEnabled(4, False)
         self.tabWidget.setTabEnabled(5, False)
 
@@ -157,7 +157,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         ###############################################
         # signal on tab 3
         self.mask_file = ''
+        # self.mask_image = '' # cv2 read image
         self.apply_mask = False
+        self.detection = Detection()
 
         self.object_num = 1
         self.block_size = ''
@@ -166,12 +168,21 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.max_contour = ''
         self.invert_contrast = False
 
+        # self.threMaskLabel = QtWidgets.QLabel(self.threTab)
+        # self.threMaskLabel.setGeometry(QtCore.QRect(0, 0, 1024, 576))
+        # self.threMaskLabel.setFrameShape(QtWidgets.QFrame.Box)
+        # self.threMaskLabel.setText("")
+        # self.threMaskLabel.setAlignment(QtCore.Qt.AlignCenter)
+        # self.threMaskLabel.setObjectName("threBoxLabel")
+
         self.backToCaliButton.clicked.connect(self.selectCaliTab)
 
         self.threPlayButton.clicked.connect(self.threshVidControl)
         self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.threStopButton.clicked.connect(self.stopThreshVid)
         self.threStopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
+
+        self.applyMaskcheckBox.stateChanged.connect(self.enalbleApplyMask)
 
         self.objNumBox.valueChanged.connect(self.setObjectNum)
 
@@ -344,7 +355,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                 # display image on top of other widgets
                 # can use either way
                 # self.caliBoxCanvasLabel.raise_()
-                self.loadImgButton.hide()
                 self.loadVidButton.hide()
 
                 # after select file, auto read and display its property
@@ -446,6 +456,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         release current file and select new file
         '''
         self.resetVideo()
+        self.threshThread.mask_img = None
         self.selectVideoFile()
 
     def videoPlayControl(self):
@@ -1079,14 +1090,52 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.threshThread.invert_contrast = False
 
     def enalbleApplyMask(self):
-        pass
-        # if self.applyMaskcheckBox.isChecked():
-        #     self.thresh_vid.apply_mask = True
-        #     self.thresh_vid.loadMask()
+
+        if self.applyMaskcheckBox.isChecked():
+            self.threshThread.apply_mask = True
+            self.loadMask()
+            self.applyMaskcheckBox.setChecked(True)
         #     # need to reset video
         #     # or force user select before threshold
-        # else:
-        #     self.thresh_vid.apply_mask = False
+        else:
+            self.threshThread.apply_mask = False
+            self.threshThread.mask_img = None
+            self.applyMaskcheckBox.setChecked(False)
+            print(self.threshThread.mask_img)
+
+    def loadMask(self):
+
+        try:
+            # set default directory for load files and set file type that only shown
+            self.mask_file = QFileDialog.getOpenFileName(directory='C:/Users/Public/Pictures',
+                                                          filter='Images(*.png *.jpg *.jpeg)')
+            # if no file selected
+            if self.mask_file[0] == '':
+                return
+            else:
+                # self.threMaskLabel.raise_()
+                mask = cv2.imread(self.mask_file[0])
+                mask_rgb = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
+                mask_cvt = QImage(mask_rgb, mask_rgb.shape[1], mask_rgb.shape[0], mask_rgb.strides[0],
+                                   QImage.Format_RGB888)
+                mask_scaled = mask_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+                mask_display = QPixmap.fromImage(mask_scaled)
+                # self.threMaskLabel.setPixmap(mask_display)
+                print(type(self.mask_file[0]))
+                mask = self.detection.create_mask(self.mask_file[0])
+                print(type(mask))
+                self.threshThread.mask_img = mask
+                print(type(self.threshThread.mask_img))
+        except:
+            self.error_msg = QMessageBox()
+            self.error_msg.setWindowTitle('Error')
+            self.error_msg.setText('An error happened when trying to load and convert the mask image.')
+            self.error_msg.setInformativeText('Please ensure the mask file is not corrupted.')
+            self.error_msg.setIcon(QMessageBox.Warning)
+            self.error_msg.setDetailedText('You caught a bug! \n'
+                                           'Please submit this issue on GitHub to help us improve. ')
+            self.error_msg.exec()
+
 
     def applyThrePara(self):
         '''
@@ -1612,6 +1661,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         print(self.object_num, self.block_size, self.offset, self.min_contour, self.max_contour)
 
         self.trackingCamThread.ROI = self.camBoxCanvasLabel.line_coordinates
+
     def resetThreCamPara(self):
         '''
         Reset current threshold parameter settings
@@ -1646,7 +1696,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.camCntMaxSpin.setEnabled(True)
 
         self.trackingCamThread.ROI = None
-#   ###############################################################
+#
+    #   ###############################################################
 
     def updateLiveTrackResult(self, tracked_object):
         '''
@@ -1697,6 +1748,33 @@ class Detection():
 
     def __init__(self):
         super().__init__()
+
+    def create_mask(self,mask_file):
+        """
+        this function is to create a mask image for analyzed frame
+        Parameters
+        ----------
+        mask_file : the colored image used as mask, must have same shape with the frame
+        """
+        mask = cv2.imread(mask_file, 1)
+        # mask_resize = cv2.resize(mask_gray,(1024,576))
+        mask_gray = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+        ret,mask_th = cv2.threshold(mask_gray, 10, 255, cv2.THRESH_BINARY_INV)
+        return mask_th
+
+    def apply_mask(self,raw_mask, raw_vid):
+        """
+        this function perform biwise operation
+        apply mask on video
+        Parameters
+        ----------
+        raw_mask : inverted mask image created by create_mask()
+        raw_vid : the source video which mask will be apply on
+
+        """
+        mask_inv = cv2.bitwise_not(raw_mask)
+        bitwise_mask = cv2.bitwise_and(raw_vid, raw_vid, mask=mask_inv)
+        return bitwise_mask
 
     ## video thresholding
     def thresh_video(self, vid, block_size, offset):
@@ -1899,6 +1977,7 @@ class ThreshVidThread(QThread):
     def __init__(self, default_fps=25):
         QThread.__init__(self)
         self.file = ''
+        self.mask_img = None
         self.stopped = False
         self.fps = default_fps
         self.timeSignal = Communicate()
@@ -1910,9 +1989,12 @@ class ThreshVidThread(QThread):
         self.min_contour = 1
         self.max_contour = 100
         self.invert_contrast = False
+        self.apply_mask = False
+
 
     def run(self):
 
+        print(type(self.mask_img))
         # video = self.playCapture.open(self.file[0])
         with QMutexLocker(self.mutex):
             self.stopped = False
@@ -1926,62 +2008,122 @@ class ThreshVidThread(QThread):
                     play_elapse = self.playCapture.get(cv2.CAP_PROP_POS_FRAMES) / self.playCapture.get(cv2.CAP_PROP_FPS)
                     self.timeSignal.updateSliderPos.emit(play_elapse)
 
-                    if self.invert_contrast:
-                        invert_vid = cv2.bitwise_not(frame)
+                    if self.apply_mask:
+                        masked_frame = self.detection.apply_mask(self.mask_img, frame)
 
-                        thre_vid = self.detection.thresh_video(invert_vid,
-                                                               self.block_size,
-                                                               self.offset)
+                        if self.invert_contrast:
+                            invert_vid = cv2.bitwise_not(masked_frame)
 
-                        contour_vid, _ = self.detection.detect_contours(frame,
-                                                                        thre_vid,
-                                                                        self.min_contour,
-                                                                        self.max_contour)
+                            thre_vid = self.detection.thresh_video(invert_vid,
+                                                                   self.block_size,
+                                                                   self.offset)
 
-                        frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+                            contour_vid, _ = self.detection.detect_contours(frame,
+                                                                            thre_vid,
+                                                                            self.min_contour,
+                                                                            self.max_contour)
 
-                        frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
-                                           QImage.Format_RGB888)
-                        frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+                            frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
 
-                        self.timeSignal.thresh_signal.emit(frame_scaled)
-                        # time.sleep(1/25)
+                            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
 
-                        # preview thresholded video
-                        thvid_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
-                        thvid_cvt = QImage(thvid_rgb, thvid_rgb.shape[1], thvid_rgb.shape[0], thvid_rgb.strides[0],
-                                           QImage.Format_RGB888)
-                        thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
-                        self.timeSignal.thresh_preview.emit(thvid_scaled)
+                            self.timeSignal.thresh_signal.emit(frame_scaled)
+                            # time.sleep(1/25)
 
-                    elif not self.invert_contrast:
-                        thre_vid = self.detection.thresh_video(frame,
-                                                               self.block_size,
-                                                               self.offset)
+                            # preview thresholded video
+                            thvid_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
+                            thvid_cvt = QImage(thvid_rgb, thvid_rgb.shape[1], thvid_rgb.shape[0], thvid_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
+                            self.timeSignal.thresh_preview.emit(thvid_scaled)
 
-                        contour_vid, _ = self.detection.detect_contours(frame,
-                                                                        thre_vid,
-                                                                        self.min_contour,
-                                                                        self.max_contour)
-                        # frame_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
-                        frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+                        elif not self.invert_contrast:
+                            thre_vid = self.detection.thresh_video(masked_frame,
+                                                                   self.block_size,
+                                                                   self.offset)
 
-                        frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
-                                           QImage.Format_RGB888)
-                        frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+                            contour_vid, _ = self.detection.detect_contours(frame,
+                                                                            thre_vid,
+                                                                            self.min_contour,
+                                                                            self.max_contour)
+                            # frame_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
+                            frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
 
-                        self.timeSignal.thresh_signal.emit(frame_scaled)
-                        # time.sleep(1/25)
+                            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
 
-                        # preview thresholded video
-                        thvid_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
-                        thvid_cvt = QImage(thvid_rgb, thvid_rgb.shape[1], thvid_rgb.shape[0], thvid_rgb.strides[0],
-                                           QImage.Format_RGB888)
-                        thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
-                        self.timeSignal.thresh_preview.emit(thvid_scaled)
+                            self.timeSignal.thresh_signal.emit(frame_scaled)
+                            # time.sleep(1/25)
+
+                            # preview thresholded video
+                            thvid_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
+                            thvid_cvt = QImage(thvid_rgb, thvid_rgb.shape[1], thvid_rgb.shape[0], thvid_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
+                            self.timeSignal.thresh_preview.emit(thvid_scaled)
+
+                    elif not self.apply_mask:
+
+                        if self.invert_contrast:
+                            invert_vid = cv2.bitwise_not(frame)
+
+                            thre_vid = self.detection.thresh_video(invert_vid,
+                                                                   self.block_size,
+                                                                   self.offset)
+
+                            contour_vid, _ = self.detection.detect_contours(frame,
+                                                                            thre_vid,
+                                                                            self.min_contour,
+                                                                            self.max_contour)
+
+                            frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+
+                            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+
+                            self.timeSignal.thresh_signal.emit(frame_scaled)
+                            # time.sleep(1/25)
+
+                            # preview thresholded video
+                            thvid_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
+                            thvid_cvt = QImage(thvid_rgb, thvid_rgb.shape[1], thvid_rgb.shape[0], thvid_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
+                            self.timeSignal.thresh_preview.emit(thvid_scaled)
+
+                        elif not self.invert_contrast:
+                            thre_vid = self.detection.thresh_video(frame,
+                                                                   self.block_size,
+                                                                   self.offset)
+
+                            contour_vid, _ = self.detection.detect_contours(frame,
+                                                                            thre_vid,
+                                                                            self.min_contour,
+                                                                            self.max_contour)
+                            # frame_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
+                            frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+
+                            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+
+                            self.timeSignal.thresh_signal.emit(frame_scaled)
+                            # time.sleep(1/25)
+
+                            # preview thresholded video
+                            thvid_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
+                            thvid_cvt = QImage(thvid_rgb, thvid_rgb.shape[1], thvid_rgb.shape[0], thvid_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            thvid_scaled = thvid_cvt.scaled(320, 180, Qt.KeepAspectRatio)
+                            self.timeSignal.thresh_preview.emit(thvid_scaled)
 
                     toc = time.perf_counter()
                     print(f'Time Elapsed Per Loop {toc - tic:.3f}')
+
                 elif not ret:
                     # video finished
                     self.timeSignal.thresh_reset.emit('1')
