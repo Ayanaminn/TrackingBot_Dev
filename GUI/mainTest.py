@@ -56,6 +56,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         # # video init
         self.video_file = video_file
+        self.preview_frame = None
         self.video_prop = None
         self.camera_prop = None
         self.status = self.STATUS_INIT  # 0: init 1:playing 2: pause
@@ -158,6 +159,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # signal on tab 3
         self.mask_file = ''
         # self.mask_image = '' # cv2 read image
+        self.binary_mask = ''
         self.apply_mask = False
         self.detection = Detection()
 
@@ -181,8 +183,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.threPlayButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
         self.threStopButton.clicked.connect(self.stopThreshVid)
         self.threStopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
-
-        self.applyMaskcheckBox.stateChanged.connect(self.enalbleApplyMask)
 
         self.objNumBox.valueChanged.connect(self.setObjectNum)
 
@@ -210,6 +210,12 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.threProgressBar.sliderPressed.connect(self.pauseThreshVid)
         self.threProgressBar.valueChanged.connect(self.updateThrePosition)
         self.threProgressBar.sliderReleased.connect(self.resumeThreshSlider)
+
+
+        self.enableMaskToggle = Toggle(self.threTab)
+        self.enableMaskToggle.setGeometry(QRect(1036, 105, 90, 35))
+        self.enableMaskToggle.stateChanged.connect(self.enableApplyMask)
+        self.selectMaskButton.clicked.connect(self.loadMask)
 
         self.previewBoxLabel.lower()
         self.previewToggle = Toggle(self.threTab)
@@ -402,6 +408,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             set_preview_frame = 1
             video_cap.set(cv2.CAP_PROP_POS_FRAMES, set_preview_frame)
             ret, preview_frame = video_cap.read()
+            self.preview_frame = preview_frame
             frame_rgb = cv2.cvtColor(preview_frame, cv2.COLOR_BGR2RGB)
             frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
                                QImage.Format_RGB888)
@@ -875,7 +882,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.backToCaliButton.setEnabled(True)
         self.resetVideo()
         print(f'enable threshold{self.video_file[0]}')
-        print(f'enable threshold{self.playCapture.isOpened()}')
+        print(f'enable threshold playcapture opened{self.playCapture.isOpened()}')
 
     def selectCaliTab(self):
         # when enable cali tab, vid been reset, self.playCapture released
@@ -1089,18 +1096,31 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         else:
             self.threshThread.invert_contrast = False
 
-    def enalbleApplyMask(self):
+    def enableApplyMask(self):
+        # self.pauseThreshVid()
 
-        if self.applyMaskcheckBox.isChecked():
-            self.threshThread.apply_mask = True
-            self.loadMask()
-            self.applyMaskcheckBox.setChecked(True)
-        #     # need to reset video
-        #     # or force user select before threshold
+        if self.enableMaskToggle.isChecked():
+            # 1st time select mask image
+            if self.mask_file == '':
+                self.apply_mask = self.threshThread.apply_mask = True
+                # button linked to loadmask()
+                self.selectMaskButton.setEnabled(True)
+                self.loadMask()
+            # already selected mask, call file, convert and apply again
+            else:
+                print(self.mask_file)
+                self.apply_mask = self.threshThread.apply_mask = True
+                self.selectMaskButton.setEnabled(True)
+                # store binary mask image and pass to thre thread
+                mask = self.detection.create_mask(self.mask_file[0])
+                self.binary_mask = mask
+                self.threshThread.mask_img = mask
+        # Disable mask, clear bianry image but still store mask file path
+        # for tracking thread unless reset all parameters
         else:
-            self.threshThread.apply_mask = False
+            self.apply_mask = self.threshThread.apply_mask = False
             self.threshThread.mask_img = None
-            self.applyMaskcheckBox.setChecked(False)
+            self.selectMaskButton.setEnabled(False)
             print(self.threshThread.mask_img)
 
     def loadMask(self):
@@ -1113,19 +1133,22 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             if self.mask_file[0] == '':
                 return
             else:
-                # self.threMaskLabel.raise_()
-                mask = cv2.imread(self.mask_file[0])
-                mask_rgb = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
-                mask_cvt = QImage(mask_rgb, mask_rgb.shape[1], mask_rgb.shape[0], mask_rgb.strides[0],
-                                   QImage.Format_RGB888)
-                mask_scaled = mask_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
-                mask_display = QPixmap.fromImage(mask_scaled)
-                # self.threMaskLabel.setPixmap(mask_display)
-                print(type(self.mask_file[0]))
+                # display biwised first frame
+
+                # # self.threMaskLabel.raise_()
+                # mask = cv2.imread(self.mask_file[0])
+                # mask_rgb = cv2.cvtColor(mask, cv2.COLOR_BGR2RGB)
+                # mask_cvt = QImage(mask_rgb, mask_rgb.shape[1], mask_rgb.shape[0], mask_rgb.strides[0],
+                #                    QImage.Format_RGB888)
+                # mask_scaled = mask_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+                # mask_display = QPixmap.fromImage(mask_scaled)
+                # # self.threMaskLabel.setPixmap(mask_display)
+
+                # store binary mask image and pass to thre thread
                 mask = self.detection.create_mask(self.mask_file[0])
-                print(type(mask))
+                self.binary_mask = mask
                 self.threshThread.mask_img = mask
-                print(type(self.threshThread.mask_img))
+
         except:
             self.error_msg = QMessageBox()
             self.error_msg.setWindowTitle('Error')
@@ -1139,7 +1162,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
     def applyThrePara(self):
         '''
-        Apply current threshold parameter settings and activate next step
+        Store current threshold parameter settings and activate next step
+        then pass stored settings to tracking thread
         '''
         self.object_num = self.objNumBox.value()
         self.block_size = self.threshThread.block_size
@@ -1158,6 +1182,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.cntMinSpin.setEnabled(False)
         self.cntMaxSlider.setEnabled(False)
         self.cntMaxSpin.setEnabled(False)
+        self.enableMaskToggle.setEnabled(False)
         self.previewBoxLabel.lower()
         self.previewToggle.setEnabled(False)
         self.previewToggle.setChecked(False)
@@ -1166,6 +1191,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.trackTabLinkButton.setEnabled(True)
 
         print(self.object_num, self.block_size, self.offset, self.min_contour, self.max_contour)
+        print(self.binary_mask)
+        print(self.mask_file)
+        print(self.apply_mask)
 
     def resetThrePara(self):
         '''
@@ -1183,6 +1211,11 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.cntMaxSlider.setEnabled(True)
         self.cntMaxSpin.setEnabled(True)
         # self.previewBoxLabel.lower()
+        # reset mask status
+        self.mask_file = ''
+        self.enableMaskToggle.setChecked(False)
+        self.enableMaskToggle.setEnabled(True)
+
         self.previewToggle.setEnabled(True)
         # self.previewToggle.setChecked(True)
         self.invertContrastToggle.setEnabled(True)
@@ -1203,8 +1236,26 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.trackingThread.offset = self.offset
         self.trackingThread.min_contour = self.min_contour
         self.trackingThread.max_contour = self.max_contour
+        self.trackingThread.apply_mask = self.apply_mask
+        self.trackingThread.mask_img = self.binary_mask
         self.trackingThread.invert_contrast = self.invert_contrast
+
         self.resetVideo()
+
+        # set canvas
+        if self.apply_mask:
+            # bitwise operation
+            masked_frame = self.detection.apply_mask(self.binary_mask, self.preview_frame)
+            mask_frame_rgb = cv2.cvtColor(masked_frame, cv2.COLOR_BGR2RGB)
+            mask_frame_cvt = QImage(mask_frame_rgb, mask_frame_rgb.shape[1], mask_frame_rgb.shape[0], mask_frame_rgb.strides[0],
+                                    QImage.Format_RGB888)
+            mask_frame_scaled = mask_frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+            mask_frame_display = QPixmap.fromImage(mask_frame_scaled)
+            self.setTrackingCanvas(mask_frame_display)
+
+        elif not self.apply_mask:
+            self.setTrackingCanvas(self.preview_frame)
+
         print(f'enable tracking{self.video_file[0]}')
         print(f'enable tracking{self.playCapture.isOpened()}')
 
@@ -1270,7 +1321,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
     def stopTracking(self):
         '''
-        reset tracking progress when stop clicked during task
+        cancel and reset tracking progress when stop clicked during ongoing task
         :return:
         '''
         try:
@@ -1284,6 +1335,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.readVideoFile(self.video_file[0])
             self.status = MainWindow.STATUS_INIT
             self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
+            self.backToThreButton.setEnabled(True)
+
         except Exception as e:
             print(e)
         finally:
@@ -1759,6 +1812,7 @@ class Detection():
         mask = cv2.imread(mask_file, 1)
         # mask_resize = cv2.resize(mask_gray,(1024,576))
         mask_gray = cv2.cvtColor(mask, cv2.COLOR_BGR2GRAY)
+        # cv2.threshold() return 2 values
         ret,mask_th = cv2.threshold(mask_gray, 10, 255, cv2.THRESH_BINARY_INV)
         return mask_th
 
@@ -2009,6 +2063,7 @@ class ThreshVidThread(QThread):
                     self.timeSignal.updateSliderPos.emit(play_elapse)
 
                     if self.apply_mask:
+                        # bitwise operation
                         masked_frame = self.detection.apply_mask(self.mask_img, frame)
 
                         if self.invert_contrast:
@@ -2147,6 +2202,7 @@ class TrackingThread(QThread):
     def __init__(self, default_fps=25):
         QThread.__init__(self)
         self.file = ''
+        self.mask_img = None
         self.stopped = False
         self.fps = default_fps
         self.frame_count = -1  # first frame start from 0
@@ -2160,6 +2216,7 @@ class TrackingThread(QThread):
         self.offset = 11
         self.min_contour = 1
         self.max_contour = 100
+        self.apply_mask = False
         self.invert_contrast = False
         # self.obj_id = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
         #           'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z']
@@ -2187,85 +2244,162 @@ class TrackingThread(QThread):
                     pos_elapse = self.playCapture.get(cv2.CAP_PROP_POS_MSEC)
                     # current position calculated using current frame/fps, used for slider progress
                     play_elapse = self.playCapture.get(cv2.CAP_PROP_POS_FRAMES) / self.playCapture.get(cv2.CAP_PROP_FPS)
+
                     self.timeSignal.updateSliderPos.emit(play_elapse)
 
                     self.frame_count += 1
 
-                    # get time stamp mark
+                    # get time stamp mark and store as thread instance
+                    # then pass to datalog thread when conditon met
                     is_timeStamp, video_elapse = self.trackingDataLog.localTimeStamp(pos_elapse, interval=None)
-
                     self.video_elapse = video_elapse
 
-                    if self.invert_contrast:
-                        invert_vid = cv2.bitwise_not(frame)
+                    if self.apply_mask:
 
-                        thre_vid = self.detection.thresh_video(invert_vid,
-                                                               self.block_size,
-                                                               self.offset)
+                        # bitwise operation
+                        masked_frame = self.detection.apply_mask(self.mask_img, frame)
 
-                        contour_vid, pos_detection = self.detection.detect_contours(frame,
-                                                                                    thre_vid,
-                                                                                    self.min_contour,
-                                                                                    self.max_contour)
+                        if self.invert_contrast:
+                            invert_vid = cv2.bitwise_not(masked_frame)
 
-                        self.trackingMethod.identify(pos_detection)
+                            thre_vid = self.detection.thresh_video(invert_vid,
+                                                                   self.block_size,
+                                                                   self.offset)
 
-                        ## mark indentity of each objects
-                        self.trackingMethod.visualize(contour_vid, self.obj_id, is_centroid=True,
-                                                      is_mark=True, is_trajectory=True)
+                            contour_vid, pos_detection = self.detection.detect_contours(masked_frame,
+                                                                                        thre_vid,
+                                                                                        self.min_contour,
+                                                                                        self.max_contour)
 
-                        # # # pass tracking data to datalog thread when local tracking
-                        if is_timeStamp:
-                            self.timeSignal.tracked_object.emit(self.trackingMethod.registration)
-                            self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
-                            self.timeSignal.tracked_elapse.emit(self.video_elapse)
+                            self.trackingMethod.identify(pos_detection)
 
-                        frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+                            ## mark indentity of each objects
+                            self.trackingMethod.visualize(contour_vid, self.obj_id, is_centroid=True,
+                                                          is_mark=True, is_trajectory=True)
 
-                        frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
-                                           QImage.Format_RGB888)
-                        frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+                            # # # pass tracking data to datalog thread when local tracking
+                            if is_timeStamp:
+                                self.timeSignal.tracked_object.emit(self.trackingMethod.registration)
+                                self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
+                                self.timeSignal.tracked_elapse.emit(self.video_elapse)
 
-                        self.timeSignal.tracking_signal.emit(frame_scaled)
-                        # time.sleep(1/25)
+                            frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+
+                            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+
+                            self.timeSignal.tracking_signal.emit(frame_scaled)
+                            # time.sleep(1/25)
 
 
-                    elif not self.invert_contrast:
-                        thre_vid = self.detection.thresh_video(frame,
-                                                               self.block_size,
-                                                               self.offset)
+                        elif not self.invert_contrast:
+                            thre_vid = self.detection.thresh_video(masked_frame,
+                                                                   self.block_size,
+                                                                   self.offset)
 
-                        contour_vid, pos_detection = self.detection.detect_contours(frame,
-                                                                                    thre_vid,
-                                                                                    self.min_contour,
-                                                                                    self.max_contour)
+                            contour_vid, pos_detection = self.detection.detect_contours(masked_frame,
+                                                                                        thre_vid,
+                                                                                        self.min_contour,
+                                                                                        self.max_contour)
 
-                        self.trackingMethod.identify(pos_detection)
+                            self.trackingMethod.identify(pos_detection)
 
-                        ## mark indentity of each objects
-                        self.trackingMethod.visualize(contour_vid, self.obj_id, is_centroid=True,
-                                                      is_mark=True, is_trajectory=True)
+                            ## mark indentity of each objects
+                            self.trackingMethod.visualize(contour_vid, self.obj_id, is_centroid=True,
+                                                          is_mark=True, is_trajectory=True)
 
-                        # #  pass tracking data to datalog thread when local tracking
-                        if is_timeStamp:
-                            self.timeSignal.tracked_object.emit(self.trackingMethod.registration)
-                            # index of time stamp
-                            self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
-                            self.timeSignal.tracked_elapse.emit(self.video_elapse)
-                            print(self.trackingDataLog.result_index)
+                            # #  pass tracking data to datalog thread when local tracking
+                            if is_timeStamp:
+                                self.timeSignal.tracked_object.emit(self.trackingMethod.registration)
+                                # index of time stamp
+                                self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
+                                self.timeSignal.tracked_elapse.emit(self.video_elapse)
+                                print(self.trackingDataLog.result_index)
 
-                        # frame_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
-                        frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+                            # frame_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
+                            frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
 
-                        frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
-                                           QImage.Format_RGB888)
-                        frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+                            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
 
-                        self.timeSignal.tracking_signal.emit(frame_scaled)
-                        # time.sleep(1/25)
+                            self.timeSignal.tracking_signal.emit(frame_scaled)
+                            # time.sleep(1/25)
+
+                    elif not self.apply_mask:
+
+                        if self.invert_contrast:
+                            invert_vid = cv2.bitwise_not(frame)
+
+                            thre_vid = self.detection.thresh_video(invert_vid,
+                                                                   self.block_size,
+                                                                   self.offset)
+
+                            contour_vid, pos_detection = self.detection.detect_contours(frame,
+                                                                                        thre_vid,
+                                                                                        self.min_contour,
+                                                                                        self.max_contour)
+
+                            self.trackingMethod.identify(pos_detection)
+
+                            ## mark indentity of each objects
+                            self.trackingMethod.visualize(contour_vid, self.obj_id, is_centroid=True,
+                                                          is_mark=True, is_trajectory=True)
+
+                            # # # pass tracking data to datalog thread when local tracking
+                            if is_timeStamp:
+                                self.timeSignal.tracked_object.emit(self.trackingMethod.registration)
+                                self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
+                                self.timeSignal.tracked_elapse.emit(self.video_elapse)
+
+                            frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+
+                            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+
+                            self.timeSignal.tracking_signal.emit(frame_scaled)
+                            # time.sleep(1/25)
+
+
+                        elif not self.invert_contrast:
+                            thre_vid = self.detection.thresh_video(frame,
+                                                                   self.block_size,
+                                                                   self.offset)
+
+                            contour_vid, pos_detection = self.detection.detect_contours(frame,
+                                                                                        thre_vid,
+                                                                                        self.min_contour,
+                                                                                        self.max_contour)
+
+                            self.trackingMethod.identify(pos_detection)
+
+                            ## mark indentity of each objects
+                            self.trackingMethod.visualize(contour_vid, self.obj_id, is_centroid=True,
+                                                          is_mark=True, is_trajectory=True)
+
+                            # #  pass tracking data to datalog thread when local tracking
+                            if is_timeStamp:
+                                self.timeSignal.tracked_object.emit(self.trackingMethod.registration)
+                                # index of time stamp
+                                self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
+                                self.timeSignal.tracked_elapse.emit(self.video_elapse)
+                                print(self.trackingDataLog.result_index)
+
+                            # frame_rgb = cv2.cvtColor(thre_vid, cv2.COLOR_BGR2RGB)
+                            frame_rgb = cv2.cvtColor(contour_vid, cv2.COLOR_BGR2RGB)
+
+                            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+
+                            self.timeSignal.tracking_signal.emit(frame_scaled)
+                            # time.sleep(1/25)
 
                     toc = time.perf_counter()
                     print(f'Time Elapsed Per Loop {toc - tic:.3f}')
+
                 elif not ret:
                     # video finished
                     self.timeSignal.track_reset_alarm.emit('1')

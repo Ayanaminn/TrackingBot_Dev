@@ -66,7 +66,7 @@ QTabBar::tab:selected {
      <enum>QTabWidget::Triangular</enum>
     </property>
     <property name="currentIndex">
-     <number>5</number>
+     <number>3</number>
     </property>
     <property name="iconSize">
      <size>
@@ -160,7 +160,7 @@ QTabBar::tab:selected {
        <enum>QFrame::Box</enum>
       </property>
       <property name="text">
-       <string/>
+       <string>VBox</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignCenter</set>
@@ -182,6 +182,19 @@ QTabBar::tab:selected {
       </property>
       <property name="text">
        <string>Load Video</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="loadImgButton">
+      <property name="geometry">
+       <rect>
+        <x>1040</x>
+        <y>240</y>
+        <width>71</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Load Image</string>
       </property>
      </widget>
      <widget class="QWidget" name="horizontalLayoutWidget">
@@ -536,7 +549,7 @@ QTabBar::tab:selected {
        <enum>QFrame::Box</enum>
       </property>
       <property name="text">
-       <string/>
+       <string>Calibration</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignCenter</set>
@@ -751,7 +764,7 @@ QTabBar::tab:selected {
        <enum>QFrame::Box</enum>
       </property>
       <property name="text">
-       <string/>
+       <string>Threshold</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignCenter</set>
@@ -1112,24 +1125,6 @@ QTabBar::tab:selected {
        <string>Reset</string>
       </property>
      </widget>
-     <widget class="QCheckBox" name="applyMaskcheckBox">
-      <property name="geometry">
-       <rect>
-        <x>1030</x>
-        <y>100</y>
-        <width>111</width>
-        <height>17</height>
-       </rect>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>10</pointsize>
-       </font>
-      </property>
-      <property name="text">
-       <string>Apply mask</string>
-      </property>
-     </widget>
      <widget class="QLabel" name="threTabText7">
       <property name="geometry">
        <rect>
@@ -1431,6 +1426,46 @@ QTabBar::tab:selected {
        <string>Back</string>
       </property>
      </widget>
+     <widget class="QPushButton" name="selectMaskButton">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>1212</x>
+        <y>100</y>
+        <width>81</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>Select mask</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="threTabText13">
+      <property name="geometry">
+       <rect>
+        <x>1030</x>
+        <y>90</y>
+        <width>91</width>
+        <height>21</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string>Apply mask</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+      <property name="wordWrap">
+       <bool>true</bool>
+      </property>
+     </widget>
     </widget>
     <widget class="QWidget" name="trackinTab">
      <attribute name="title">
@@ -1449,7 +1484,7 @@ QTabBar::tab:selected {
        <enum>QFrame::Box</enum>
       </property>
       <property name="text">
-       <string/>
+       <string>Tracking</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignCenter</set>
@@ -1679,7 +1714,7 @@ QTabBar::tab:selected {
        <enum>QFrame::Box</enum>
       </property>
       <property name="text">
-       <string/>
+       <string>CamBox</string>
       </property>
       <property name="alignment">
        <set>Qt::AlignCenter</set>
@@ -2318,6 +2353,69 @@ QTabBar::tab:selected {
        <bool>true</bool>
       </property>
      </widget>
+     <widget class="QWidget" name="horizontalLayoutWidget_9">
+      <property name="geometry">
+       <rect>
+        <x>1050</x>
+        <y>600</y>
+        <width>231</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="0,0">
+       <property name="spacing">
+        <number>50</number>
+       </property>
+       <property name="sizeConstraint">
+        <enum>QLayout::SetNoConstraint</enum>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QPushButton" name="drawScaleButton_2">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
+         <property name="text">
+          <string>Draw ROI</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="resetScaleButton_2">
+         <property name="enabled">
+          <bool>false</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+          </font>
+         </property>
+         <property name="text">
+          <string>Reset</string>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
      <widget class="QLabel" name="camPreviewBoxLabel">
       <property name="geometry">
        <rect>
@@ -2474,60 +2572,6 @@ QTabBar::tab:selected {
        <string>Start</string>
       </property>
      </widget>
-     <widget class="QPushButton" name="resetScaleButton_2">
-      <property name="enabled">
-       <bool>false</bool>
-      </property>
-      <property name="geometry">
-       <rect>
-        <x>310</x>
-        <y>660</y>
-        <width>91</width>
-        <height>39</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>10</pointsize>
-       </font>
-      </property>
-      <property name="text">
-       <string>Reset ROI</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="drawScaleButton_2">
-      <property name="enabled">
-       <bool>false</bool>
-      </property>
-      <property name="geometry">
-       <rect>
-        <x>220</x>
-        <y>620</y>
-        <width>91</width>
-        <height>39</height>
-       </rect>
-      </property>
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>0</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>10</pointsize>
-       </font>
-      </property>
-      <property name="text">
-       <string>Draw ROI</string>
-      </property>
-     </widget>
      <zorder>controlPanelLabel</zorder>
      <zorder>camBoxLabel</zorder>
      <zorder>openCamButton</zorder>
@@ -2552,6 +2596,7 @@ QTabBar::tab:selected {
      <zorder>horizontalLayoutWidget_8</zorder>
      <zorder>camTabText10</zorder>
      <zorder>camTabText9</zorder>
+     <zorder>horizontalLayoutWidget_9</zorder>
      <zorder>camPreviewBoxLabel</zorder>
      <zorder>camTabText1</zorder>
      <zorder>comboBox</zorder>
@@ -2561,8 +2606,6 @@ QTabBar::tab:selected {
      <zorder>camTabText15</zorder>
      <zorder>portRefreshButton</zorder>
      <zorder>camTrackingButton</zorder>
-     <zorder>resetScaleButton_2</zorder>
-     <zorder>drawScaleButton_2</zorder>
     </widget>
    </widget>
   </widget>
