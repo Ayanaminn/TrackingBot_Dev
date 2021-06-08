@@ -691,6 +691,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
     def readCamera(self):
 
         self.camBoxLabel.show()
+
         try:
             # camera_cap = self.playCapture.open(0,cv2.CAP_DSHOW)
             camera_prop = self.readCamProp(cv2.VideoCapture(0, cv2.CAP_DSHOW))
@@ -737,6 +738,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.camBoxLabel.setPixmap(frame_display)
 
     def reloadCamera(self):
+        '''
+        auto execute when received no ret alarm signal from cam thread
+        '''
 
         self.cameraThread.stop()
         self.threshCamThread.stop()
@@ -1750,7 +1754,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.trackingCamThread.ROI = None
 #
-    #   ###############################################################
+    #   ############################################Functions for feedback control
 
     def updateLiveTrackResult(self, tracked_object):
         '''
@@ -1770,12 +1774,15 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         for p in ports:
             available_ports.append(p.description)
-            print(str(p.description))
+            print(str(p.description)) # device name + port name
+            print(str(p.device)) # port name
 
         print(available_ports)
         self.comboBox.addItems(available_ports)
 
     def selectionchange(self):
+
+        selected_port = self.comboBox.currentText()
         print(f'select{self.comboBox.currentText()}')
 
     def drawControlROI(self):
