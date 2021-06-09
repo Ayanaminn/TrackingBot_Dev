@@ -105,9 +105,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.tabWidget.setTabEnabled(1, False)
         self.tabWidget.setTabEnabled(2, False)
-        self.tabWidget.setTabEnabled(3, True)
+        self.tabWidget.setTabEnabled(3, False)
         self.tabWidget.setTabEnabled(4, False)
-        self.tabWidget.setTabEnabled(5, False)
+        self.tabWidget.setTabEnabled(5, True)
 
         # add a canvas for drawing
         # self.VBoxCanvasLabel = Drawing(self.caliTab)
@@ -311,8 +311,17 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # signals and widgets for the hardware control
         self.comboBox.addItem('')
         self.comboBox.currentIndexChanged.connect(self.selectionchange)
-        self.drawScaleButton_2.clicked.connect(self.drawControlROI)
-        self.resetScaleButton_2.clicked.connect(self.clearControlROI)
+
+        self.drawLineButton.setIcon(QtGui.QIcon('line.png'))
+        self.drawLineButton.setIconSize(QtCore.QSize(25,25))
+        self.drawRectButton.setIcon(QtGui.QIcon('rectangular.png'))
+        self.drawRectButton.setIconSize(QtCore.QSize(25,25))
+        self.drawCircleButton.setIcon(QtGui.QIcon('circle.png'))
+        self.drawCircleButton.setIconSize(QtCore.QSize(24,24))
+
+        self.drawLineButton.clicked.connect(self.drawLinelROI)
+
+        self.resetROIButton.clicked.connect(self.clearControlROI)
 
 
 
@@ -701,8 +710,10 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.threshCamThread.start()
             self.openCamButton.hide()
             self.closeCamButton.setEnabled(True)
-            self.drawScaleButton_2.setEnabled(True)
-            self.resetScaleButton_2.setEnabled(True)
+
+            self.drawLineButton.setEnabled(True)
+            self.resetROIButton.setEnabled(True)
+
             self.previewToggle_2.setEnabled(True)
             self.invertContrastToggle_2.setEnabled(True)
             self.camBlockSizeSlider.setEnabled(True)
@@ -767,9 +778,10 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.openCamButton.show()
         self.closeCamButton.setEnabled(False)
-        self.drawScaleButton_2.setEnabled(False)
-        self.resetScaleButton_2.setEnabled(False)
+        self.drawLineButton.setEnabled(False)
+        self.resetROIButton.setEnabled(False)
         self.camBoxCanvasLabel.setEnabled(False)
+        self.camBoxCanvasLabel.lower()
         self.camPreviewBoxLabel.hide()
 
         self.previewToggle_2.setChecked(False)
@@ -1773,23 +1785,38 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         available_ports = []
 
         for p in ports:
-            available_ports.append(p.description)
-            print(str(p.description)) # device name + port name
-            print(str(p.device)) # port name
+            available_ports.append([p.description,p.device])
+            # print(str(p.description)) # device name + port name
+            # print(str(p.device)) # port name
+
+        for name in available_ports:
+            print(name)
+            # self.comboBox.addItems(str(name[0]))
 
         print(available_ports)
-        self.comboBox.addItems(available_ports)
+
 
     def selectionchange(self):
 
-        selected_port = self.comboBox.currentText()
+        selected_port = self.comboBox.currentIndex()
+
         print(f'select{self.comboBox.currentText()}')
 
-    def drawControlROI(self):
+        # print(selected_port[0])
+
+    def connectPort(self,port):
+        pass
+
+    def drawLinelROI(self):
         # self.caliBoxLabel.setEnabled(True)
         self.camBoxCanvasLabel.setEnabled(True)
         # self.metricNumInput.setEnabled(True)
-        self.resetScaleButton_2.setEnabled(True)
+        self.resetROIButton.setEnabled(True)
+        self.drawLineButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "background-color : QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #ffa02f, stop: 1 #d7801a);"
+                                         "}"
+                                         )
         # self.applyScaleButton.setEnabled(True)
         # self.camBoxLabel.lower()
         self.camBoxCanvasLabel.raise_()
@@ -1798,6 +1825,15 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
     def clearControlROI(self):
         self.camBoxCanvasLabel.earse()
+
+        self.camBoxCanvasLabel.setEnabled(False)
+        self.camBoxCanvasLabel.lower()
+
+        self.drawLineButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "}"
+                                         )
         # self.metricNumInput.clear()
         # self.drawScaleButton.setEnabled(True)
         # self.caliBoxCanvasLabel.setEnabled(True)
