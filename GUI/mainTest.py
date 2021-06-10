@@ -98,6 +98,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.trackingCamThread = TrackingCamThread()
         self.trackingCamThread.timeSignal.cam_tracked_object.connect(self.updateLiveTrackResult)
 
+        self.controllerThread = ControllerThread()
+
+
         self.dataLogThread = DataLogThread()
         self.dataframe = None
 
@@ -239,7 +242,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.trackStartButton.clicked.connect(self.trackingVidControl)
         self.trackStartButton.setIcon(self.style().standardIcon(QStyle.SP_MediaPlay))
 
-        self.trackProgressBar.valueChanged.connect(self.updateTrackPosition)
+        self.trackProgressBar.valueChanged.connect(self.updateTrackVidPosition)
         # self.trackStopButton.clicked.connect(self.stopTracking)
         # self.trackStopButton.setIcon(self.style().standardIcon(QStyle.SP_MediaStop))
 
@@ -307,10 +310,16 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.applyCamThreButton.clicked.connect(self.applyThreCamPara)
         self.resetCamThreButton.clicked.connect(self.resetThreCamPara)
 
+        self.camTrackingButton.clicked.connect(self.startCamTracking)
+
         #############################################################
         # signals and widgets for the hardware control
-        self.comboBox.addItem('')
-        self.comboBox.currentIndexChanged.connect(self.selectionchange)
+        self.active_device = None
+        # self.comboBox.addItem('')
+        self.comboBox.currentIndexChanged.connect(self.changePort)
+        self.portRefreshButton.clicked.connect(self.getPort)
+        self.portConnectButton.clicked.connect(self.connectPort)
+        self.portDisconnectButton.clicked.connect(self.disconnectPort)
 
         self.drawLineButton.setIcon(QtGui.QIcon('line.png'))
         self.drawLineButton.setIconSize(QtCore.QSize(25,25))
@@ -320,7 +329,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.drawCircleButton.setIconSize(QtCore.QSize(24,24))
 
         self.drawLineButton.clicked.connect(self.drawLinelROI)
-
+        self.applyROIButton.clicked.connect(self.applyLineROI)
         self.resetROIButton.clicked.connect(self.clearControlROI)
 
 
@@ -350,7 +359,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.tabWidget.setTabEnabled(5, True)
         self.tabWidget.setCurrentIndex(5)
         self.backToMenuButton_2.setEnabled(True)
-        self.selectPort()
+        self.getPort()
 
     def selectVideoFile(self):
 
@@ -707,12 +716,12 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             print(camera_prop)
             cv2.VideoCapture(0, cv2.CAP_DSHOW).release()
             # self.cameraThread.start()
-            self.threshCamThread.start()
+            # self.threshCamThread.start()
+            self.trackingCamThread.start()
             self.openCamButton.hide()
             self.closeCamButton.setEnabled(True)
 
             self.drawLineButton.setEnabled(True)
-            self.resetROIButton.setEnabled(True)
 
             self.previewToggle_2.setEnabled(True)
             self.invertContrastToggle_2.setEnabled(True)
@@ -772,6 +781,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.cameraThread.stop()
         self.threshCamThread.stop()
         self.trackingCamThread.stop()
+        self.controllerThread.stop()
+        self.trackingCamThread.ROI_coordinate = None
+        self.controllerThread.ROI_coordinate = None
 
         QPixmapCache.clear()
         self.camBoxLabel.hide()
@@ -779,6 +791,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.openCamButton.show()
         self.closeCamButton.setEnabled(False)
         self.drawLineButton.setEnabled(False)
+        self.applyROIButton.setEnabled(False)
         self.resetROIButton.setEnabled(False)
         self.camBoxCanvasLabel.setEnabled(False)
         self.camBoxCanvasLabel.lower()
@@ -796,12 +809,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.camCntMaxSlider.setEnabled(False)
         self.camCntMaxSpin.setEnabled(False)
 
-    def resetCamera(self):
-        self.cameraThread.stop()
-        QPixmapCache.clear()
-        # bg = QPixmap(1024, 576)
-        # bg.fill(Qt.black)
-        # self.camBoxLabel.setPixmap(bg)
 
     #####################################Functions for calibaration##########################
 
@@ -855,10 +862,10 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # scale, metric = self.run()
         try:
             metric = int(self.metricNumInput.text())
-            print(f'metric is {metric}')
+            # print(f'metric is {metric}')
             if (metric >= 1 and metric <= 1000):
                 scale = self.caliBoxCanvasLabel.line_coordinates
-                print(f'scale is {scale}')
+                # print(f'scale is {scale}')
 
                 pixel_length = distance.euclidean(scale[0], scale[1])
                 self.pixel_per_metric = round(pixel_length, 2) / metric
@@ -1206,11 +1213,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.trackTabLinkButton.setEnabled(True)
 
-        print(self.object_num, self.block_size, self.offset, self.min_contour, self.max_contour)
-        print(self.binary_mask)
-        print(self.mask_file)
-        print(self.apply_mask)
-
     def resetThrePara(self):
         '''
         Reset current threshold parameter settings
@@ -1372,7 +1374,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.trackProgressBar.setSliderPosition(elapse)
         self.trackPosLabel.setText(f"{str(timedelta(seconds=elapse)).split('.')[0]}")
 
-    def updateTrackPosition(self):
+    def updateTrackVidPosition(self):
         play_elapse = self.trackProgressBar.value()
         self.trackPosLabel.setText(f"{str(timedelta(seconds=play_elapse)).split('.')[0]}")
 
@@ -1729,8 +1731,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         print(self.object_num, self.block_size, self.offset, self.min_contour, self.max_contour)
 
-        self.trackingCamThread.ROI = self.camBoxCanvasLabel.line_coordinates
-
     def resetThreCamPara(self):
         '''
         Reset current threshold parameter settings
@@ -1764,24 +1764,43 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.camCntMaxSlider.setEnabled(True)
         self.camCntMaxSpin.setEnabled(True)
 
-        self.trackingCamThread.ROI = None
-#
     #   ############################################Functions for feedback control
+
+    def startCamTracking(self):
+        self.threshCamThread.stop()
+        self.trackingCamThread.block_size = self.block_size
+        self.trackingCamThread.offset = self.offset
+        self.trackingCamThread.min_contour = self.min_contour
+        self.trackingCamThread.max_contour = self.max_contour
+        self.trackingCamThread.invert_contrast = self.invert_contrast
+        cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+        cap.release()
+        # print(cap.isOpened())
+        time.sleep(1)
+        self.trackingCamThread.start()
+        # print(cv2.VideoCapture(0, cv2.CAP_DSHOW).isOpened())
+
+        # self.controllerThread.start()
+        # self.status = MainWindow.STATUS_PLAYING
+
 
     def updateLiveTrackResult(self, tracked_object):
         '''
         pass the list of registered object information to datalog thread
         '''
 
-        # reset df list
+        # reset and store df list
 
         self.dataLogThread.track_data(tracked_object)
+        self.dataLogThread.start()
+
+        self.controllerThread.track_data(tracked_object)
 
     ###############################################Functions for hardware#################################
 
-    def selectPort(self):
+    def getPort(self):
+        self.comboBox.addItem('')
         ports = serial.tools.list_ports.comports()
-
         available_ports = []
 
         for p in ports:
@@ -1789,28 +1808,82 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             # print(str(p.description)) # device name + port name
             # print(str(p.device)) # port name
 
-        for name in available_ports:
-            print(name)
-            # self.comboBox.addItems(str(name[0]))
+        for info in available_ports:
+            self.comboBox.addItem(info[0])
 
         print(available_ports)
+        return available_ports
 
+    def changePort(self):
+        # 1st empty line
+        selected_port_index = self.comboBox.currentIndex()-1
+        return selected_port_index
 
-    def selectionchange(self):
+    def connectPort(self):
 
-        selected_port = self.comboBox.currentIndex()
+        available_ports = self.getPort()
+        selected_port_index = self.changePort()
+        print(selected_port_index)
 
-        print(f'select{self.comboBox.currentText()}')
+        if available_ports and selected_port_index != 0:
+            try:
+                # portOpen = True
+                self.active_device = serial.Serial(available_ports[selected_port_index][1], 9600, timeout=1)
+                print(f'Connected to port {available_ports[selected_port_index][1]}!')
+                # self.active_device.open()
+                time.sleep(0.5)
+                # thread start
+                print(self.active_device.isOpen())
+                self.comboBox.setEnabled(False)
+                self.portConnectButton.setEnabled(False)
+                self.portDisconnectButton.setEnabled(True)
+                # print(f'Connected to port {available_ports[selected_port_index][1]}!')
+                # device_control(activeDevice)
+            except:
+                self.error_msg = QMessageBox()
+                self.error_msg.setWindowTitle('Error')
+                self.error_msg.setText('Cannot connect to selected port.')
+                self.error_msg.setInformativeText('Failed to execute connectPort()\n'
+                                                  'Please select a valid port')
+                self.error_msg.setIcon(QMessageBox.Warning)
+                self.error_msg.exec()
 
-        # print(selected_port[0])
+        elif not available_ports:
+            self.error_msg = QMessageBox()
+            self.error_msg.setWindowTitle('Error')
+            self.error_msg.setText('Cannot read available port.')
+            self.error_msg.setInformativeText('Please try reload port list by click refresh button .')
+            self.error_msg.setIcon(QMessageBox.Warning)
+            self.error_msg.exec()
 
-    def connectPort(self,port):
-        pass
+        elif selected_port_index == 0:
+            self.error_msg = QMessageBox()
+            self.error_msg.setWindowTitle('Error')
+            self.error_msg.setText('Please select a valid port.')
+            self.error_msg.setInformativeText('selected_port_index is empty.')
+            self.error_msg.setIcon(QMessageBox.Warning)
+            self.error_msg.exec()
+
+    def disconnectPort(self):
+        try:
+            self.active_device.close()
+
+        except Exception as e:
+            print(e)
+        if not self.active_device.isOpen():
+            print('Connection with port closed')
+            print(self.active_device.isOpen())
+            # thread stop
+            self.comboBox.clear()
+            self.comboBox.setEnabled(True)
+            self.portConnectButton.setEnabled(True)
+            self.portDisconnectButton.setEnabled(False)
 
     def drawLinelROI(self):
         # self.caliBoxLabel.setEnabled(True)
         self.camBoxCanvasLabel.setEnabled(True)
         # self.metricNumInput.setEnabled(True)
+        self.applyROIButton.setEnabled(True)
         self.resetROIButton.setEnabled(True)
         self.drawLineButton.setStyleSheet("QPushButton"
                                          "{"
@@ -1823,9 +1896,29 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         # self.camBoxCanvasLabel.line_coordinates
 
-    def clearControlROI(self):
-        self.camBoxCanvasLabel.earse()
+    def applyLineROI(self):
 
+        self.trackingCamThread.ROI_coordinate = self.camBoxCanvasLabel.line_coordinates
+        self.controllerThread.ROI_coordinate = self.camBoxCanvasLabel.line_coordinates
+        self.applyROIButton.setEnabled(False)
+        self.drawLineButton.setEnabled(False)
+        self.drawRectButton.setEnabled(False)
+        self.drawCircleButton.setEnabled(False)
+
+        self.camBoxCanvasLabel.setEnabled(False)
+        self.drawLineButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "}"
+                                         )
+
+    def clearControlROI(self):
+
+        self.trackingCamThread.ROI_coordinate = None
+        self.controllerThread.ROI_coordinate = None
+        self.applyROIButton.setEnabled(False)
+        self.drawLineButton.setEnabled(True)
+        self.camBoxCanvasLabel.earse()
         self.camBoxCanvasLabel.setEnabled(False)
         self.camBoxCanvasLabel.lower()
 
@@ -2614,8 +2707,8 @@ class DataLogThread(QThread):
             # self.dataframe = pd.DataFrame(np.array(self.df),
             #                          columns=['pos_x', 'pos_y'])
 
-            if len(self.df) >= 500:
-                print('len limit')
+            if len(self.df) >= 1000:
+                print('len limit 1000')
                 # self.df_archive = pd.concat(self.df.copy())
                 self.df_archive.extend(self.df.copy())
                 del self.df[:]
@@ -2683,11 +2776,12 @@ class TrackingCamThread(QThread):
         # the elements in this list needs to be in string format
         self.obj_id = [format(x, '01d') for x in self.id_list]
 
+        self.fps = 25
         self.video_elapse = 0
         self.frame_count = -1  # first frame start from 0
         self.start_delta = time.perf_counter()
 
-        self.ROI = None
+        self.ROI_coordinate = None
 
     def run(self):
 
@@ -2695,104 +2789,106 @@ class TrackingCamThread(QThread):
             self.stopped = False
         try:
             cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+            print(f'tracking thread cam capture {cap.isOpened()}')
             while True:
                 tic = time.perf_counter()
-
+                print('cam thread ture')
                 if self.stopped:
                     cap.release()
                     return
                 else:
-                    ret, frame = self.cap.read()
+                    ret, frame = cap.read()
                     if ret:
-                        print(self.ROI) # test ROI coordinate is passed
-
-                        # get current date and time
-                        get_clock = self.trackingDataLog.updateClock()
-
-                        # absolute time elapsed after start capturing
-                        self.end_delta = time.perf_counter()
-                        self.elapse_delta = timedelta(seconds=self.end_delta - self.start_delta).total_seconds()
-
-                        self.frame_count += 1
-                        # calculate frame rate of living camera source accordingly
-                        self.fps = round(self.frame_count / self.elapse_delta)
-
-                        # get time stamp mark
-                        is_timeStamp, camera_elapse = self.trackingDataLog.liveTimeStamp(self.fps,
-                                                                                   self.elapse_delta,
-                                                                                   self.frame_count,
-                                                                                   interval=None)
-
-                        if self.invert_contrast:
-                            invert_cam = cv2.bitwise_not(frame)
-
-                            thre_cam = self.detection.thresh_video(invert_cam,
-                                                                   self.block_size,
-                                                                   self.offset)
-
-                            contour_cam, pos_detection = self.detection.detect_contours(frame,
-                                                                                        thre_cam,
-                                                                                        self.min_contour,
-                                                                                        self.max_contour)
-
-                            self.trackingMethod.identify(pos_detection)
-
-                            ## mark indentity of each objects
-                            self.trackingMethod.visualize(contour_cam, self.obj_id, is_centroid=True,
-                                                          is_mark=True, is_trajectory=True)
-
-                            # # # # pass tracking data to datalog thread when local tracking
-                            if is_timeStamp:
-                                self.timeSignal.cam_tracked_object.emit(self.trackingMethod.registration)
-                            #     self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
-                            #     self.timeSignal.tracked_elapse.emit(self.video_elapse)
-
-                            frame_rgb = cv2.cvtColor(contour_cam, cv2.COLOR_BGR2RGB)
-
-                            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
-                                               QImage.Format_RGB888)
-                            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
-
-                            # self.timeSignal.tracking_signal.emit(frame_scaled)
-                            # time.sleep(1/25)
-
-
-                        elif not self.invert_contrast:
-                            thre_cam = self.detection.thresh_video(frame,
-                                                                   self.block_size,
-                                                                   self.offset)
-
-                            contour_cam, pos_detection = self.detection.detect_contours(frame,
-                                                                                        thre_cam,
-                                                                                        self.min_contour,
-                                                                                        self.max_contour)
-
-                            self.trackingMethod.identify(pos_detection)
-
-                            ## mark indentity of each objects
-                            self.trackingMethod.visualize(contour_cam, self.obj_id, is_centroid=True,
-                                                          is_mark=True, is_trajectory=True)
-
-                            # # # # pass tracking data to datalog thread when local tracking
-                            if is_timeStamp:
-                                 self.timeSignal.cam_tracked_object.emit(self.trackingMethod.registration)
-                            #     self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
-                            #     self.timeSignal.tracked_elapse.emit(self.video_elapse)
-
-                            frame_rgb = cv2.cvtColor(contour_cam, cv2.COLOR_BGR2RGB)
-
-                            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
-                                               QImage.Format_RGB888)
-                            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
-
-                            # self.timeSignal.tracking_signal.emit(frame_scaled)
-                            # time.sleep(1/25)
-
-                        toc = time.perf_counter()
-                        print(f'Time Elapsed Per Loop {toc - tic:.3f}')
+                        print('cam thread ret')
+                        # # print(self.ROI_coordinate) # test ROI coordinate is passed
+                        #
+                        # # get current date and time
+                        # get_clock = self.trackingDataLog.updateClock()
+                        #
+                        # # absolute time elapsed after start capturing
+                        # self.end_delta = time.perf_counter()
+                        # self.elapse_delta = timedelta(seconds=self.end_delta - self.start_delta).total_seconds()
+                        #
+                        # self.frame_count += 1
+                        # # calculate frame rate of living camera source accordingly
+                        # self.fps = round(self.frame_count / self.elapse_delta)
+                        #
+                        # # get time stamp mark
+                        # is_timeStamp, camera_elapse = self.trackingDataLog.liveTimeStamp(self.fps,
+                        #                                                            self.elapse_delta,
+                        #                                                            self.frame_count,
+                        #                                                            interval=None)
+                        #
+                        # if self.invert_contrast:
+                        #     invert_cam = cv2.bitwise_not(frame)
+                        #
+                        #     thre_cam = self.detection.thresh_video(invert_cam,
+                        #                                            self.block_size,
+                        #                                            self.offset)
+                        #
+                        #     contour_cam, pos_detection = self.detection.detect_contours(frame,
+                        #                                                                 thre_cam,
+                        #                                                                 self.min_contour,
+                        #                                                                 self.max_contour)
+                        #
+                        #     self.trackingMethod.identify(pos_detection)
+                        #
+                        #     ## mark indentity of each objects
+                        #     self.trackingMethod.visualize(contour_cam, self.obj_id, is_centroid=True,
+                        #                                   is_mark=True, is_trajectory=True)
+                        #
+                        #     # # # # pass tracking data to datalog thread when local tracking
+                        #     if is_timeStamp:
+                        #         self.timeSignal.cam_tracked_object.emit(self.trackingMethod.registration)
+                        #     #     self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
+                        #     #     self.timeSignal.tracked_elapse.emit(self.video_elapse)
+                        #
+                        #     frame_rgb = cv2.cvtColor(contour_cam, cv2.COLOR_BGR2RGB)
+                        #
+                        #     frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                        #                        QImage.Format_RGB888)
+                        #     frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+                        #
+                        #     self.timeSignal.tracking_signal.emit(frame_scaled)
+                        #     # time.sleep(1/25)
+                        #
+                        #
+                        # elif not self.invert_contrast:
+                        #     thre_cam = self.detection.thresh_video(frame,
+                        #                                            self.block_size,
+                        #                                            self.offset)
+                        #
+                        #     contour_cam, pos_detection = self.detection.detect_contours(frame,
+                        #                                                                 thre_cam,
+                        #                                                                 self.min_contour,
+                        #                                                                 self.max_contour)
+                        #
+                        #     self.trackingMethod.identify(pos_detection)
+                        #
+                        #     ## mark indentity of each objects
+                        #     self.trackingMethod.visualize(contour_cam, self.obj_id, is_centroid=True,
+                        #                                   is_mark=True, is_trajectory=True)
+                        #
+                        #     # # # # pass tracking data to datalog thread when local tracking
+                        #     if is_timeStamp:
+                        #          self.timeSignal.cam_tracked_object.emit(self.trackingMethod.registration)
+                        #     #     self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
+                        #     #     self.timeSignal.tracked_elapse.emit(self.video_elapse)
+                        #
+                        #     frame_rgb = cv2.cvtColor(contour_cam, cv2.COLOR_BGR2RGB)
+                        #
+                        #     frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                        #                        QImage.Format_RGB888)
+                        #     frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+                        #
+                        #     self.timeSignal.tracking_signal.emit(frame_scaled)
+                        #     # time.sleep(1/25)
+                        #
+                        # toc = time.perf_counter()
+                        # print(f'Time Elapsed Per Loop {toc - tic:.3f}')
                     elif not ret:
                         # video finished
-                        pass
+                        print('not ret')
                         # self.timeSignal.track_reset_alarm.emit('1')
                         # self.timeSignal.track_reset.emit('1')
 
@@ -2810,6 +2906,46 @@ class TrackingCamThread(QThread):
 
     def set_fps(self, video_fps):
         self.fps = video_fps
+
+
+class ControllerThread(QThread):
+
+    def __init__(self):
+        QThread.__init__(self)
+        self.stopped = False
+        self.device = None
+        # self.timeSignal = Communicate()
+        self.mutex = QMutex()
+        self.ROI_coordinate = None
+        self.tracked_object = None
+
+    def run(self):
+        with QMutexLocker(self.mutex):
+            self.stopped = False
+
+        while True:
+            print('controller thread running')
+
+
+        #     if self.stopped:
+        #         return
+        #     self.timeSignal.signal.emit('1')
+        #     time.sleep(1 / self.fps)
+
+    def stop(self):
+        with QMutexLocker(self.mutex):
+            self.stopped = True
+
+    def is_stopped(self):
+        with QMutexLocker(self.mutex):
+            return self.stopped
+
+    def track_data(self, tracked_object):
+        '''
+        receive the list of registered object information passed
+        from live tracking thread
+        '''
+        self.tracked_object = tracked_object
 
 if __name__ == "__main__":
     import sys
