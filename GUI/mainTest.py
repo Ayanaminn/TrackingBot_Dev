@@ -96,6 +96,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.threshCamThread.timeSignal.cam_alarm.connect(self.reloadCamera)
 
         self.trackingCamThread = TrackingCamThread()
+        self.trackingCamThread.timeSignal.cam_tracking_signal.connect(self.displayTrackingCam)
         self.trackingCamThread.timeSignal.cam_tracked_object.connect(self.updateLiveTrackResult)
 
         self.controllerThread = ControllerThread()
@@ -716,8 +717,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             print(camera_prop)
             cv2.VideoCapture(0, cv2.CAP_DSHOW).release()
             # self.cameraThread.start()
-            # self.threshCamThread.start()
-            self.trackingCamThread.start()
+            self.threshCamThread.start()
+            # self.trackingCamThread.start()
             self.openCamButton.hide()
             self.closeCamButton.setEnabled(True)
 
@@ -1780,9 +1781,13 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.trackingCamThread.start()
         # print(cv2.VideoCapture(0, cv2.CAP_DSHOW).isOpened())
 
-        # self.controllerThread.start()
+
         # self.status = MainWindow.STATUS_PLAYING
 
+    def displayTrackingCam(self, frame):
+
+        frame_display = QPixmap.fromImage(frame)
+        self.camBoxLabel.setPixmap(frame_display)
 
     def updateLiveTrackResult(self, tracked_object):
         '''
@@ -1796,6 +1801,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.controllerThread.track_data(tracked_object)
 
+        self.controllerThread.start()
     ###############################################Functions for hardware#################################
 
     def getPort(self):
@@ -2070,6 +2076,7 @@ class Communicate(QObject):
     thresh_reset = pyqtSignal(str)
     updateSliderPos = QtCore.pyqtSignal(float)
     tracking_signal = pyqtSignal(QImage)
+    cam_tracking_signal = pyqtSignal(QImage)
     tracked_object = pyqtSignal(list)
     cam_tracked_object = pyqtSignal(list)
     tracked_index = pyqtSignal(int)
@@ -2717,7 +2724,7 @@ class DataLogThread(QThread):
                 # return
                 # self.dataframe_archive.append(self.df_archive)
             # print(f'log thread update {self.tracked_object}')
-            print(len(self.df))
+            # print(f' datalog thread df len {len(self.df)}')
             # print(f'df{self.df}')
             # print(f'df archive{self.df_archive}')
             # print(self.dataframe_archive)
@@ -2789,102 +2796,100 @@ class TrackingCamThread(QThread):
             self.stopped = False
         try:
             cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
-            print(f'tracking thread cam capture {cap.isOpened()}')
+
             while True:
                 tic = time.perf_counter()
-                print('cam thread ture')
                 if self.stopped:
                     cap.release()
                     return
                 else:
                     ret, frame = cap.read()
                     if ret:
-                        print('cam thread ret')
-                        # # print(self.ROI_coordinate) # test ROI coordinate is passed
-                        #
-                        # # get current date and time
-                        # get_clock = self.trackingDataLog.updateClock()
-                        #
-                        # # absolute time elapsed after start capturing
-                        # self.end_delta = time.perf_counter()
-                        # self.elapse_delta = timedelta(seconds=self.end_delta - self.start_delta).total_seconds()
-                        #
-                        # self.frame_count += 1
-                        # # calculate frame rate of living camera source accordingly
-                        # self.fps = round(self.frame_count / self.elapse_delta)
-                        #
-                        # # get time stamp mark
-                        # is_timeStamp, camera_elapse = self.trackingDataLog.liveTimeStamp(self.fps,
-                        #                                                            self.elapse_delta,
-                        #                                                            self.frame_count,
-                        #                                                            interval=None)
-                        #
-                        # if self.invert_contrast:
-                        #     invert_cam = cv2.bitwise_not(frame)
-                        #
-                        #     thre_cam = self.detection.thresh_video(invert_cam,
-                        #                                            self.block_size,
-                        #                                            self.offset)
-                        #
-                        #     contour_cam, pos_detection = self.detection.detect_contours(frame,
-                        #                                                                 thre_cam,
-                        #                                                                 self.min_contour,
-                        #                                                                 self.max_contour)
-                        #
-                        #     self.trackingMethod.identify(pos_detection)
-                        #
-                        #     ## mark indentity of each objects
-                        #     self.trackingMethod.visualize(contour_cam, self.obj_id, is_centroid=True,
-                        #                                   is_mark=True, is_trajectory=True)
-                        #
-                        #     # # # # pass tracking data to datalog thread when local tracking
-                        #     if is_timeStamp:
-                        #         self.timeSignal.cam_tracked_object.emit(self.trackingMethod.registration)
-                        #     #     self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
-                        #     #     self.timeSignal.tracked_elapse.emit(self.video_elapse)
-                        #
-                        #     frame_rgb = cv2.cvtColor(contour_cam, cv2.COLOR_BGR2RGB)
-                        #
-                        #     frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
-                        #                        QImage.Format_RGB888)
-                        #     frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
-                        #
-                        #     self.timeSignal.tracking_signal.emit(frame_scaled)
-                        #     # time.sleep(1/25)
-                        #
-                        #
-                        # elif not self.invert_contrast:
-                        #     thre_cam = self.detection.thresh_video(frame,
-                        #                                            self.block_size,
-                        #                                            self.offset)
-                        #
-                        #     contour_cam, pos_detection = self.detection.detect_contours(frame,
-                        #                                                                 thre_cam,
-                        #                                                                 self.min_contour,
-                        #                                                                 self.max_contour)
-                        #
-                        #     self.trackingMethod.identify(pos_detection)
-                        #
-                        #     ## mark indentity of each objects
-                        #     self.trackingMethod.visualize(contour_cam, self.obj_id, is_centroid=True,
-                        #                                   is_mark=True, is_trajectory=True)
-                        #
-                        #     # # # # pass tracking data to datalog thread when local tracking
-                        #     if is_timeStamp:
-                        #          self.timeSignal.cam_tracked_object.emit(self.trackingMethod.registration)
-                        #     #     self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
-                        #     #     self.timeSignal.tracked_elapse.emit(self.video_elapse)
-                        #
-                        #     frame_rgb = cv2.cvtColor(contour_cam, cv2.COLOR_BGR2RGB)
-                        #
-                        #     frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
-                        #                        QImage.Format_RGB888)
-                        #     frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
-                        #
-                        #     self.timeSignal.tracking_signal.emit(frame_scaled)
-                        #     # time.sleep(1/25)
-                        #
-                        # toc = time.perf_counter()
+
+                        # print(self.ROI_coordinate) # test ROI coordinate is passed
+
+                        # get current date and time
+                        get_clock = self.trackingDataLog.updateClock()
+
+                        # absolute time elapsed after start capturing
+                        self.end_delta = time.perf_counter()
+                        self.elapse_delta = timedelta(seconds=self.end_delta - self.start_delta).total_seconds()
+
+                        self.frame_count += 1
+                        # calculate frame rate of living camera source accordingly
+                        self.fps = round(self.frame_count / self.elapse_delta)
+
+                        # get time stamp mark
+                        is_timeStamp, camera_elapse = self.trackingDataLog.liveTimeStamp(self.fps, self.elapse_delta,
+                                                                                   self.frame_count,
+                                                                                   interval=None)
+
+                        if self.invert_contrast:
+                            invert_cam = cv2.bitwise_not(frame)
+
+                            thre_cam = self.detection.thresh_video(invert_cam,
+                                                                   self.block_size,
+                                                                   self.offset)
+
+                            contour_cam, pos_detection = self.detection.detect_contours(frame,
+                                                                                        thre_cam,
+                                                                                        self.min_contour,
+                                                                                        self.max_contour)
+
+                            self.trackingMethod.identify(pos_detection)
+
+                            ## mark indentity of each objects
+                            self.trackingMethod.visualize(contour_cam, self.obj_id, is_centroid=True,
+                                                          is_mark=True, is_trajectory=True)
+
+                            # # # # pass tracking data to datalog thread when local tracking
+                            if is_timeStamp:
+                                self.timeSignal.cam_tracked_object.emit(self.trackingMethod.registration)
+                            #     self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
+                            #     self.timeSignal.tracked_elapse.emit(self.video_elapse)
+
+                            frame_rgb = cv2.cvtColor(contour_cam, cv2.COLOR_BGR2RGB)
+
+                            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+
+                            self.timeSignal.cam_tracking_signal.emit(frame_scaled)
+                            # time.sleep(1/25)
+
+
+                        elif not self.invert_contrast:
+                            thre_cam = self.detection.thresh_video(frame,
+                                                                   self.block_size,
+                                                                   self.offset)
+
+                            contour_cam, pos_detection = self.detection.detect_contours(frame,
+                                                                                        thre_cam,
+                                                                                        self.min_contour,
+                                                                                        self.max_contour)
+
+                            self.trackingMethod.identify(pos_detection)
+
+                            ## mark indentity of each objects
+                            self.trackingMethod.visualize(contour_cam, self.obj_id, is_centroid=True,
+                                                          is_mark=True, is_trajectory=True)
+
+                            # # # # pass tracking data to datalog thread when local tracking
+                            if is_timeStamp:
+                                 self.timeSignal.cam_tracked_object.emit(self.trackingMethod.registration)
+                            #     self.timeSignal.tracked_index.emit(self.trackingDataLog.result_index)
+                            #     self.timeSignal.tracked_elapse.emit(self.video_elapse)
+
+                            frame_rgb = cv2.cvtColor(contour_cam, cv2.COLOR_BGR2RGB)
+
+                            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                               QImage.Format_RGB888)
+                            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+
+                            self.timeSignal.cam_tracking_signal.emit(frame_scaled)
+                            # time.sleep(1/25)
+
+                        toc = time.perf_counter()
                         # print(f'Time Elapsed Per Loop {toc - tic:.3f}')
                     elif not ret:
                         # video finished
@@ -2917,14 +2922,22 @@ class ControllerThread(QThread):
         # self.timeSignal = Communicate()
         self.mutex = QMutex()
         self.ROI_coordinate = None
-        self.tracked_object = None
+        self.tracked_object = []
 
     def run(self):
+        print('controller thread run')
         with QMutexLocker(self.mutex):
             self.stopped = False
 
-        while True:
-            print('controller thread running')
+        if self.stopped:
+            return
+
+        else:
+
+            for i in range(len(self.tracked_object)):
+                    # print(len(TrackingMethod.registration)) # examine number of registrated objects
+                    print(f'realtime tracked obj pos {self.tracked_object[i].pos_prediction[0]}')
+
 
 
         #     if self.stopped:
