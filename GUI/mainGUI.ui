@@ -733,6 +733,52 @@ QTabBar::tab:selected {
        <string>Back</string>
       </property>
      </widget>
+     <widget class="QLabel" name="caliTabText2">
+      <property name="geometry">
+       <rect>
+        <x>1040</x>
+        <y>200</y>
+        <width>131</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>Pixel per metric is</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+     </widget>
+     <widget class="QLabel" name="caliTabText3">
+      <property name="geometry">
+       <rect>
+        <x>1180</x>
+        <y>200</y>
+        <width>131</width>
+        <height>31</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignCenter</set>
+      </property>
+     </widget>
     </widget>
     <widget class="QWidget" name="threTab">
      <attribute name="title">
@@ -2593,7 +2639,7 @@ QTabBar::tab:selected {
         <string/>
        </property>
       </widget>
-      <widget class="QPushButton" name="drawCircleButton">
+      <widget class="QPushButton" name="drawCircButton">
        <property name="enabled">
         <bool>false</bool>
        </property>

@@ -23,6 +23,7 @@ def get_ports():
 
 def connect_ports():
     arduino_ports = get_ports()
+    print(arduino_ports)
     global activeDevice, portOpen
 
     if len(arduino_ports) == 1:
@@ -77,7 +78,7 @@ def device_control(device):
         elif datafromUser == 'off':
             device.write(b'0')
             print("LED turned OFF")
-        elif datafromUser == 'pulse':
+        elif datafromUser == 'open':
             device.write(b'2')
             print("LED blink")
         elif datafromUser == 'close':

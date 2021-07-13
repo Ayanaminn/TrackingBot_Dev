@@ -61,7 +61,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.camera_prop = None
         self.status = self.STATUS_INIT  # 0: init 1:playing 2: pause
         self.playCapture = cv2.VideoCapture()
-
+        self.verticalLayoutWidget.lower()
         # timer for video player on load tab
         self.videoThread = VideoThread()
         self.videoThread.timeSignal.signal[str].connect(self.displayVideo)
@@ -111,7 +111,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.tabWidget.setTabEnabled(2, False)
         self.tabWidget.setTabEnabled(3, False)
         self.tabWidget.setTabEnabled(4, False)
-        self.tabWidget.setTabEnabled(5, True)
+        self.tabWidget.setTabEnabled(5, False)
 
         # add a canvas for drawing
         # self.VBoxCanvasLabel = Drawing(self.caliTab)
@@ -275,15 +275,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.closeCamButton.clicked.connect(self.closeCamera)
         self.backToMenuButton_2.clicked.connect(self.selectMainMenu)
 
-        self.camBoxCanvasLabel = Calibration.Drawing(self.loadCamTab)
-        self.camBoxCanvasLabel.setEnabled(False)
-        self.camBoxCanvasLabel.lower()
-        self.camBoxCanvasLabel.setGeometry(QRect(0, 0, 1024, 576))
-        self.camBoxCanvasLabel.setAlignment(QtCore.Qt.AlignCenter)
-        self.camBoxCanvasLabel.setFrameShape(QtWidgets.QFrame.Box)
-        self.camBoxCanvasLabel.setCursor(Qt.CrossCursor)
-        # force trasparent to override application style
-        self.camBoxCanvasLabel.setStyleSheet("background-color: rgba(0,0,0,0%)")
+        self.camBoxCanvasLabel = Calibration.DefineROI(self.loadCamTab)
 
         self.camPreviewBoxLabel.lower()
         self.previewToggle_2 = Toggle(self.loadCamTab)
@@ -326,11 +318,15 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.drawLineButton.setIconSize(QtCore.QSize(25,25))
         self.drawRectButton.setIcon(QtGui.QIcon('rectangular.png'))
         self.drawRectButton.setIconSize(QtCore.QSize(25,25))
-        self.drawCircleButton.setIcon(QtGui.QIcon('circle.png'))
-        self.drawCircleButton.setIconSize(QtCore.QSize(24,24))
+        self.drawCircButton.setIcon(QtGui.QIcon('circle.png'))
+        self.drawCircButton.setIconSize(QtCore.QSize(24,24))
 
-        self.drawLineButton.clicked.connect(self.drawLinelROI)
-        self.applyROIButton.clicked.connect(self.applyLineROI)
+        self.drawLineButton.clicked.connect(self.drawLineROI)
+        self.drawRectButton.clicked.connect(self.drawRectROI)
+        self.drawCircButton.clicked.connect(self.drawCircROI)
+
+        self.applyROIButton.clicked.connect(self.applyROI)
+
         self.resetROIButton.clicked.connect(self.clearControlROI)
 
 
@@ -723,6 +719,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.closeCamButton.setEnabled(True)
 
             self.drawLineButton.setEnabled(True)
+            self.drawRectButton.setEnabled(True)
+            self.drawCircButton.setEnabled(True)
 
             self.previewToggle_2.setEnabled(True)
             self.invertContrastToggle_2.setEnabled(True)
@@ -872,6 +870,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                 self.pixel_per_metric = round(pixel_length, 2) / metric
                 print(f'pixel_per_metric{self.pixel_per_metric}')
 
+                self.caliTabText3.setText(str(self.pixel_per_metric))
                 self.drawScaleButton.setEnabled(False)
                 self.caliBoxCanvasLabel.setEnabled(False)
                 self.metricNumInput.setEnabled(False)
@@ -1273,7 +1272,14 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.setTrackingCanvas(mask_frame_display)
 
         elif not self.apply_mask:
-            self.setTrackingCanvas(self.preview_frame)
+
+            frame_rgb = cv2.cvtColor(self.preview_frame, cv2.COLOR_BGR2RGB)
+            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
+                                    QImage.Format_RGB888)
+            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+            frame_display = QPixmap.fromImage(frame_scaled)
+            self.setTrackingCanvas(frame_display)
+            # self.setTrackingCanvas(self.preview_frame)
 
         print(f'enable tracking{self.video_file[0]}')
         print(f'enable tracking{self.playCapture.isOpened()}')
@@ -1885,34 +1891,111 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.portConnectButton.setEnabled(True)
             self.portDisconnectButton.setEnabled(False)
 
-    def drawLinelROI(self):
+    def drawLineROI(self):
         # self.caliBoxLabel.setEnabled(True)
         self.camBoxCanvasLabel.setEnabled(True)
-        # self.metricNumInput.setEnabled(True)
         self.applyROIButton.setEnabled(True)
         self.resetROIButton.setEnabled(True)
+
+        # highlight the line button and gray the rest
         self.drawLineButton.setStyleSheet("QPushButton"
                                          "{"
                                          "background-color : QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #ffa02f, stop: 1 #d7801a);"
                                          "}"
                                          )
-        # self.applyScaleButton.setEnabled(True)
+        self.drawRectButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "}"
+                                         )
+        self.drawCircButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "}"
+                                         )
         # self.camBoxLabel.lower()
         self.camBoxCanvasLabel.raise_()
+        self.camBoxCanvasLabel.drawLine()
 
-        # self.camBoxCanvasLabel.line_coordinates
+    def drawRectROI(self):
+        '''
+        set rectangle flag to true to draw circle shape
+        '''
+        self.camBoxCanvasLabel.setEnabled(True)
+        self.applyROIButton.setEnabled(True)
+        self.resetROIButton.setEnabled(True)
+        # highlight the rect button and gray the rest
+        self.drawRectButton.setStyleSheet("QPushButton"
+                                          "{"
+                                          "background-color : QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #ffa02f, stop: 1 #d7801a);"
+                                          "}"
+                                          )
+        self.drawLineButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "}"
+                                         )
+        self.drawCircButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "}"
+                                         )
+        # self.camBoxLabel.lower()
+        self.camBoxCanvasLabel.raise_()
+        self.camBoxCanvasLabel.drawRect()
 
-    def applyLineROI(self):
+    def drawCircROI(self):
+        '''
+        set circle flag to true to draw circle shape
+        '''
+        self.camBoxCanvasLabel.setEnabled(True)
+        self.applyROIButton.setEnabled(True)
+        self.resetROIButton.setEnabled(True)
 
-        self.trackingCamThread.ROI_coordinate = self.camBoxCanvasLabel.line_coordinates
-        self.controllerThread.ROI_coordinate = self.camBoxCanvasLabel.line_coordinates
+        # Highlight circ button and gray the rest
+        self.drawCircButton.setStyleSheet("QPushButton"
+                                          "{"
+                                          "background-color : QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #ffa02f, stop: 1 #d7801a);"
+                                          "}"
+                                          )
+        self.drawLineButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "}"
+                                         )
+        self.drawRectButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "}"
+                                         )
+        # self.camBoxLabel.lower()
+        self.camBoxCanvasLabel.raise_()
+        self.camBoxCanvasLabel.drawCirc()
+
+
+    def applyROI(self):
+        print(self.camBoxCanvasLabel.zones)
+        # self.trackingCamThread.ROI_coordinate = self.camBoxCanvasLabel.line_coordinates
+        # self.controllerThread.ROI_coordinate = self.camBoxCanvasLabel.line_coordinates
+
         self.applyROIButton.setEnabled(False)
         self.drawLineButton.setEnabled(False)
         self.drawRectButton.setEnabled(False)
-        self.drawCircleButton.setEnabled(False)
-
+        self.drawCircButton.setEnabled(False)
+        #
         self.camBoxCanvasLabel.setEnabled(False)
+        # gray all button
         self.drawLineButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "}"
+                                         )
+        self.drawRectButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "}"
+                                         )
+        self.drawCircButton.setStyleSheet("QPushButton"
                                          "{"
                                          "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
                                          "}"
@@ -1920,23 +2003,32 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
     def clearControlROI(self):
 
-        self.trackingCamThread.ROI_coordinate = None
-        self.controllerThread.ROI_coordinate = None
+        # self.trackingCamThread.ROI_coordinate = None
+        # self.controllerThread.ROI_coordinate = None
         self.applyROIButton.setEnabled(False)
         self.drawLineButton.setEnabled(True)
-        self.camBoxCanvasLabel.earse()
+        self.drawRectButton.setEnabled(True)
+        self.drawCircButton.setEnabled(True)
+        self.camBoxCanvasLabel.erase()
         self.camBoxCanvasLabel.setEnabled(False)
         self.camBoxCanvasLabel.lower()
 
+        # Gray all button
         self.drawLineButton.setStyleSheet("QPushButton"
                                          "{"
                                          "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
                                          "}"
                                          )
-        # self.metricNumInput.clear()
-        # self.drawScaleButton.setEnabled(True)
-        # self.caliBoxCanvasLabel.setEnabled(True)
-        # self.metricNumInput.setEnabled(True)
+        self.drawRectButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "}"
+                                         )
+        self.drawCircButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "}"
+                                         )
 
 
 class Detection():

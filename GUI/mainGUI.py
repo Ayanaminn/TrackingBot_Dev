@@ -31,23 +31,24 @@ class Ui_MainWindow(object):
         font.setWeight(75)
         self.tabWidget.setFont(font)
         self.tabWidget.setStyleSheet("QTabWidget::pane {\n"
-"  border: 1px solid lightgray;\n"
-"  top:-1px; \n"
-"  background:rgb(208, 208, 208);; \n"
-"} \n"
-"\n"
-"QTabBar::tab {\n"
-"  background: rgb(230, 230, 230);  \n"
-"  height:13px;\n"
-"  width: 80px;\n"
-"  border: 1px solid lightgray; \n"
-"  padding: 7px;\n"
-"} \n"
-"\n"
-"QTabBar::tab:selected { \n"
-"  background: rgb(85, 170, 255); \n"
-"  margin-bottom: -1px; \n"
-"}")
+                                     "  border: 1px solid lightgray;\n"
+                                     "  top:-1px; \n"
+                                     "  background:rgb(208, 208, 208);; \n"
+                                     "} \n"
+                                     "\n"
+                                     "QTabBar::tab {\n"
+                                     "  background: rgb(230, 230, 230);  \n"
+                                     "  height:13px;\n"
+                                     "  width: 80px;\n"
+                                     "  border: 1px solid lightgray; \n"
+                                     "  padding: 7px;\n"
+                                     "} \n"
+                                     "\n"
+                                     "QTabBar::tab:selected { \n"
+                                     " color: rgb(0,0,0); \n"
+                                     " background-color: rgb(255,160,47); \n"
+                                     "  margin-bottom: -1px; \n"
+                                     "}")
         self.tabWidget.setTabPosition(QtWidgets.QTabWidget.North)
         self.tabWidget.setTabShape(QtWidgets.QTabWidget.Triangular)
         self.tabWidget.setIconSize(QtCore.QSize(16, 16))
@@ -312,6 +313,24 @@ class Ui_MainWindow(object):
         font.setWeight(75)
         self.backToLoadButton.setFont(font)
         self.backToLoadButton.setObjectName("backToLoadButton")
+        self.caliTabText2 = QtWidgets.QLabel(self.caliTab)
+        self.caliTabText2.setGeometry(QtCore.QRect(1040, 200, 131, 31))
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        font.setBold(True)
+        font.setWeight(75)
+        self.caliTabText2.setFont(font)
+        self.caliTabText2.setAlignment(QtCore.Qt.AlignCenter)
+        self.caliTabText2.setObjectName("caliTabText2")
+        self.caliTabText3 = QtWidgets.QLabel(self.caliTab)
+        self.caliTabText3.setGeometry(QtCore.QRect(1180, 200, 131, 31))
+        font = QtGui.QFont()
+        font.setPointSize(10)
+        font.setBold(True)
+        font.setWeight(75)
+        self.caliTabText3.setFont(font)
+        self.caliTabText3.setAlignment(QtCore.Qt.AlignCenter)
+        self.caliTabText3.setObjectName("caliTabText3")
         self.tabWidget.addTab(self.caliTab, "")
         self.threTab = QtWidgets.QWidget()
         self.threTab.setObjectName("threTab")
@@ -551,14 +570,14 @@ class Ui_MainWindow(object):
         self.previewBoxLabel.setText("")
         self.previewBoxLabel.setObjectName("previewBoxLabel")
         self.threTabText9 = QtWidgets.QLabel(self.threTab)
-        self.threTabText9.setGeometry(QtCore.QRect(1030, 150, 121, 41))
+        self.threTabText9.setGeometry(QtCore.QRect(1030, 140, 121, 41))
         font = QtGui.QFont()
         font.setPointSize(10)
         self.threTabText9.setFont(font)
         self.threTabText9.setWordWrap(True)
         self.threTabText9.setObjectName("threTabText9")
         self.threTabText10 = QtWidgets.QLabel(self.threTab)
-        self.threTabText10.setGeometry(QtCore.QRect(1190, 150, 121, 41))
+        self.threTabText10.setGeometry(QtCore.QRect(1190, 140, 121, 41))
         font = QtGui.QFont()
         font.setPointSize(10)
         self.threTabText10.setFont(font)
@@ -677,7 +696,7 @@ class Ui_MainWindow(object):
         self.trackTabText1.setFont(font)
         self.trackTabText1.setObjectName("trackTabText1")
         self.verticalLayoutWidget = QtWidgets.QWidget(self.trackinTab)
-        self.verticalLayoutWidget.setGeometry(QtCore.QRect(0, 0, 160, 80))
+        self.verticalLayoutWidget.setGeometry(QtCore.QRect(0, 0, 1024, 576))
         self.verticalLayoutWidget.setObjectName("verticalLayoutWidget")
         self.verticalLayout_3 = QtWidgets.QVBoxLayout(self.verticalLayoutWidget)
         self.verticalLayout_3.setContentsMargins(0, 0, 0, 0)
@@ -943,14 +962,14 @@ class Ui_MainWindow(object):
         self.camObjNumBox.setObjectName("camObjNumBox")
         self.horizontalLayout_6.addWidget(self.camObjNumBox)
         self.camTabText10 = QtWidgets.QLabel(self.loadCamTab)
-        self.camTabText10.setGeometry(QtCore.QRect(1190, 120, 121, 41))
+        self.camTabText10.setGeometry(QtCore.QRect(1190, 140, 121, 41))
         font = QtGui.QFont()
         font.setPointSize(10)
         self.camTabText10.setFont(font)
         self.camTabText10.setWordWrap(True)
         self.camTabText10.setObjectName("camTabText10")
         self.camTabText9 = QtWidgets.QLabel(self.loadCamTab)
-        self.camTabText9.setGeometry(QtCore.QRect(1030, 120, 121, 41))
+        self.camTabText9.setGeometry(QtCore.QRect(1030, 140, 121, 41))
         font = QtGui.QFont()
         font.setPointSize(10)
         self.camTabText9.setFont(font)
@@ -1044,19 +1063,19 @@ class Ui_MainWindow(object):
         self.drawRectButton.setFont(font)
         self.drawRectButton.setText("")
         self.drawRectButton.setObjectName("drawRectButton")
-        self.drawCircleButton = QtWidgets.QPushButton(self.ROIBox)
-        self.drawCircleButton.setEnabled(False)
-        self.drawCircleButton.setGeometry(QtCore.QRect(160, 30, 30, 30))
+        self.drawCircButton = QtWidgets.QPushButton(self.ROIBox)
+        self.drawCircButton.setEnabled(False)
+        self.drawCircButton.setGeometry(QtCore.QRect(160, 30, 30, 30))
         sizePolicy = QtWidgets.QSizePolicy(QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.drawCircleButton.sizePolicy().hasHeightForWidth())
-        self.drawCircleButton.setSizePolicy(sizePolicy)
+        sizePolicy.setHeightForWidth(self.drawCircButton.sizePolicy().hasHeightForWidth())
+        self.drawCircButton.setSizePolicy(sizePolicy)
         font = QtGui.QFont()
         font.setPointSize(10)
-        self.drawCircleButton.setFont(font)
-        self.drawCircleButton.setText("")
-        self.drawCircleButton.setObjectName("drawCircleButton")
+        self.drawCircButton.setFont(font)
+        self.drawCircButton.setText("")
+        self.drawCircButton.setObjectName("drawCircleButton")
         self.applyROIButton = QtWidgets.QPushButton(self.ROIBox)
         self.applyROIButton.setEnabled(False)
         self.applyROIButton.setGeometry(QtCore.QRect(90, 64, 51, 21))
@@ -1134,7 +1153,7 @@ class Ui_MainWindow(object):
         self.menubar.addAction(self.menuHelp.menuAction())
 
         self.retranslateUi(MainWindow)
-        self.tabWidget.setCurrentIndex(5)
+        self.tabWidget.setCurrentIndex(0)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
@@ -1161,6 +1180,8 @@ class Ui_MainWindow(object):
         self.applyScaleButton.setText(_translate("MainWindow", "Apply"))
         self.threTabLinkButton.setText(_translate("MainWindow", "Threshold"))
         self.backToLoadButton.setText(_translate("MainWindow", "Back"))
+        self.caliTabText2.setText(_translate("MainWindow", "Pixel per metric is"))
+        self.caliTabText3.setText(_translate("MainWindow", " "))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.caliTab), _translate("MainWindow", "Calibration"))
         self.threTabText1.setText(_translate("MainWindow", "Number of objects"))
         self.threTabText2.setText(_translate("MainWindow", "Max"))
