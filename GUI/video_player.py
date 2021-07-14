@@ -4,8 +4,9 @@
 ##################################################################
 from PyQt5 import QtWidgets
 from PyQt5.QtCore import pyqtSignal, QThread,QObject,QMutex,QMutexLocker
+from PyQt5.QtWidgets import  QWidget
 import time
-
+import mainGUI
 
 class VideoThread(QThread):
 
@@ -41,11 +42,3 @@ class VideoThread(QThread):
 class Communicate(QObject):
     signal = pyqtSignal(str)
 
-# class SecondWindow(QtWidgets.QMainWindow):
-#     def __init__(self, Mainwindow, parent=None):
-#         super(SecondWindow, self).__init__(parent)
-#         self.Mainwindow = Mainwindow
-#         self.loadVidButton.clicked.connect(self.selectVideoFile)
-#
-#     def selectVideoFile(self):
-#         print('hello world')

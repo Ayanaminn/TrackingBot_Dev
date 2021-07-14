@@ -1,5 +1,5 @@
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
-from PyQt5.QtWidgets import QFileDialog, QMessageBox, QStyle, \
+from PyQt5.QtWidgets import QFileDialog, QMessageBox, QStyle,\
     QVBoxLayout, QLabel, QWidget, QHBoxLayout, QPushButton
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QPixmapCache
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QObject, QMutex, QMutexLocker, QRect, QPoint
@@ -19,11 +19,11 @@ from matplotlib import ticker
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from scipy.spatial import distance
-from shapely.geometry import Point, Polygon
+# from shapely.geometry import Point, Polygon
 import serial
 import serial.tools.list_ports
 import mainGUI
-from video_player import SecondWindow
+
 from video_player import VideoThread
 import mainGUI_calibration as Calibration
 from Tracking import TrackingMethod
@@ -45,7 +45,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
     STATUS_PLAYING = 1
     STATUS_PAUSE = 2
 
-    def __init__(self, video_file=''):
+    def __init__(self):
         super().__init__()
         self.setupUi(self)
         # fileh = QtCore.QFile(':/ui/mainGUI.ui')
@@ -58,17 +58,20 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # self.convert_scale = Calibration.Calibrate()
 
         # # video init
-        self.video_file = video_file
+        self.video_file = None
         self.preview_frame = None
         self.video_prop = None
         self.camera_prop = None
         self.status = self.STATUS_INIT  # 0: init 1:playing 2: pause
         self.playCapture = cv2.VideoCapture()
         self.verticalLayoutWidget.lower()
-        # timer for video player on load tab
+
+        #################################################################################
+        # timer for video player thread
+        #################################################################################
         self.videoThread = VideoThread()
         self.videoThread.timeSignal.signal[str].connect(self.displayVideo)
-        self.secondwin = SecondWindow(MainWindow)
+
 
         # timer for camera source
         self.cameraThread = CameraThread()
@@ -136,9 +139,10 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.liveModeButton.clicked.connect(self.enableLiveMode)
         self.backToMenuButton.clicked.connect(self.selectMainMenu)
 
-        #############################################################
-        # signals and widgets for the tab 1
-        # self.loadVidButton.clicked.connect(self.selectVideoFile)
+        ###############################################################################
+        # signals and widgets block for the load video tab
+        ###############################################################################
+        self.loadVidButton.clicked.connect(self.selectVideoFile)
         self.loadNewVidButton.clicked.connect(self.selectNewFile)
 
         self.playButton.clicked.connect(self.videoPlayControl)
@@ -363,30 +367,34 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.getPort()
 
     def selectVideoFile(self):
-
+        '''
+        select file and store file path as class instance
+        :return:
+        '''
         try:
             # set default directory for load files and set file type that only shown
-            self.video_file = QFileDialog.getOpenFileName(directory='C:/Users/Public/Desktop',
+            selected_file = QFileDialog.getOpenFileName(directory='C:/Users/Public/Desktop',
                                                           filter='Videos(*.mp4 *.avi)')
             # if no file selected
-            if self.video_file[0] == '':
+            if selected_file[0] == '':
+                # self.caliTabLinkButton.setEnabled(False)
                 return
             else:
-                # enable video control
+                # video file is global
+                self.video_file = selected_file
+                # enable video control buttons
                 self.playButton.setEnabled(True)
                 self.stopButton.setEnabled(True)
                 self.loadNewVidButton.setEnabled(True)
-
+                self.caliTabLinkButton.setEnabled(True)
                 # display image on top of other widgets
                 # can use either way
                 # self.caliBoxCanvasLabel.raise_()
                 self.loadVidButton.hide()
 
-                # after select file, auto read and display its property
-                print(self.video_file)
+                # auto read and display file property
+                # print(self.video_file)
                 self.readVideoFile(self.video_file[0])
-
-                self.threshThread.file = self.video_file
 
         except:
             self.error_msg = QMessageBox()
@@ -394,50 +402,35 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.error_msg.setText('An error happened when trying to load video file.')
             self.error_msg.setInformativeText('Please ensure the video file is not corrupted.')
             self.error_msg.setIcon(QMessageBox.Warning)
-            self.error_msg.setDetailedText('You caught a bug! \n'
-                                           'Please submit this issue on GitHub to help us improve. ')
+            self.error_msg.setDetailedText('selectVideoFile()Failed. \n'
+                                           'You caught a bug! \n'
+                                           'Please submit this issue on GitHub to help us improve.')
             self.error_msg.exec()
 
     def readVideoFile(self, file_path):
         '''
-        read property of selected video file and display the first frame
+        read property of selected video file and display
         '''
-        self.caliTabLinkButton.setEnabled(True)
-        self.loadNewVidButton.setEnabled(True)
+
         try:
             video_cap = cv2.VideoCapture(file_path)
-            video_prop = self.readVideoProp(video_cap)
-            video_name = os.path.split(file_path)
-            print(video_prop)
+            self.readVideoProp(video_cap)
+            self.video_name = os.path.split(file_path)
+            print(self.video_prop)
 
-            self.video_fps = int(video_prop.fps)
-            self.videoThread.set_fps(video_prop.fps)
-            self.threshThread.set_fps(video_prop.fps)
-            self.trackingThread.set_fps(video_prop.fps)
-
-            self.setVidProgressBar(video_prop)
-
-            # set a function here link to labels that display the parameters
-            self.vidNameText.setText(f'{str(video_name[1])}')
-            self.vidDurText.setText(f'{str(video_prop.duration).split(".")[0]}')
-            self.vidFpsText.setText(str(round(video_prop.fps, 2)))
-            self.vidResText.setText(f'{str(int(video_prop.width))} X {str(int(video_prop.height))}')
+            self.setVidProgressBar(self.video_prop)
+            self.displayVideoProp()
+            self.setVideoFPS()
 
             # display 1st frame of video in window as preview
             set_preview_frame = 1
             video_cap.set(cv2.CAP_PROP_POS_FRAMES, set_preview_frame)
             ret, preview_frame = video_cap.read()
+            # class variable
             self.preview_frame = preview_frame
-            frame_rgb = cv2.cvtColor(preview_frame, cv2.COLOR_BGR2RGB)
-            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
-                               QImage.Format_RGB888)
-            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
-            frame_display = QPixmap.fromImage(frame_scaled)
-            self.VBoxLabel.setPixmap(frame_display)
+            pixmap_frame = self.convertImage(preview_frame)
+            self.setVideoPreview(pixmap_frame)
 
-            self.setCalibrationCanvas(frame_display)
-            self.setThresholdCanvas(frame_display)
-            self.setTrackingCanvas(frame_display)
             video_cap.release()
 
         except:
@@ -466,16 +459,55 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # calculate total number of seconds of file
         total_sec = file_path.get(cv2.CAP_PROP_FRAME_COUNT) / file_path.get(cv2.CAP_PROP_FPS)
         # convert total seconds to hh:mm:ss format
-        video_duraion = str(timedelta(seconds=total_sec))
+        video_duration = str(timedelta(seconds=total_sec))
         video_prop = namedtuple('video_prop', ['width', 'height', 'fps', 'length', 'elapse', 'duration'])
         get_video_prop = video_prop(file_path.get(cv2.CAP_PROP_FRAME_WIDTH),
                                     file_path.get(cv2.CAP_PROP_FRAME_HEIGHT),
                                     file_path.get(cv2.CAP_PROP_FPS),
                                     file_path.get(cv2.CAP_PROP_FRAME_COUNT),
                                     file_path.get(cv2.CAP_PROP_POS_MSEC),
-                                    video_duraion)
+                                    video_duration)
         self.video_prop = get_video_prop
-        return get_video_prop
+
+    def displayVideoProp(self):
+
+        self.vidNameText.setText(f'{str(self.video_name[1])}')
+        self.vidDurText.setText(f'{str(self.video_prop.duration).split(".")[0]}')
+        self.vidFpsText.setText(str(round(self.video_prop.fps, 2)))
+        self.vidResText.setText(f'{str(int(self.video_prop.width))} X {str(int(self.video_prop.height))}')
+
+    def setVideoFPS(self):
+        # set video fps for each thread
+        self.video_fps = int(self.video_prop.fps)
+        self.videoThread.set_fps(self.video_prop.fps)
+        self.threshThread.set_fps(self.video_prop.fps)
+        self.trackingThread.set_fps(self.video_prop.fps)
+
+    def convertImage(self,image):
+        '''
+        convert image to QImage then to QPixmap
+        :param image:
+        :return:
+        '''
+
+        image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        image_cvt = QImage(image_rgb, image_rgb.shape[1], image_rgb.shape[0], image_rgb.strides[0],
+                           QImage.Format_RGB888)
+        image_scaled = image_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
+        image_display = QPixmap.fromImage(image_scaled)
+        return image_display
+
+    def setVideoPreview(self,frame):
+        '''
+        set a preview for each tab that contain a video label
+        :param frame: Qpixmap
+        :return:
+        '''
+
+        self.VBoxLabel.setPixmap(frame)
+        self.caliBoxLabel.setPixmap(frame)
+        self.threBoxLabel.setPixmap(frame)
+        self.trackingeBoxLabel.setPixmap(frame)
 
     def selectNewFile(self):
         '''
@@ -839,9 +871,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.applyScaleButton.setEnabled(False)
         self.caliBoxCanvasLabel.lower()
 
-    def setCalibrationCanvas(self, frame):
-        self.caliBoxLabel.setPixmap(frame)
-
     def drawScale(self):
         '''
         enable canvas label for mouse and paint event
@@ -895,10 +924,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.error_msg.exec()
 
     #####################################Functions for threshold##########################
-
-    def setThresholdCanvas(self, frame):
-
-        self.threBoxLabel.setPixmap(frame)
 
     def enableThreshold(self):
         # when enable cali tab, vid been reset, self.playCapture released
@@ -1268,22 +1293,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         if self.apply_mask:
             # bitwise operation
             masked_frame = self.detection.apply_mask(self.binary_mask, self.preview_frame)
-            mask_frame_rgb = cv2.cvtColor(masked_frame, cv2.COLOR_BGR2RGB)
-            mask_frame_cvt = QImage(mask_frame_rgb, mask_frame_rgb.shape[1], mask_frame_rgb.shape[0], mask_frame_rgb.strides[0],
-                                    QImage.Format_RGB888)
-            mask_frame_scaled = mask_frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
-            mask_frame_display = QPixmap.fromImage(mask_frame_scaled)
-            self.setTrackingCanvas(mask_frame_display)
+            pixmap_frame = self.convertImage(masked_frame)
+            self.trackingeBoxLabel.setPixmap(pixmap_frame)
 
-        elif not self.apply_mask:
-
-            frame_rgb = cv2.cvtColor(self.preview_frame, cv2.COLOR_BGR2RGB)
-            frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
-                                    QImage.Format_RGB888)
-            frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
-            frame_display = QPixmap.fromImage(frame_scaled)
-            self.setTrackingCanvas(frame_display)
-            # self.setTrackingCanvas(self.preview_frame)
 
         print(f'enable tracking{self.video_file[0]}')
         print(f'enable tracking{self.playCapture.isOpened()}')
@@ -1294,9 +1306,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.tabWidget.setCurrentIndex(3)
         self.trackStartButton.setEnabled(False)
         self.resetVideo()
-
-    def setTrackingCanvas(self, frame):
-        self.trackingeBoxLabel.setPixmap(frame)
 
     def trackingVidControl(self):
         if self.video_file[0] == '' or self.video_file[0] is None:
@@ -2241,7 +2250,6 @@ class ThreshVidThread(QThread):
 
     def __init__(self, default_fps=25):
         QThread.__init__(self)
-        self.file = ''
         self.mask_img = None
         self.stopped = False
         self.fps = default_fps
