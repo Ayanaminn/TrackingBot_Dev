@@ -19,9 +19,12 @@ from matplotlib import ticker
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 from scipy.spatial import distance
+from shapely.geometry import Point, Polygon
 import serial
 import serial.tools.list_ports
 import mainGUI
+from video_player import SecondWindow
+from video_player import VideoThread
 import mainGUI_calibration as Calibration
 from Tracking import TrackingMethod
 from Datalog import TrackingDataLog
@@ -65,6 +68,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # timer for video player on load tab
         self.videoThread = VideoThread()
         self.videoThread.timeSignal.signal[str].connect(self.displayVideo)
+        self.secondwin = SecondWindow(MainWindow)
 
         # timer for camera source
         self.cameraThread = CameraThread()
@@ -134,7 +138,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         #############################################################
         # signals and widgets for the tab 1
-        self.loadVidButton.clicked.connect(self.selectVideoFile)
+        # self.loadVidButton.clicked.connect(self.selectVideoFile)
         self.loadNewVidButton.clicked.connect(self.selectNewFile)
 
         self.playButton.clicked.connect(self.videoPlayControl)
@@ -316,7 +320,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.drawLineButton.setIcon(QtGui.QIcon('line.png'))
         self.drawLineButton.setIconSize(QtCore.QSize(25,25))
-        self.drawRectButton.setIcon(QtGui.QIcon('rectangular.png'))
+        self.drawRectButton.setIcon(QtGui.QIcon('rectangle.png'))
         self.drawRectButton.setIconSize(QtCore.QSize(25,25))
         self.drawCircButton.setIcon(QtGui.QIcon('circle.png'))
         self.drawCircButton.setIconSize(QtCore.QSize(24,24))
@@ -1808,6 +1812,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.controllerThread.track_data(tracked_object)
 
         self.controllerThread.start()
+
+
     ###############################################Functions for hardware#################################
 
     def getPort(self):
@@ -1974,9 +1980,12 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
 
     def applyROI(self):
-        print(self.camBoxCanvasLabel.zones)
-        # self.trackingCamThread.ROI_coordinate = self.camBoxCanvasLabel.line_coordinates
-        # self.controllerThread.ROI_coordinate = self.camBoxCanvasLabel.line_coordinates
+
+        # print(self.camBoxCanvasLabel.zones[0].contains(100, 100))
+        self.trackingCamThread.zones = self.camBoxCanvasLabel.zones
+        self.controllerThread.zones = self.camBoxCanvasLabel.zones
+
+        print(self.controllerThread.zones)
 
         self.applyROIButton.setEnabled(False)
         self.drawLineButton.setEnabled(False)
@@ -2159,7 +2168,6 @@ class Detection():
 
 
 class Communicate(QObject):
-    signal = pyqtSignal(str)
     cam_signal = pyqtSignal(QImage)
     thresh_signal = pyqtSignal(QImage)
     cam_thresh_signal = pyqtSignal(QImage)
@@ -2176,38 +2184,6 @@ class Communicate(QObject):
     track_reset = pyqtSignal(str)
     track_reset_alarm = pyqtSignal(str)
     cam_alarm = pyqtSignal(str)
-
-
-class VideoThread(QThread):
-
-    def __init__(self, default_fps=25):
-        QThread.__init__(self)
-        self.stopped = False
-        self.fps = default_fps
-        self.timeSignal = Communicate()
-        self.mutex = QMutex()
-
-    def run(self):
-        with QMutexLocker(self.mutex):
-            self.stopped = False
-
-        while True:
-            if self.stopped:
-                return
-            self.timeSignal.signal.emit('1')
-            time.sleep(1 / self.fps)
-
-    def stop(self):
-        with QMutexLocker(self.mutex):
-            self.stopped = True
-
-    def is_stopped(self):
-        with QMutexLocker(self.mutex):
-            return self.stopped
-
-    def set_fps(self, video_fps):
-        self.fps = video_fps
-        print(f'set fps to {self.fps}')
 
 
 class CameraThread(QThread):
@@ -2881,6 +2857,7 @@ class TrackingCamThread(QThread):
         self.start_delta = time.perf_counter()
 
         self.ROI_coordinate = None
+        self.zones = None
 
     def run(self):
 
@@ -3014,10 +2991,11 @@ class ControllerThread(QThread):
         # self.timeSignal = Communicate()
         self.mutex = QMutex()
         self.ROI_coordinate = None
+        self.zones = None
         self.tracked_object = []
 
     def run(self):
-        print('controller thread run')
+        # print('controller thread run')
         with QMutexLocker(self.mutex):
             self.stopped = False
 
@@ -3028,7 +3006,10 @@ class ControllerThread(QThread):
 
             for i in range(len(self.tracked_object)):
                     # print(len(TrackingMethod.registration)) # examine number of registrated objects
-                    print(f'realtime tracked obj pos {self.tracked_object[i].pos_prediction[0]}')
+                # print(f'realtime tracked obj pos {(self.tracked_object[i].pos_prediction[0][0],self.tracked_object[i].pos_prediction[1][0])}')
+                if self.zones[0].contains(self.tracked_object[i].pos_prediction[0][0],self.tracked_object[i].pos_prediction[1][0]):
+
+                    print('trigger!')
 
 
 

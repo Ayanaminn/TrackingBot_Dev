@@ -39,6 +39,9 @@
       <bold>true</bold>
      </font>
     </property>
+    <property name="whatsThis">
+     <string/>
+    </property>
     <property name="styleSheet">
      <string notr="true">QTabWidget::pane {
   border: 1px solid lightgray;
@@ -66,7 +69,7 @@ QTabBar::tab:selected {
      <enum>QTabWidget::Triangular</enum>
     </property>
     <property name="currentIndex">
-     <number>5</number>
+     <number>1</number>
     </property>
     <property name="iconSize">
      <size>
@@ -81,32 +84,55 @@ QTabBar::tab:selected {
      <attribute name="title">
       <string>Menu</string>
      </attribute>
-     <widget class="QLabel" name="label">
+     <widget class="QToolButton" name="localModeButton">
       <property name="geometry">
        <rect>
-        <x>0</x>
-        <y>0</y>
-        <width>1024</width>
-        <height>576</height>
+        <x>310</x>
+        <y>340</y>
+        <width>270</width>
+        <height>120</height>
        </rect>
       </property>
-      <property name="frameShape">
-       <enum>QFrame::Panel</enum>
+      <property name="font">
+       <font>
+        <family>Arial Black</family>
+        <pointsize>16</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+        <stylestrategy>PreferDefault</stylestrategy>
+        <kerning>true</kerning>
+       </font>
+      </property>
+      <property name="toolTip">
+       <string>Tracking from a pre-recorded video file.</string>
       </property>
       <property name="text">
-       <string/>
+       <string>Offline Tracking</string>
       </property>
-      <property name="alignment">
-       <set>Qt::AlignCenter</set>
+      <property name="icon">
+       <iconset>
+        <normaloff>video_file.png</normaloff>video_file.png</iconset>
+      </property>
+      <property name="iconSize">
+       <size>
+        <width>60</width>
+        <height>60</height>
+       </size>
+      </property>
+      <property name="toolButtonStyle">
+       <enum>Qt::ToolButtonTextUnderIcon</enum>
+      </property>
+      <property name="arrowType">
+       <enum>Qt::NoArrow</enum>
       </property>
      </widget>
-     <widget class="QPushButton" name="localModeButton">
+     <widget class="QToolButton" name="liveModeButton">
       <property name="geometry">
        <rect>
-        <x>240</x>
-        <y>230</y>
-        <width>211</width>
-        <height>111</height>
+        <x>700</x>
+        <y>340</y>
+        <width>270</width>
+        <height>120</height>
        </rect>
       </property>
       <property name="font">
@@ -117,29 +143,24 @@ QTabBar::tab:selected {
         <bold>true</bold>
        </font>
       </property>
-      <property name="text">
-       <string>Local tracking</string>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="liveModeButton">
-      <property name="geometry">
-       <rect>
-        <x>560</x>
-        <y>230</y>
-        <width>211</width>
-        <height>111</height>
-       </rect>
-      </property>
-      <property name="font">
-       <font>
-        <family>Arial Black</family>
-        <pointsize>14</pointsize>
-        <weight>75</weight>
-        <bold>true</bold>
-       </font>
+      <property name="toolTip">
+       <string>Tracking from a live camera source.</string>
       </property>
       <property name="text">
        <string>Live Tracking</string>
+      </property>
+      <property name="icon">
+       <iconset>
+        <normaloff>video_camera.png</normaloff>video_camera.png</iconset>
+      </property>
+      <property name="iconSize">
+       <size>
+        <width>65</width>
+        <height>65</height>
+       </size>
+      </property>
+      <property name="toolButtonStyle">
+       <enum>Qt::ToolButtonTextUnderIcon</enum>
       </property>
      </widget>
     </widget>
@@ -164,24 +185,6 @@ QTabBar::tab:selected {
       </property>
       <property name="alignment">
        <set>Qt::AlignCenter</set>
-      </property>
-     </widget>
-     <widget class="QPushButton" name="loadVidButton">
-      <property name="geometry">
-       <rect>
-        <x>410</x>
-        <y>210</y>
-        <width>211</width>
-        <height>171</height>
-       </rect>
-      </property>
-      <property name="font">
-       <font>
-        <pointsize>18</pointsize>
-       </font>
-      </property>
-      <property name="text">
-       <string>Load Video</string>
       </property>
      </widget>
      <widget class="QWidget" name="horizontalLayoutWidget">
@@ -300,13 +303,13 @@ QTabBar::tab:selected {
        <rect>
         <x>1040</x>
         <y>10</y>
-        <width>61</width>
+        <width>91</width>
         <height>51</height>
        </rect>
       </property>
       <property name="font">
        <font>
-        <pointsize>10</pointsize>
+        <pointsize>11</pointsize>
         <weight>75</weight>
         <bold>true</bold>
        </font>
@@ -319,14 +322,14 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1040</x>
-        <y>70</y>
-        <width>181</width>
+        <y>90</y>
+        <width>231</width>
         <height>41</height>
        </rect>
       </property>
       <property name="font">
        <font>
-        <pointsize>10</pointsize>
+        <pointsize>11</pointsize>
         <weight>75</weight>
         <bold>true</bold>
        </font>
@@ -339,14 +342,14 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1040</x>
-        <y>120</y>
-        <width>121</width>
+        <y>160</y>
+        <width>131</width>
         <height>51</height>
        </rect>
       </property>
       <property name="font">
        <font>
-        <pointsize>10</pointsize>
+        <pointsize>11</pointsize>
         <weight>75</weight>
         <bold>true</bold>
        </font>
@@ -359,14 +362,14 @@ QTabBar::tab:selected {
       <property name="geometry">
        <rect>
         <x>1040</x>
-        <y>170</y>
+        <y>240</y>
         <width>91</width>
         <height>51</height>
        </rect>
       </property>
       <property name="font">
        <font>
-        <pointsize>10</pointsize>
+        <pointsize>11</pointsize>
         <weight>75</weight>
         <bold>true</bold>
        </font>
@@ -381,9 +384,9 @@ QTabBar::tab:selected {
       </property>
       <property name="geometry">
        <rect>
-        <x>1234</x>
-        <y>20</y>
-        <width>61</width>
+        <x>1214</x>
+        <y>60</y>
+        <width>81</width>
         <height>31</height>
        </rect>
       </property>
@@ -392,37 +395,18 @@ QTabBar::tab:selected {
         <pointsize>10</pointsize>
        </font>
       </property>
+      <property name="toolTip">
+       <string>Select another video file</string>
+      </property>
       <property name="text">
        <string>New file</string>
-      </property>
-     </widget>
-     <widget class="QCommandLinkButton" name="caliTabLinkButton">
-      <property name="enabled">
-       <bool>false</bool>
-      </property>
-      <property name="geometry">
-       <rect>
-        <x>1140</x>
-        <y>730</y>
-        <width>131</width>
-        <height>41</height>
-       </rect>
-      </property>
-      <property name="font">
-       <font>
-        <family>Segoe UI</family>
-        <pointsize>12</pointsize>
-       </font>
-      </property>
-      <property name="text">
-       <string>Calibration</string>
       </property>
      </widget>
      <widget class="QLabel" name="vidNameText">
       <property name="geometry">
        <rect>
-        <x>1110</x>
-        <y>20</y>
+        <x>1040</x>
+        <y>60</y>
         <width>121</width>
         <height>31</height>
        </rect>
@@ -446,8 +430,8 @@ QTabBar::tab:selected {
      <widget class="QLabel" name="vidDurText">
       <property name="geometry">
        <rect>
-        <x>1230</x>
-        <y>70</y>
+        <x>1040</x>
+        <y>130</y>
         <width>81</width>
         <height>41</height>
        </rect>
@@ -462,8 +446,8 @@ QTabBar::tab:selected {
      <widget class="QLabel" name="vidFpsText">
       <property name="geometry">
        <rect>
-        <x>1160</x>
-        <y>130</y>
+        <x>1040</x>
+        <y>210</y>
         <width>101</width>
         <height>31</height>
        </rect>
@@ -478,8 +462,8 @@ QTabBar::tab:selected {
      <widget class="QLabel" name="vidResText">
       <property name="geometry">
        <rect>
-        <x>1120</x>
-        <y>180</y>
+        <x>1040</x>
+        <y>290</y>
         <width>101</width>
         <height>31</height>
        </rect>
@@ -513,6 +497,70 @@ QTabBar::tab:selected {
       </property>
       <property name="text">
        <string>Back</string>
+      </property>
+     </widget>
+     <widget class="QToolButton" name="caliTabLinkButton">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>1140</x>
+        <y>740</y>
+        <width>121</width>
+        <height>41</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <family>Segoe UI Black</family>
+        <pointsize>12</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>Calibration</string>
+      </property>
+      <property name="toolButtonStyle">
+       <enum>Qt::ToolButtonTextBesideIcon</enum>
+      </property>
+      <property name="arrowType">
+       <enum>Qt::RightArrow</enum>
+      </property>
+     </widget>
+     <widget class="QToolButton" name="loadVidButton">
+      <property name="geometry">
+       <rect>
+        <x>420</x>
+        <y>210</y>
+        <width>211</width>
+        <height>171</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>16</pointsize>
+       </font>
+      </property>
+      <property name="toolTip">
+       <string>Select a video file</string>
+      </property>
+      <property name="text">
+       <string>Select File</string>
+      </property>
+      <property name="icon">
+       <iconset>
+        <normaloff>select_file.png</normaloff>select_file.png</iconset>
+      </property>
+      <property name="iconSize">
+       <size>
+        <width>100</width>
+        <height>100</height>
+       </size>
+      </property>
+      <property name="toolButtonStyle">
+       <enum>Qt::ToolButtonTextUnderIcon</enum>
       </property>
      </widget>
     </widget>
