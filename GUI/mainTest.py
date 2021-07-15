@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QStyle,\
-    QVBoxLayout, QLabel, QWidget, QHBoxLayout, QPushButton
+    QVBoxLayout, QLabel, QWidget, QHBoxLayout, QPushButton,QSplashScreen
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QPixmapCache
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QObject, QMutex, QMutexLocker, QRect, QPoint
 from qtwidgets import Toggle, AnimatedToggle
@@ -25,7 +25,7 @@ import serial.tools.list_ports
 import mainGUI
 
 from video_player import VideoThread
-import mainGUI_calibration as Calibration
+import graphic_interactive as Graphic
 from Tracking import TrackingMethod
 from Datalog import TrackingDataLog
 
@@ -115,22 +115,13 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.resetVideo()
 
         self.tabWidget.setTabEnabled(1, False)
-        self.tabWidget.setTabEnabled(2, False)
+        self.tabWidget.setTabEnabled(2, True)
         self.tabWidget.setTabEnabled(3, False)
         self.tabWidget.setTabEnabled(4, False)
         self.tabWidget.setTabEnabled(5, False)
 
-        # add a canvas for drawing
-        # self.VBoxCanvasLabel = Drawing(self.caliTab)
-        self.caliBoxCanvasLabel = Calibration.Drawing(self.caliTab)
-        self.caliBoxCanvasLabel.setEnabled(False)
-        self.caliBoxCanvasLabel.lower()
-        self.caliBoxCanvasLabel.setGeometry(QRect(0, 0, 1024, 576))
-        self.caliBoxCanvasLabel.setAlignment(QtCore.Qt.AlignCenter)
-        self.caliBoxCanvasLabel.setFrameShape(QtWidgets.QFrame.Box)
-        self.caliBoxCanvasLabel.setCursor(Qt.CrossCursor)
-        # force trasparent to override application style
-        self.caliBoxCanvasLabel.setStyleSheet("background-color: rgba(0,0,0,0%)")
+
+
 
         ##############################################################
         # signals and widgets for the tab 0
@@ -159,8 +150,12 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.vidProgressBar.valueChanged.connect(self.updatePosition)
         self.vidProgressBar.sliderReleased.connect(self.resumeFromSlider)
 
-        ###################################################################
-        # signal on tab 2
+        ##########################################################################
+        # signals and widgets for calibration section
+        ###########################################################################
+
+        # add a canvas for drawing
+        self.caliBoxCanvasLabel = Graphic.Calibration(self.caliTab)
         # init pixel unit convert ratio
         self.pixel_per_metric = 1
         self.drawScaleButton.clicked.connect(self.drawScale)
@@ -188,6 +183,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # self.threMaskLabel.setText("")
         # self.threMaskLabel.setAlignment(QtCore.Qt.AlignCenter)
         # self.threMaskLabel.setObjectName("threBoxLabel")
+
 
         self.backToCaliButton.clicked.connect(self.selectCaliTab)
 
@@ -283,7 +279,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.closeCamButton.clicked.connect(self.closeCamera)
         self.backToMenuButton_2.clicked.connect(self.selectMainMenu)
 
-        self.camBoxCanvasLabel = Calibration.DefineROI(self.loadCamTab)
+        self.camBoxCanvasLabel = Graphic.DefineROI(self.loadCamTab)
 
         self.camPreviewBoxLabel.lower()
         self.previewToggle_2 = Toggle(self.loadCamTab)
@@ -337,7 +333,10 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.resetROIButton.clicked.connect(self.clearControlROI)
 
+        self.actionAbout.triggered.connect(self.test)
 
+    def test(self):
+        print('trigger')
 
     def selectMainMenu(self):
         self.tabWidget.setTabEnabled(0, True)
@@ -365,6 +364,10 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.tabWidget.setCurrentIndex(5)
         self.backToMenuButton_2.setEnabled(True)
         self.getPort()
+
+    ################################################################################################
+    # Functions for load and preview video file section
+    #################################################################################################
 
     def selectVideoFile(self):
         '''
@@ -518,58 +521,66 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.selectVideoFile()
 
     def videoPlayControl(self):
-
+        '''
+        Play/pause/resume video
+        '''
         if self.video_file[0] == '' or self.video_file[0] is None:
-            print('No video is selected')
+            self.error_msg = QMessageBox()
+            self.error_msg.setWindowTitle('TrackingBot')
+            self.error_msg.setText('No video file is selected.')
+            self.error_msg.setInformativeText('Please select a video file to start')
+            self.error_msg.setIcon(QMessageBox.Warning)
+            self.error_msg.exec()
             return
-
+        # play
         if self.status is MainWindow.STATUS_INIT:
             try:
-                self.playVideo()
+                self.playCapture.open(self.video_file[0])
+                self.videoThread.start()
+                self.status = MainWindow.STATUS_PLAYING
+                self.setPauseIcon()
             except:
                 self.error_msg = QMessageBox()
                 self.error_msg.setWindowTitle('Error')
                 self.error_msg.setText('An error happened when trying to play video file.')
-                self.error_msg.setInformativeText('playVideo() does not execute correctly.')
+                self.error_msg.setInformativeText('videoPlayControl() does not execute correctly.')
                 self.error_msg.setIcon(QMessageBox.Warning)
                 self.error_msg.setDetailedText('You caught a bug! \n'
                                                'Please submit this issue on GitHub to help us improve. ')
                 self.error_msg.exec()
-
+        # pause
         elif self.status is MainWindow.STATUS_PLAYING:
             try:
-                self.pauseVideo()
+                self.videoThread.stop()
+                self.status = MainWindow.STATUS_PAUSE
+                self.setPlayIcon()
             except:
                 self.error_msg = QMessageBox()
                 self.error_msg.setWindowTitle('Error')
                 self.error_msg.setText('An error happened when trying to pause video file.')
-                self.error_msg.setInformativeText('pauseVideo() does not execute correctly.')
+                self.error_msg.setInformativeText('videoPlayControl() does not execute correctly.')
                 self.error_msg.setIcon(QMessageBox.Warning)
                 self.error_msg.setDetailedText('You caught a bug! \n'
                                                'Please submit this issue on GitHub to help us improve. ')
                 self.error_msg.exec()
-
-            # if self.video_type is VideoBox.VIDEO_TYPE_REAL_TIME:
-            #     self.playCapture.release()
-
+        # resume
         elif self.status is MainWindow.STATUS_PAUSE:
             try:
-                self.resumeVideo()
+                self.videoThread.start()
+                self.status = MainWindow.STATUS_PLAYING
+                self.setPauseIcon()
             except:
                 self.error_msg = QMessageBox()
                 self.error_msg.setWindowTitle('Error')
                 self.error_msg.setText('An error happened when trying to resume playing.')
-                self.error_msg.setInformativeText('resumeVideo() does not execute correctly.')
+                self.error_msg.setInformativeText('videoPlayControl() does not execute correctly.')
                 self.error_msg.setIcon(QMessageBox.Warning)
                 self.error_msg.setDetailedText('You caught a bug! \n'
                                                'Please submit this issue on GitHub to help us improve. ')
                 self.error_msg.exec()
-            # if self.video_type is VideoBox.VIDEO_TYPE_REAL_TIME:
-            #     self.playCapture.open(self.video_url)
-            # self.videoThread.start()
 
         '''
-        study below structure
+        alternative
         '''
         # self.status = (MainWindow.STATUS_PLAYING,
         #                MainWindow.STATUS_PAUSE,
@@ -594,15 +605,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                 self.vidProgressBar.setSliderPosition(play_elapse)
                 self.vidPosLabel.setText(f"{str(timedelta(seconds=play_elapse)).split('.')[0]}")
 
-                # if frame.ndim == 3:
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                # elif frame.ndim == 2:
-                # frame_rgb = cv2.cvtColor(frame, cv2.COLOR_GRAY2RGB)
-
-                frame_cvt = QImage(frame_rgb, frame_rgb.shape[1], frame_rgb.shape[0], frame_rgb.strides[0],
-                                   QImage.Format_RGB888)
-                frame_scaled = frame_cvt.scaled(1024, 576, Qt.KeepAspectRatio)
-                frame_display = QPixmap.fromImage(frame_scaled)
+                # # if frame.ndim == 3
+                frame_display = self.convertImage(frame)
                 self.VBoxLabel.setPixmap(frame_display)
 
             elif not ret:
@@ -614,7 +618,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                 self.error_msg = QMessageBox()
                 self.error_msg.setWindowTitle('Error')
                 self.error_msg.setText('Failed to read next video frame.')
-                self.error_msg.setInformativeText('cv2.VideoCapture.read() does not return any frame.')
+                self.error_msg.setInformativeText('displayVideo() failed to execute \n'
+                                                  'cv2.VideoCapture.read() does not return any frame.')
                 self.error_msg.setIcon(QMessageBox.Warning)
                 self.error_msg.setDetailedText('You caught a bug! \n'
                                                'Please submit this issue on GitHub to help us improve. ')
@@ -630,29 +635,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                                            'Please submit this issue on GitHub to help us improve.')
             self.error_msg.exec()
             self.resetVideo()
-
-    def playVideo(self):
-
-        self.playCapture.open(self.video_file[0])
-        self.videoThread.start()
-        self.status = MainWindow.STATUS_PLAYING
-        self.setPauseIcon()
-
-    def pauseVideo(self):
-
-        self.videoThread.stop()
-        # for camera
-        # if self.video_type is MainWindow.VIDEO_TYPE_REAL_TIME:
-        #     self.playCapture.release()
-        # print(self.playCapture.get(cv2.CAP_PROP_POS_FRAMES))
-        self.status = MainWindow.STATUS_PAUSE
-        self.setPlayIcon()
-
-    def resumeVideo(self):
-
-        self.videoThread.start()
-        self.status = MainWindow.STATUS_PLAYING
-        self.setPauseIcon()
 
     def stopVideo(self):
         is_stopped = self.videoThread.is_stopped()
@@ -845,7 +827,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.camCntMaxSpin.setEnabled(False)
 
 
-    #####################################Functions for calibaration##########################
+    #############################################################################################
+    # Functions for pixel calibaration
+    #############################################################################################
 
     def enableCalibration(self):
         '''
@@ -859,6 +843,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.backToLoadButton.setEnabled(True)
 
     def selectVidTab(self):
+        '''
+        back to the load video tab, restore all widgets
+        '''
         self.tabWidget.setTabEnabled(1, True)
         self.resetVideo()
         self.tabWidget.setTabEnabled(2, False)
@@ -883,7 +870,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.caliBoxCanvasLabel.raise_()
 
     def clearScale(self):
-        self.caliBoxCanvasLabel.earse()
+        self.caliBoxCanvasLabel.erase()
         self.metricNumInput.clear()
         self.drawScaleButton.setEnabled(True)
         self.caliBoxCanvasLabel.setEnabled(True)
@@ -896,14 +883,15 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             metric = int(self.metricNumInput.text())
             # print(f'metric is {metric}')
             if (metric >= 1 and metric <= 1000):
-                scale = self.caliBoxCanvasLabel.line_coordinates
+                scale = self.caliBoxCanvasLabel.lines[0]
                 # print(f'scale is {scale}')
+                pixel_length = distance.euclidean((scale.x1(), scale.y1()),(scale.x2(), scale.y2()))
 
-                pixel_length = distance.euclidean(scale[0], scale[1])
                 self.pixel_per_metric = round(pixel_length, 2) / metric
-                print(f'pixel_per_metric{self.pixel_per_metric}')
+                # print(f'pixel_per_metric{self.pixel_per_metric}')
+                self.caliResult.setText(str(self.pixel_per_metric))
 
-                self.caliTabText3.setText(str(self.pixel_per_metric))
+
                 self.drawScaleButton.setEnabled(False)
                 self.caliBoxCanvasLabel.setEnabled(False)
                 self.metricNumInput.setEnabled(False)
@@ -3047,8 +3035,15 @@ if __name__ == "__main__":
     app = QtWidgets.QApplication(sys.argv)
 
     app.setStyleSheet((open('stylesheet.qss').read()))
+    # show launching screen
+    splash_pix = QPixmap('splash_screen.png')
+    splash = QSplashScreen(splash_pix, Qt.WindowStaysOnTopHint)
+    splash.setMask(splash_pix.mask())
+    splash.show()
+    app.processEvents()
+    time.sleep(2)
     # connect subclass with parent class
     window = MainWindow()
     window.show()
-
+    splash.finish(window)
     sys.exit(app.exec_())

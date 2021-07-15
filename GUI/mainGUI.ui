@@ -69,7 +69,7 @@ QTabBar::tab:selected {
      <enum>QTabWidget::Triangular</enum>
     </property>
     <property name="currentIndex">
-     <number>1</number>
+     <number>2</number>
     </property>
     <property name="iconSize">
      <size>
@@ -798,13 +798,13 @@ QTabBar::tab:selected {
        </font>
       </property>
       <property name="text">
-       <string>Pixel per metric is</string>
+       <string>Pixel per metric : </string>
       </property>
       <property name="alignment">
        <set>Qt::AlignCenter</set>
       </property>
      </widget>
-     <widget class="QLabel" name="caliTabText3">
+     <widget class="QLabel" name="caliResult">
       <property name="geometry">
        <rect>
         <x>1180</x>
@@ -825,6 +825,9 @@ QTabBar::tab:selected {
       </property>
       <property name="alignment">
        <set>Qt::AlignCenter</set>
+      </property>
+      <property name="wordWrap">
+       <bool>true</bool>
       </property>
      </widget>
     </widget>
@@ -2784,54 +2787,24 @@ QTabBar::tab:selected {
      <height>21</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menuFile">
-    <property name="title">
-     <string>File</string>
-    </property>
-    <addaction name="actionNew_Local_Tracking"/>
-    <addaction name="actionNew_Live_Tracking"/>
-   </widget>
-   <widget class="QMenu" name="menuEdit">
-    <property name="title">
-     <string>Edit</string>
-    </property>
-    <addaction name="actionCopy"/>
-   </widget>
-   <widget class="QMenu" name="menuSettings">
-    <property name="title">
-     <string>Settings</string>
-    </property>
-   </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
      <string>Help</string>
     </property>
+    <addaction name="actionHelp"/>
     <addaction name="actionAbout"/>
    </widget>
-   <addaction name="menuFile"/>
-   <addaction name="menuEdit"/>
-   <addaction name="menuSettings"/>
    <addaction name="menuHelp"/>
   </widget>
   <widget class="QStatusBar" name="statusbar"/>
-  <action name="actionNew_Local_Tracking">
+  <action name="actionHelp">
    <property name="text">
-    <string>New Local Tracking</string>
-   </property>
-  </action>
-  <action name="actionNew_Live_Tracking">
-   <property name="text">
-    <string>New Live Tracking</string>
+    <string>Help</string>
    </property>
   </action>
   <action name="actionAbout">
    <property name="text">
     <string>About</string>
-   </property>
-  </action>
-  <action name="actionCopy">
-   <property name="text">
-    <string>Copy</string>
    </property>
   </action>
  </widget>
