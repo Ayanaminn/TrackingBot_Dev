@@ -1,77 +1,77 @@
+###################################################################################
+# This module manages all graphic related operations such as use paint tools
+#
+####################################################################################
+
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QLabel,QGraphicsScene,QGraphicsView
 from PyQt5.QtGui import QPainter, QPen
 from PyQt5.QtCore import Qt,QPoint, QLine, QRect
 
 
-import cv2, imutils
-import time
-from collections import namedtuple
-from datetime import datetime, timedelta
-import mainGUI
 
-
-class Drawing(QLabel):
+class Calibration(QLabel):
 
     def __init__(self, parent = None):
         QLabel.__init__(self,parent)
+        self.setEnabled(False)
+        self.lower()
+        self.setGeometry(QRect(0, 0, 1024, 576))
+        self.setAlignment(QtCore.Qt.AlignCenter)
+        self.setFrameShape(QtWidgets.QFrame.Box)
+        self.setCursor(Qt.CrossCursor)
+        # force trasparent to override application style
+        self.setStyleSheet("background-color: rgba(0,0,0,0%)")
+        self.pen = QPen(Qt.red, 2, Qt.SolidLine)
 
-        self.x0 = 0
-        self.y0 = 0
-        self.x1 = 0
-        self.y1 = 0
-        self.line_coordinates = []
+        self.begin = QPoint()
+        self.end = QPoint()
+        self.lines = []
         self.draw_flag = False
         self.erase_flag = False
 
     # Mouse click event
     def mousePressEvent(self, event):
-        self.draw_flag = True
+        self.lines.clear()
         self.erase_flag = False
-        self.line_coordinates.clear()
-        self.x0 = event.x()
-        self.y0 = event.y()
-        self.x1 = self.x0
-        self.y1 = self.y0
-        print(self.x0,self.y0)
-        start = (self.x0, self.y0)
-        self.line_coordinates.append(start)
-
+        self.begin = self.end = event.pos()
+        self.update()
+        # call super for mousePressEvent for the original handler to kick in
+        # and pass the QMouseEvent instance to the original handler
+        # that is, passing all other button clicks
+        super().mousePressEvent(event)
 
     # Mouse release event
-    def mouseReleaseEvent(self, event):
-        self.draw_flag = False
-        self.erase_flag = False
-        end = (self.x1, self.y1)
-        self.line_coordinates.append(end)
+    def mouseMoveEvent(self, event):
+        self.end = event.pos()
+        self.update()
+        super().mouseMoveEvent(event)
 
     # Mouse movement events
-    def mouseMoveEvent(self, event):
-        if self.draw_flag:
-            self.x1 = event.x()
-            self.y1 = event.y()
-            self.update()
+    def mouseReleaseEvent(self, event):
+        line = QLine(self.begin, self.end)
+        self.lines.append(line)
+        # reset
+        self.begin = self.end = QPoint()
+        self.update()
+        super().mouseReleaseEvent(event)
 
      #Draw events
     def paintEvent(self, event):
         super().paintEvent(event)
         painter = QPainter(self)
-        # painter = QGraphicsLineItem(self)
+        painter.setPen(self.pen)
         if self.erase_flag:
-            # painter.clear()
-            self.x0 = 0
-            self.y0 = 0
-            self.x1 = 0
-            self.y1 = 0
+            self.lines.clear()
             # self.update()
         else:
-            painter.setPen(QPen(Qt.red, 2, Qt.SolidLine))
-            # rect =QRect(self.x0, self.y0, abs(self.x1-self.x0), abs(self.y1-self.y0))
-            # painter.drawRect(rect)
-            self.newline = QLine(self.x0,self.y0,self.x1,self.y1)
-            painter.drawLine(self.newline)
+            for line in self.lines:
+                painter.drawLine(line)
+            # draw continuously when mouse is moving
+            if not self.begin.isNull() and not self.end.isNull():
+                painter.drawLine(self.begin,self.end)
 
-    def earse(self):
+    def erase(self):
         self.erase_flag = True
         self.update()
 
@@ -109,6 +109,7 @@ class DefineROI(QLabel):
 
 
         # Mouse click event
+
     def mousePressEvent(self, event):
         self.erase_flag = False
         self.begin = self.end = event.pos()
@@ -224,13 +225,3 @@ class DefineROI(QLabel):
         self.line_flag = False
         self.rect_flag = False
         self.circ_flag = True
-
-# class Calibrate():
-#
-#     def __init__(self):
-#
-#         self.draw = Drawing()
-#
-#     def logScale(self):
-#         t = self.draw.logdata(self)
-#         print(f'log scale for cal is {t}')
