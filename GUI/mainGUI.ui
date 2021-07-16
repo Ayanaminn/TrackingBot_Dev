@@ -69,7 +69,7 @@ QTabBar::tab:selected {
      <enum>QTabWidget::Triangular</enum>
     </property>
     <property name="currentIndex">
-     <number>2</number>
+     <number>1</number>
     </property>
     <property name="iconSize">
      <size>
@@ -111,7 +111,7 @@ QTabBar::tab:selected {
       </property>
       <property name="icon">
        <iconset>
-        <normaloff>video_file.png</normaloff>video_file.png</iconset>
+        <normaloff>video_file_.png</normaloff>video_file_.png</iconset>
       </property>
       <property name="iconSize">
        <size>
@@ -151,7 +151,7 @@ QTabBar::tab:selected {
       </property>
       <property name="icon">
        <iconset>
-        <normaloff>video_camera.png</normaloff>video_camera.png</iconset>
+        <normaloff>video_camera_.png</normaloff>video_camera_.png</iconset>
       </property>
       <property name="iconSize">
        <size>
@@ -551,7 +551,7 @@ QTabBar::tab:selected {
       </property>
       <property name="icon">
        <iconset>
-        <normaloff>select_file.png</normaloff>select_file.png</iconset>
+        <normaloff>select_file_.png</normaloff>select_file_.png</iconset>
       </property>
       <property name="iconSize">
        <size>

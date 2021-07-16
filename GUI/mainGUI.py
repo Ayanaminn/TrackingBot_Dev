@@ -67,7 +67,7 @@ class Ui_MainWindow(object):
         font.setStyleStrategy(QtGui.QFont.PreferDefault)
         self.localModeButton.setFont(font)
         icon = QtGui.QIcon()
-        icon.addPixmap(QtGui.QPixmap("video_file.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon.addPixmap(QtGui.QPixmap("video_file_.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.localModeButton.setIcon(icon)
         self.localModeButton.setIconSize(QtCore.QSize(60, 60))
         self.localModeButton.setToolButtonStyle(QtCore.Qt.ToolButtonTextUnderIcon)
@@ -82,7 +82,7 @@ class Ui_MainWindow(object):
         font.setWeight(75)
         self.liveModeButton.setFont(font)
         icon1 = QtGui.QIcon()
-        icon1.addPixmap(QtGui.QPixmap("video_camera.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon1.addPixmap(QtGui.QPixmap("video_camera_.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.liveModeButton.setIcon(icon1)
         self.liveModeButton.setIconSize(QtCore.QSize(65, 65))
         self.liveModeButton.setToolButtonStyle(QtCore.Qt.ToolButtonTextUnderIcon)
@@ -234,7 +234,7 @@ class Ui_MainWindow(object):
         font.setPointSize(16)
         self.loadVidButton.setFont(font)
         icon2 = QtGui.QIcon()
-        icon2.addPixmap(QtGui.QPixmap("select_file.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
+        icon2.addPixmap(QtGui.QPixmap("select_file_.png"), QtGui.QIcon.Normal, QtGui.QIcon.Off)
         self.loadVidButton.setIcon(icon2)
         self.loadVidButton.setIconSize(QtCore.QSize(100, 100))
         self.loadVidButton.setToolButtonStyle(QtCore.Qt.ToolButtonTextUnderIcon)
@@ -1156,7 +1156,7 @@ class Ui_MainWindow(object):
         self.menubar.addAction(self.menuHelp.menuAction())
 
         self.retranslateUi(MainWindow)
-        self.tabWidget.setCurrentIndex(2)
+        self.tabWidget.setCurrentIndex(1)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):
