@@ -162,8 +162,11 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.resetScaleButton.clicked.connect(self.clearScale)
         self.applyScaleButton.clicked.connect(self.convertScale)
         self.threTabLinkButton.clicked.connect(self.enableThreshold)
-        ###############################################
-        # signal on tab 3
+
+        ############################################################################
+        # signals and widgets for threshold section
+        ############################################################################
+
         self.mask_file = ''
         # self.mask_image = '' # cv2 read image
         self.binary_mask = ''
@@ -870,7 +873,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.caliBoxCanvasLabel.raise_()
 
     def clearScale(self):
-        self.caliBoxCanvasLabel.erase()
+        self.caliBoxCanvasLabel.scene.erase()
         self.metricNumInput.clear()
         self.drawScaleButton.setEnabled(True)
         self.caliBoxCanvasLabel.setEnabled(True)
@@ -881,10 +884,10 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # scale, metric = self.run()
         try:
             metric = int(self.metricNumInput.text())
-            # print(f'metric is {metric}')
+            print(f'metric is {metric}')
             if (metric >= 1 and metric <= 1000):
-                scale = self.caliBoxCanvasLabel.lines[0]
-                # print(f'scale is {scale}')
+                scale = self.caliBoxCanvasLabel.scene.lines[0].line()
+                print(f'scale is {scale}')
                 pixel_length = distance.euclidean((scale.x1(), scale.y1()),(scale.x2(), scale.y2()))
 
                 self.pixel_per_metric = round(pixel_length, 2) / metric
