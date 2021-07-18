@@ -165,6 +165,17 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.applyScaleButton.clicked.connect(self.applyScale)
         self.threTabLinkButton.clicked.connect(self.enableThreshold)
 
+        ##########################################################################
+        # signals and widgets for define ROI section
+        ###########################################################################
+        # add a canvas for drawing
+        self.roiCanvas = Graphic.DefineROI(self.caliTab)
+        self.setRectButton.clicked.connect(self.setRectROI)
+        self.setCircButton.clicked.connect(self.setCircROI)
+        # self.setLineButton
+        # self.setPolyButton
+        self.applyROIButton.clicked.connect(self.applyROI)
+
         ############################################################################
         # signals and widgets for threshold section
         ############################################################################
@@ -334,9 +345,9 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.drawRectButton.clicked.connect(self.drawRectROI)
         self.drawCircButton.clicked.connect(self.drawCircROI)
 
-        self.applyROIButton.clicked.connect(self.applyROI)
+        self.applyCamROIButton.clicked.connect(self.applyCamROI)
 
-        self.resetROIButton.clicked.connect(self.clearControlROI)
+        self.resetCamROIButton.clicked.connect(self.clearControlROI)
 
         self.actionAbout.triggered.connect(self.test)
 
@@ -813,8 +824,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.openCamButton.show()
         self.closeCamButton.setEnabled(False)
         self.drawLineButton.setEnabled(False)
-        self.applyROIButton.setEnabled(False)
-        self.resetROIButton.setEnabled(False)
+        self.applyCamROIButton.setEnabled(False)
+        self.resetCamROIButton.setEnabled(False)
         self.camBoxCanvasLabel.setEnabled(False)
         self.camBoxCanvasLabel.lower()
         self.camPreviewBoxLabel.hide()
@@ -833,7 +844,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
 
     #############################################################################################
-    # Functions for pixel calibaration
+    # Functions for pixel calibration
     #############################################################################################
 
     def enableCalibration(self):
@@ -884,6 +895,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.threTabLinkButton.setEnabled(False)
 
         print(self.pixel_per_metric)
+
     def convertScale(self):
         # scale, metric = self.run()
         self.drawScaleButton.setEnabled(False)
@@ -922,9 +934,93 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         self.drawScaleButton.setEnabled(False)
         self.scaleCanvas.setEnabled(False)
+        self.scaleCanvas.scene.erase()
         self.threTabLinkButton.setEnabled(True)
 
         print(self.pixel_per_metric)
+
+        # self.setLineButton.setEnabled(True)
+        self.setRectButton.setEnabled(True)
+        self.setCircButton.setEnabled(True)
+        # self.setPolyButton.setEnabled(True)
+
+    #############################################################################################
+    # Functions for set ROI
+    #############################################################################################
+
+    def setLineROI(self):
+        pass
+
+    def setRectROI(self):
+
+        self.roiCanvas.setEnabled(True)
+        self.applyROIButton.setEnabled(True)
+        self.resetROIButton.setEnabled(True)
+
+        # highlight the line button and gray the rest
+        # self.setLineButton.setStyleSheet("QPushButton"
+        #                                  "{"
+        #                                  "background-color : QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #ffa02f, stop: 1 #d7801a);"
+        #                                  "}"
+        #                                  )
+        self.setRectButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "background-color : QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #ffa02f, stop: 1 #d7801a);"
+                                         "max-width: 30px;"
+                                         "min-width: 20px;"
+                                         "}"
+                                         )
+        self.setCircButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "max-width: 30px;"
+                                         "min-width: 20px;"
+                                         "}"
+                                         )
+
+        self.roiCanvas.raise_()
+        self.roiCanvas.scene.drawRect()
+
+    def setCircROI(self):
+
+        self.roiCanvas.setEnabled(True)
+        self.applyROIButton.setEnabled(True)
+        self.resetROIButton.setEnabled(True)
+
+        # Highlight circ button and gray the rest
+        self.setCircButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "background-color : QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #ffa02f, stop: 1 #d7801a);"
+                                         "max-width: 30px;"
+                                         "min-width: 20px;"
+                                         "}"
+                                         )
+        self.setLineButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "max-width: 30px;"
+                                         "min-width: 20px;"
+                                         "}"
+                                         )
+        self.setRectButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "max-width: 30px;"
+                                         "min-width: 20px;"
+                                         "}"
+                                         )
+
+        self.roiCanvas.raise_()
+        self.roiCanvas.scene.drawCirc()
+
+    def setPolyROI(self):
+        pass
+
+    def applyROI(self):
+        new_rect= self.roiCanvas.scene.zones[0].mapFromScene(self.roiCanvas.scene.zones[0].rect())
+        print(self.roiCanvas.scene.zones[0].rect())
+        print(new_rect.boundingRect())
+
     #####################################Functions for threshold##########################
 
     def enableThreshold(self):
@@ -1911,8 +2007,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
     def drawLineROI(self):
         # self.caliBoxLabel.setEnabled(True)
         self.camBoxCanvasLabel.setEnabled(True)
-        self.applyROIButton.setEnabled(True)
-        self.resetROIButton.setEnabled(True)
+        self.applyCamROIButton.setEnabled(True)
+        self.resetCamROIButton.setEnabled(True)
 
         # highlight the line button and gray the rest
         self.drawLineButton.setStyleSheet("QPushButton"
@@ -1939,8 +2035,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         set rectangle flag to true to draw circle shape
         '''
         self.camBoxCanvasLabel.setEnabled(True)
-        self.applyROIButton.setEnabled(True)
-        self.resetROIButton.setEnabled(True)
+        self.applyCamROIButton.setEnabled(True)
+        self.resetCamROIButton.setEnabled(True)
         # highlight the rect button and gray the rest
         self.drawRectButton.setStyleSheet("QPushButton"
                                           "{"
@@ -1966,8 +2062,8 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         set circle flag to true to draw circle shape
         '''
         self.camBoxCanvasLabel.setEnabled(True)
-        self.applyROIButton.setEnabled(True)
-        self.resetROIButton.setEnabled(True)
+        self.applyCamROIButton.setEnabled(True)
+        self.resetCamROIButton.setEnabled(True)
 
         # Highlight circ button and gray the rest
         self.drawCircButton.setStyleSheet("QPushButton"
@@ -1990,7 +2086,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.camBoxCanvasLabel.drawCirc()
 
 
-    def applyROI(self):
+    def applyCamROI(self):
 
         # print(self.camBoxCanvasLabel.zones[0].contains(100, 100))
         self.trackingCamThread.zones = self.camBoxCanvasLabel.zones
@@ -1998,7 +2094,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         print(self.controllerThread.zones)
 
-        self.applyROIButton.setEnabled(False)
+        self.applyCamROIButton.setEnabled(False)
         self.drawLineButton.setEnabled(False)
         self.drawRectButton.setEnabled(False)
         self.drawCircButton.setEnabled(False)
@@ -2025,7 +2121,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
 
         # self.trackingCamThread.ROI_coordinate = None
         # self.controllerThread.ROI_coordinate = None
-        self.applyROIButton.setEnabled(False)
+        self.applyCamROIButton.setEnabled(False)
         self.drawLineButton.setEnabled(True)
         self.drawRectButton.setEnabled(True)
         self.drawCircButton.setEnabled(True)

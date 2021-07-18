@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1311</width>
+    <width>1360</width>
     <height>864</height>
    </rect>
   </property>
@@ -41,6 +41,9 @@
     </property>
     <property name="whatsThis">
      <string/>
+    </property>
+    <property name="autoFillBackground">
+     <bool>false</bool>
     </property>
     <property name="styleSheet">
      <string notr="true">QTabWidget::pane {
@@ -792,6 +795,199 @@ QTabBar::tab:selected {
        <string>Detection settings</string>
       </property>
      </widget>
+     <widget class="QLabel" name="threTabText15">
+      <property name="geometry">
+       <rect>
+        <x>1030</x>
+        <y>220</y>
+        <width>171</width>
+        <height>51</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>12</pointsize>
+        <weight>75</weight>
+        <bold>true</bold>
+       </font>
+      </property>
+      <property name="text">
+       <string>ROI settings</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="setLineButton">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>1050</x>
+        <y>280</y>
+        <width>26</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true"/>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="flat">
+       <bool>false</bool>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="setRectButton">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>1110</x>
+        <y>280</y>
+        <width>30</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="flat">
+       <bool>false</bool>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="setCircButton">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>1170</x>
+        <y>280</y>
+        <width>30</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="flat">
+       <bool>false</bool>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="setPolyButton">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>1230</x>
+        <y>280</y>
+        <width>30</width>
+        <height>30</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string/>
+      </property>
+      <property name="default">
+       <bool>false</bool>
+      </property>
+      <property name="flat">
+       <bool>false</bool>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="resetROIButton">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>1090</x>
+        <y>340</y>
+        <width>89</width>
+        <height>39</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string>Reset</string>
+      </property>
+     </widget>
+     <widget class="QPushButton" name="applyROIButton">
+      <property name="enabled">
+       <bool>false</bool>
+      </property>
+      <property name="geometry">
+       <rect>
+        <x>1200</x>
+        <y>340</y>
+        <width>89</width>
+        <height>39</height>
+       </rect>
+      </property>
+      <property name="font">
+       <font>
+        <pointsize>10</pointsize>
+       </font>
+      </property>
+      <property name="text">
+       <string>Apply</string>
+      </property>
+     </widget>
+     <widget class="QFrame" name="frame">
+      <property name="geometry">
+       <rect>
+        <x>1030</x>
+        <y>261</y>
+        <width>276</width>
+        <height>311</height>
+       </rect>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Box</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Sunken</enum>
+      </property>
+     </widget>
+     <widget class="QFrame" name="frame_2">
+      <property name="geometry">
+       <rect>
+        <x>1029</x>
+        <y>30</y>
+        <width>276</width>
+        <height>201</height>
+       </rect>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::Box</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Sunken</enum>
+      </property>
+     </widget>
+     <zorder>frame_2</zorder>
+     <zorder>frame</zorder>
+     <zorder>caliBoxLabel</zorder>
+     <zorder>horizontalLayoutWidget_2</zorder>
+     <zorder>applyScaleButton</zorder>
+     <zorder>threTabLinkButton</zorder>
+     <zorder>backToLoadButton</zorder>
+     <zorder>caliTabText2</zorder>
+     <zorder>caliResult</zorder>
+     <zorder>threTabText14</zorder>
+     <zorder>threTabText15</zorder>
+     <zorder>setLineButton</zorder>
+     <zorder>setRectButton</zorder>
+     <zorder>setCircButton</zorder>
+     <zorder>setPolyButton</zorder>
+     <zorder>resetROIButton</zorder>
+     <zorder>applyROIButton</zorder>
     </widget>
     <widget class="QWidget" name="threTab">
      <attribute name="title">
@@ -2598,7 +2794,7 @@ QTabBar::tab:selected {
         <string/>
        </property>
       </widget>
-      <widget class="QPushButton" name="resetROIButton">
+      <widget class="QPushButton" name="resetCamROIButton">
        <property name="enabled">
         <bool>false</bool>
        </property>
@@ -2679,7 +2875,7 @@ QTabBar::tab:selected {
         <string/>
        </property>
       </widget>
-      <widget class="QPushButton" name="applyROIButton">
+      <widget class="QPushButton" name="applyCamROIButton">
        <property name="enabled">
         <bool>false</bool>
        </property>
@@ -2745,7 +2941,7 @@ QTabBar::tab:selected {
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1311</width>
+     <width>1360</width>
      <height>21</height>
     </rect>
    </property>
