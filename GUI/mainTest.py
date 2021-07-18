@@ -155,12 +155,14 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         ###########################################################################
 
         # add a canvas for drawing
-        self.caliBoxCanvasLabel = Graphic.Calibration(self.caliTab)
+        self.scaleCanvas = Graphic.Calibration(self.caliTab)
+        self.scaleCanvas.scene.inputDialog.scale.get_scale[str].connect(self.convertScale)
+        self.scaleCanvas.scene.inputDialog.scale.reset_scale[str].connect(self.resetScale)
         # init pixel unit convert ratio
         self.pixel_per_metric = 1
         self.drawScaleButton.clicked.connect(self.drawScale)
-        self.resetScaleButton.clicked.connect(self.clearScale)
-        self.applyScaleButton.clicked.connect(self.convertScale)
+        self.resetScaleButton.clicked.connect(self.resetScale)
+        self.applyScaleButton.clicked.connect(self.applyScale)
         self.threTabLinkButton.clicked.connect(self.enableThreshold)
 
         ############################################################################
@@ -853,40 +855,47 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.resetVideo()
         self.tabWidget.setTabEnabled(2, False)
         self.tabWidget.setCurrentIndex(1)
-        self.clearScale()
+        self.resetScale()
         self.caliBoxLabel.setEnabled(False)
-        self.caliBoxCanvasLabel.setEnabled(False)
+        self.scaleCanvas.setEnabled(False)
         self.metricNumInput.setEnabled(False)
         self.resetScaleButton.setEnabled(False)
         self.applyScaleButton.setEnabled(False)
-        self.caliBoxCanvasLabel.lower()
+        self.scaleCanvas.lower()
 
     def drawScale(self):
         '''
         enable canvas label for mouse and paint event
         '''
         self.caliBoxLabel.setEnabled(True)
-        self.caliBoxCanvasLabel.setEnabled(True)
-        self.metricNumInput.setEnabled(True)
+        self.scaleCanvas.setEnabled(True)
         self.resetScaleButton.setEnabled(True)
         self.applyScaleButton.setEnabled(True)
-        self.caliBoxCanvasLabel.raise_()
+        self.scaleCanvas.raise_()
 
-    def clearScale(self):
-        self.caliBoxCanvasLabel.scene.erase()
-        self.metricNumInput.clear()
+    def resetScale(self):
+        self.scaleCanvas.scene.erase()
+        self.pixel_per_metric = 1
+        self.caliResult.clear()
         self.drawScaleButton.setEnabled(True)
-        self.caliBoxCanvasLabel.setEnabled(True)
-        self.metricNumInput.setEnabled(True)
+        self.scaleCanvas.setEnabled(True)
+        self.resetScaleButton.setEnabled(False)
+        self.applyScaleButton.setEnabled(False)
         self.threTabLinkButton.setEnabled(False)
 
+        print(self.pixel_per_metric)
     def convertScale(self):
         # scale, metric = self.run()
+        self.drawScaleButton.setEnabled(False)
+        self.scaleCanvas.setEnabled(False)
+        self.resetScaleButton.setEnabled(True)
+        self.applyScaleButton.setEnabled(True)
         try:
-            metric = int(self.metricNumInput.text())
+            # metric = int(self.metricNumInput.text())
+            metric = int(self.scaleCanvas.scene.inputDialog.scale_value)
             print(f'metric is {metric}')
             if (metric >= 1 and metric <= 1000):
-                scale = self.caliBoxCanvasLabel.scene.lines[0].line()
+                scale = self.scaleCanvas.scene.lines[0].line()
                 print(f'scale is {scale}')
                 pixel_length = distance.euclidean((scale.x1(), scale.y1()),(scale.x2(), scale.y2()))
 
@@ -894,12 +903,6 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                 # print(f'pixel_per_metric{self.pixel_per_metric}')
                 self.caliResult.setText(str(self.pixel_per_metric))
 
-
-                self.drawScaleButton.setEnabled(False)
-                self.caliBoxCanvasLabel.setEnabled(False)
-                self.metricNumInput.setEnabled(False)
-
-                self.threTabLinkButton.setEnabled(True)
             else:
                 self.error_msg = QMessageBox()
                 self.error_msg.setWindowTitle('Error')
@@ -907,6 +910,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
                 self.error_msg.setInformativeText('Input can only be numbers between 1 to 1000.')
                 self.error_msg.setIcon(QMessageBox.Warning)
                 self.error_msg.exec()
+
         except Exception:
             self.error_msg = QMessageBox()
             self.error_msg.setWindowTitle('Error')
@@ -914,6 +918,13 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
             self.error_msg.setIcon(QMessageBox.Warning)
             self.error_msg.exec()
 
+    def applyScale(self):
+
+        self.drawScaleButton.setEnabled(False)
+        self.scaleCanvas.setEnabled(False)
+        self.threTabLinkButton.setEnabled(True)
+
+        print(self.pixel_per_metric)
     #####################################Functions for threshold##########################
 
     def enableThreshold(self):

@@ -4,9 +4,10 @@
 ####################################################################################
 
 from PyQt5 import QtCore, QtGui, QtWidgets
-from PyQt5.QtWidgets import QLabel,QGraphicsScene,QGraphicsView,QGraphicsLineItem
+from PyQt5.QtWidgets import QLabel,QInputDialog,QGraphicsScene,QGraphicsView,QGraphicsLineItem,\
+    QFormLayout,QLineEdit,QPushButton
 from PyQt5.QtGui import QPainter, QPen
-from PyQt5.QtCore import Qt,QPoint, QLine, QRect,QPointF,QLineF
+from PyQt5.QtCore import Qt,QPoint, QLine, QRect,QPointF,QLineF,pyqtSignal,QObject
 import math
 
 
@@ -234,7 +235,7 @@ class Calibration(QGraphicsView):
         self.setEnabled(False)
         self.lower()
         self.setGeometry(QtCore.QRect(0, 0, 1024, 576))
-        self.scene = GraphicsScene()
+        self.scene = CalibrationScene()
         self.setScene(self.scene)
         self.setAlignment(Qt.AlignTop)
         self.setAlignment(Qt.AlignLeft)
@@ -245,12 +246,13 @@ class Calibration(QGraphicsView):
         self.setSceneRect(0, 0, rcontent.width(), rcontent.height())
 
 
-class GraphicsScene(QGraphicsScene):
+class CalibrationScene(QGraphicsScene):
 
     def __init__(self, parent=None):
         QGraphicsScene.__init__(self, parent)
         # self.setSceneRect(0, 0, 450, 250)
 
+        self.inputDialog = ScaleInput()
         self.erase_flag = False
 
         self.begin = QPointF()
@@ -261,6 +263,8 @@ class GraphicsScene(QGraphicsScene):
         self.arrow = None
 
         self.lines = []
+
+
 
     # Mouse click event
     def mousePressEvent(self, event):
@@ -334,6 +338,8 @@ class GraphicsScene(QGraphicsScene):
         self.update()
         super().mouseReleaseEvent(event)
 
+        self.inputDialog.getValue()
+        # self.inputDialog.show()
 
     def erase(self):
         self.erase_flag = True
@@ -419,3 +425,35 @@ class ArrowPath(QtWidgets.QGraphicsPathItem):
 
         if triangle_source is not None:
             painter.drawPolyline(triangle_source)
+
+
+class ScaleInput(QInputDialog):
+    def __init__(self,parent = None):
+        QInputDialog.__init__(self,parent)
+
+        self.scale = Communicate()
+        self.get_scale = pyqtSignal(str)
+        self.scale_value = 1
+        # layout = QFormLayout()
+        # self.le = QLineEdit()
+        # self.btn = QPushButton("OK")
+        # layout.addRow(self.btn, self.le)
+        # self.setLayout(layout)
+
+    def getValue(self):
+        # self.setCancelButtonText('not ok')
+        num,ok = self.getInt(self,'Input Scale',
+                             'Enter actual scale (mm):',1,1,1001,flags=Qt.WindowSystemMenuHint)
+
+        if num and ok: # accept and pass the value
+            self.scale_value = num
+            self.scale.get_scale.emit('1')
+
+        else: # cancel and reset
+            self.scale_value = 1
+            self.scale.reset_scale.emit('1')
+
+
+class Communicate(QObject):
+    get_scale = pyqtSignal(str)
+    reset_scale = pyqtSignal(str)
