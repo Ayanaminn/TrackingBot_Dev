@@ -1017,9 +1017,13 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         pass
 
     def applyROI(self):
-        new_rect= self.roiCanvas.scene.zones[0].mapFromScene(self.roiCanvas.scene.zones[0].rect())
-        print(self.roiCanvas.scene.zones[0].rect())
-        print(new_rect.boundingRect())
+        pass
+        # new_rect= self.roiCanvas.scene.zones[0].mapFromScene(self.roiCanvas.scene.zones[0].rect())
+        # print(self.roiCanvas.scene.ROIs[0].roi_index)
+        # for i in range(len(self.roiCanvas.scene.ROIs)):
+        #     print(self.roiCanvas.scene.ROIs[i].ROI,self.roiCanvas.scene.ROIs[i].roi_index)
+        # print(self.roiCanvas.scene.items().rect())
+        # print(new_rect.boundingRect())
 
     #####################################Functions for threshold##########################
 

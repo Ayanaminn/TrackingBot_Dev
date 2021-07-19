@@ -469,6 +469,9 @@ class DefineROI(QGraphicsView):
         self.setSceneRect(0, 0, rcontent.width(), rcontent.height())
 
 
+
+
+
 class ROIScene(QGraphicsScene):
 
     def __init__(self, parent=None):
@@ -494,6 +497,8 @@ class ROIScene(QGraphicsScene):
         # list for all shapes for global indexing
         # QGraphicsEllipseItem and QGraphicRectItem both return rect() or rectF()
         self.zones = []
+        self.ROIs = []
+        self.ROI_index = 1
 
 # Mouse click event
     def mousePressEvent(self, event):
@@ -599,16 +604,31 @@ class ROIScene(QGraphicsScene):
 
         elif self.rect_flag:
 
+            # self.final_rect = self.new_rect
+            # final_coords = self.final_rect.rect()
             self.rectangles.append(self.new_rect)
-            self.zones.append(self.new_rect)
-
-            # when use GraphicItem paint to overwrite
-            # self.new_rect.index = self.zones.index(self.new_rect)
+            # self.zones.append(self.final_rect)
+            print(f'before move {self.rectangles[0].rect().getCoords()}')
+            # if self.final_rect is not None: # transform operations on item
+            #
+            #     # Return QPolygonF
+            #     new_coords = self.mapToScene(self.final_rect.rect())
+            #
+            #     # roi = ROI(self.new_rect.rect().getCoords(),self.ROI_index)
+            #     # self.ROIs.append(roi)
+            #     self.final_rect.index = self.ROI_index
+            #     self.ROI_index += 1
+            #     # when use GraphicItem paint to overwrite
+            #     # self.new_rect.index = self.zones.index(self.new_rect)
 
         elif self.circ_flag:
 
             self.circles.append(self.new_circ)
             self.zones.append(self.new_circ)
+
+            roi = ROI(self.new_circ,self.ROI_index)
+            self.ROIs.append(roi)
+            self.ROI_index += 1
 
         # reset
         self.begin = self.end = QPointF()
@@ -653,6 +673,10 @@ class ROIScene(QGraphicsScene):
 
 class RectItem(QGraphicsRectItem):
 
+    # QRect (left , top , width, height)
+    # Use getCoords() if want pos coords of topleft and bottomright
+    # Use contains(
+
     def __init__(self):
         QGraphicsRectItem.__init__(self)
         # self.painter = QPainter()
@@ -668,12 +692,31 @@ class RectItem(QGraphicsRectItem):
         pass
 
     def mousePressEvent(self, event):
-        pass
+        print(f'rect item index{self.index}')
         # self.setCursor(Qt.ClosedHandCursor)
 
     def mouseReleaseEvent(self, event):
+
+        # Return QPolygonF
+        new_coords = self.mapToScene(self.rect())
+
+        if self.rect() is not None: # transform operations on item
+            if self.rect() != new_coords.boundingRect():
+                self.prepareGeometryChange()
+                self.rect().setCoords(new_coords.boundingRect().getCoords())
+
         self.update()
-        print(self.rect())
+        # print(f'after move {self.rect().getCoords()}')
+
+        # roi = ROI(self.rect().getCoords(), ROIScene().ROI_index)
+        # ROIScene().ROIs.append(roi)
+        # ROIScene().ROI_index += 1
+
+        # Return QPolygonF
+        # rs = self.mapToScene(self.rect())
+        print(f'after move {self.rect().getCoords()}')
+        # print(f'after move to parent {rs}')
+        # print(f'after move to SCENE {rs.boundingRect().getCoords()}')
         super().mouseReleaseEvent(event)
 
         # self.setCursor(Qt.ClosedHandCursor)
@@ -709,3 +752,10 @@ class EllipseItem(QGraphicsEllipseItem):
         self.update()
         super().mouseReleaseEvent(event)
         # self.setCursor(Qt.ClosedHandCursor)
+
+
+class ROI(object):
+
+    def __init__(self, ROI, index):
+        self.ROI = ROI
+        self.roi_index = index
