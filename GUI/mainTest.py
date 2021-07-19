@@ -1,6 +1,6 @@
 from PyQt5 import QtCore, QtGui, QtWidgets, uic
 from PyQt5.QtWidgets import QFileDialog, QMessageBox, QStyle,\
-    QVBoxLayout, QLabel, QWidget, QHBoxLayout, QPushButton,QSplashScreen
+    QVBoxLayout, QLabel, QWidget, QHBoxLayout, QPushButton,QSplashScreen,QGraphicsItem
 from PyQt5.QtGui import QImage, QPixmap, QPainter, QPen, QPixmapCache
 from PyQt5.QtCore import pyqtSignal, pyqtSlot, Qt, QThread, QObject, QMutex, QMutexLocker, QRect, QPoint
 from qtwidgets import Toggle, AnimatedToggle
@@ -175,6 +175,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         # self.setLineButton
         # self.setPolyButton
         self.applyROIButton.clicked.connect(self.applyROI)
+        self.resetROIButton.clicked.connect(self.resetROI)
 
         ############################################################################
         # signals and widgets for threshold section
@@ -937,7 +938,7 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         self.scaleCanvas.scene.erase()
         self.threTabLinkButton.setEnabled(True)
 
-        print(self.pixel_per_metric)
+        # print(self.pixel_per_metric)
 
         # self.setLineButton.setEnabled(True)
         self.setRectButton.setEnabled(True)
@@ -1017,13 +1018,70 @@ class MainWindow(QtWidgets.QMainWindow, mainGUI.Ui_MainWindow):
         pass
 
     def applyROI(self):
-        pass
-        # new_rect= self.roiCanvas.scene.zones[0].mapFromScene(self.roiCanvas.scene.zones[0].rect())
-        # print(self.roiCanvas.scene.ROIs[0].roi_index)
+        # Need a indicator
+        # and need to leave roi on image
+
+        #current_roi_index =
+
+        raw_roi = self.roiCanvas.scene.ROIs[0].ROI #QGraphicsItem
+        raw_roi_rect = self.roiCanvas.scene.ROIs[0].ROI.rect() #QRectF
+        valid_roi_rect = raw_roi.mapRectToScene(raw_roi_rect) #QRect
+        valid_roi_coords = valid_roi_rect.getCoords() #tuple
+        # need store as global instance
+
+        print(f' valid roi {valid_roi_coords}')
         # for i in range(len(self.roiCanvas.scene.ROIs)):
         #     print(self.roiCanvas.scene.ROIs[i].ROI,self.roiCanvas.scene.ROIs[i].roi_index)
-        # print(self.roiCanvas.scene.items().rect())
-        # print(new_rect.boundingRect())
+
+        self.roiCanvas.setEnabled(False)
+        self.applyROIButton.setEnabled(False)
+        # self.setLineButton.setEnabled(False)
+        self.setRectButton.setEnabled(False)
+        self.setRectButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "max-width: 30px;"
+                                         "min-width: 20px;"
+                                         "}"
+                                         )
+        self.setCircButton.setEnabled(False)
+        self.setCircButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "max-width: 30px;"
+                                         "min-width: 20px;"
+                                         "}"
+                                         )
+        # self.setPolyButton.setEnabled(False)
+
+
+    def resetROI(self):
+        # reset ROI object list
+        # reset ROI index
+        # reset all graphics item index
+
+        self.roiCanvas.scene.erase()
+        self.roiCanvas.setEnabled(True)
+
+        self.applyROIButton.setEnabled(False)
+        # self.setLineButton.setEnabled(True)
+        self.setRectButton.setEnabled(True)
+        self.setRectButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "max-width: 30px;"
+                                         "min-width: 20px;"
+                                         "}"
+                                         )
+        self.setCircButton.setEnabled(True)
+        self.setCircButton.setStyleSheet("QPushButton"
+                                         "{"
+                                         "QLinearGradient( x1: 0, y1: 0, x2: 0, y2: 1, stop: 0 #565656, stop: 0.1 #525252, stop: 0.5 #4e4e4e, stop: 0.9 #4a4a4a, stop: 1 #464646);"
+                                         "max-width: 30px;"
+                                         "min-width: 20px;"
+                                         "}"
+                                         )
+        # self.setPolyButton.setEnabled(True)
 
     #####################################Functions for threshold##########################
 

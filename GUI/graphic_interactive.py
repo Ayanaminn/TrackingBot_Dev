@@ -491,16 +491,13 @@ class ROIScene(QGraphicsScene):
         self.new_rect = None
         self.new_circ = None
 
-        self.lines = []
-        self.rectangles = []
-        self.circles = []
         # list for all shapes for global indexing
         # QGraphicsEllipseItem and QGraphicRectItem both return rect() or rectF()
-        self.zones = []
+
         self.ROIs = []
         self.ROI_index = 1
 
-# Mouse click event
+    # Mouse click event
     def mousePressEvent(self, event):
 
         print(self.new_rect)
@@ -515,10 +512,7 @@ class ROIScene(QGraphicsScene):
 
             # only allow one shape
             self.clear()
-            self.lines.clear()
-            self.rectangles.clear()
-            self.circles.clear()
-            self.zones.clear()
+            self.ROIs.clear()
 
             # this is scene coordinate
             self.begin = self.end = event.scenePos()
@@ -597,38 +591,43 @@ class ROIScene(QGraphicsScene):
 
         if self.line_flag:
 
-            self.lines.append(self.new_line)
+            # self.lines.append(self.new_line)
             # Returns the item’s line, or a null line if no line has been set.
             # print(self.lines)
-            print(self.lines[0].line().x2())
+            # print(self.lines[0].line().x2())
+            if self.new_line is not None:
+                # new item, else if is none means
+                # transform operations applied on item
+
+                self.new_line.index = self.ROI_index
+                roi = ROI(self.new_line,self.ROI_index)
+                self.ROIs.append(roi)
+                self.ROI_index += 1
 
         elif self.rect_flag:
 
-            # self.final_rect = self.new_rect
-            # final_coords = self.final_rect.rect()
-            self.rectangles.append(self.new_rect)
-            # self.zones.append(self.final_rect)
-            print(f'before move {self.rectangles[0].rect().getCoords()}')
-            # if self.final_rect is not None: # transform operations on item
-            #
-            #     # Return QPolygonF
-            #     new_coords = self.mapToScene(self.final_rect.rect())
-            #
-            #     # roi = ROI(self.new_rect.rect().getCoords(),self.ROI_index)
-            #     # self.ROIs.append(roi)
-            #     self.final_rect.index = self.ROI_index
-            #     self.ROI_index += 1
-            #     # when use GraphicItem paint to overwrite
-            #     # self.new_rect.index = self.zones.index(self.new_rect)
+            # print(f'before move {self.rectangles[0].rect().getCoords()}')
+            if self.new_rect is not None:
+                # new item, else if is none means
+                # transform operations applied on item
+
+                self.new_rect.index = self.ROI_index
+                roi = ROI(self.new_rect,self.ROI_index)
+                self.ROIs.append(roi)
+                self.ROI_index += 1
+                # when use GraphicItem paint to overwrite
+                # self.new_rect.index = self.zones.index(self.new_rect)
 
         elif self.circ_flag:
 
-            self.circles.append(self.new_circ)
-            self.zones.append(self.new_circ)
+            if self.new_circ is not None:
+                # new item, else if is none means
+                # transform operations applied on item
 
-            roi = ROI(self.new_circ,self.ROI_index)
-            self.ROIs.append(roi)
-            self.ROI_index += 1
+                self.new_circ.index = self.ROI_index
+                roi = ROI(self.new_circ,self.ROI_index)
+                self.ROIs.append(roi)
+                self.ROI_index += 1
 
         # reset
         self.begin = self.end = QPointF()
@@ -638,7 +637,7 @@ class ROIScene(QGraphicsScene):
 
         self.update()
         super().mouseReleaseEvent(event)
-
+        print(self.ROIs)
         # return item geometry as a QRectF()
         # print(self.zones[0].rect())
 
@@ -648,10 +647,9 @@ class ROIScene(QGraphicsScene):
         self.line_flag = False
         self.rect_flag = False
         self.circ_flag = False
-        self.lines.clear()
-        self.rectangles.clear()
-        self.circles.clear()
-        self.zones.clear()
+
+        self.ROIs.clear()
+        self.ROI_index = 1
         self.clear()
         self.update()
 
@@ -675,7 +673,7 @@ class RectItem(QGraphicsRectItem):
 
     # QRect (left , top , width, height)
     # Use getCoords() if want pos coords of topleft and bottomright
-    # Use contains(
+    # Use contains()
 
     def __init__(self):
         QGraphicsRectItem.__init__(self)
@@ -692,33 +690,13 @@ class RectItem(QGraphicsRectItem):
         pass
 
     def mousePressEvent(self, event):
-        print(f'rect item index{self.index}')
+        # pass
+        print(f'rect item index {self.index}')
         # self.setCursor(Qt.ClosedHandCursor)
 
     def mouseReleaseEvent(self, event):
-
-        # Return QPolygonF
-        new_coords = self.mapToScene(self.rect())
-
-        if self.rect() is not None: # transform operations on item
-            if self.rect() != new_coords.boundingRect():
-                self.prepareGeometryChange()
-                self.rect().setCoords(new_coords.boundingRect().getCoords())
-
         self.update()
-        # print(f'after move {self.rect().getCoords()}')
-
-        # roi = ROI(self.rect().getCoords(), ROIScene().ROI_index)
-        # ROIScene().ROIs.append(roi)
-        # ROIScene().ROI_index += 1
-
-        # Return QPolygonF
-        # rs = self.mapToScene(self.rect())
-        print(f'after move {self.rect().getCoords()}')
-        # print(f'after move to parent {rs}')
-        # print(f'after move to SCENE {rs.boundingRect().getCoords()}')
         super().mouseReleaseEvent(event)
-
         # self.setCursor(Qt.ClosedHandCursor)
 
     # overwrite addItem()
@@ -759,3 +737,5 @@ class ROI(object):
     def __init__(self, ROI, index):
         self.ROI = ROI
         self.roi_index = index
+        # use a type paramenter to index line/rec/circ....
+        # self.type
