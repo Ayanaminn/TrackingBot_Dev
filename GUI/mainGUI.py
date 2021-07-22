@@ -651,6 +651,7 @@ class Ui_MainWindow(object):
         self.previewBoxLabel.setGeometry(QtCore.QRect(704, 396, 320, 180))
         self.previewBoxLabel.setFrameShape(QtWidgets.QFrame.Box)
         self.previewBoxLabel.setText("")
+        self.previewBoxLabel.setAlignment(QtCore.Qt.AlignCenter)
         self.previewBoxLabel.setObjectName("previewBoxLabel")
         self.threTabText9 = QtWidgets.QLabel(self.threTab)
         self.threTabText9.setGeometry(QtCore.QRect(1030, 150, 121, 41))
@@ -1220,37 +1221,8 @@ class Ui_MainWindow(object):
         self.menuHelp.addAction(self.actionAbout)
         self.menubar.addAction(self.menuHelp.menuAction())
 
-        self.setLineButton.setIcon(QtGui.QIcon('line.png'))
-        self.setLineButton.setIconSize(QtCore.QSize(20,20))
-        self.setLineButton.setStyleSheet("QPushButton"
-                                         "{"
-                                         "max-width: 30px;"
-                                         "min-width: 20px;"
-                                         "}")
-        self.setRectButton.setIcon(QtGui.QIcon('rectangle.png'))
-        self.setRectButton.setIconSize(QtCore.QSize(21,21))
-        self.setRectButton.setStyleSheet("QPushButton"
-                                         "{"
-                                         "max-width: 30px;"
-                                         "min-width: 20px;"
-                                         "}")
-        self.setCircButton.setIcon(QtGui.QIcon('circle.png'))
-        self.setCircButton.setIconSize(QtCore.QSize(17,17))
-        self.setCircButton.setStyleSheet("QPushButton"
-                                         "{"
-                                         "max-width: 30px;"
-                                         "min-width: 20px;"
-                                         "}")
-        # self.setPolyButton.setIcon(QtGui.QIcon('circle.png'))
-        # self.setPolyButton.setIconSize(QtCore.QSize(17,17))
-        self.setPolyButton.setStyleSheet("QPushButton"
-                                         "{"
-                                         "max-width: 30px;"
-                                         "min-width: 20px;"
-                                         "}")
-
         self.retranslateUi(MainWindow)
-        self.tabWidget.setCurrentIndex(2)
+        self.tabWidget.setCurrentIndex(3)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
     def retranslateUi(self, MainWindow):

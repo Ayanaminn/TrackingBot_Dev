@@ -548,7 +548,6 @@ class ROIScene(QGraphicsScene):
         # and pass the QMouseEvent instance to the original handler
         # that is, passing all other button clicks
         super().mousePressEvent(event)
-        print(self.begin, self.end)
 
 
     def mouseMoveEvent(self, event):
@@ -586,8 +585,8 @@ class ROIScene(QGraphicsScene):
 
 
     def mouseReleaseEvent(self, event):
-        print(f'end pos{self.begin, self.end}')
 
+        # print(f'end pos{self.begin, self.end}')
 
         if self.line_flag:
 
@@ -638,8 +637,6 @@ class ROIScene(QGraphicsScene):
         self.update()
         super().mouseReleaseEvent(event)
         print(self.ROIs)
-        # return item geometry as a QRectF()
-        # print(self.zones[0].rect())
 
 
     def erase(self):
